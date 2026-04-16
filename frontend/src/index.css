@@ -1,0 +1,194 @@
+@import "tailwindcss";
+/* Tailwind v4 Vite plugin needs explicit @source for imports through aliases (@/) */
+@source "./App.tsx";
+@source "./components/navigation/TabNav.tsx";
+@source "./components/analytics/shared.tsx";
+@source "./components/DoseLogger.tsx";
+@source "./components/charts/*.tsx";
+@source "./pages/*.tsx";
+@source "./utils/*.ts";
+@source "./mocks/*.ts";
+@source "./types/*.ts";
+
+:root {
+  color-scheme: light;
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --background: #f4efe5;
+  --foreground: #11231e;
+  --muted: #48635a;
+  --border: rgba(17, 35, 30, 0.12);
+  --card: rgba(255, 252, 246, 0.8);
+  --card-strong: rgba(255, 252, 246, 0.96);
+  --accent: #0f766e;
+  --accent-soft: rgba(15, 118, 110, 0.12);
+  --warm: #d97706;
+  --rose: #b45309;
+  --shadow: 0 24px 60px rgba(27, 45, 39, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(15, 118, 110, 0.22), transparent 24%),
+    linear-gradient(180deg, #f7f3ec 0%, #f4efe5 45%, #efe8d8 100%);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--foreground);
+  background: transparent;
+  position: relative;
+}
+
+#root {
+  min-height: 100svh;
+  position: relative;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+code {
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 0.92em;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.45rem;
+  background: rgba(17, 35, 30, 0.08);
+}
+
+/* Typography helpers */
+.font-serif { font-family: 'Fraunces', ui-serif, serif; }
+.font-sans  { font-family: 'Manrope', ui-sans-serif, sans-serif; }
+
+/* Shell layout */
+.app-shell {
+  width: min(1220px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+/* Hero + Panel surfaces */
+.hero-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.75rem;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  padding: 2rem;
+}
+
+.hero-panel::after {
+  content: '';
+  position: absolute;
+  right: -3.5rem;
+  bottom: -3rem;
+  width: 13rem;
+  height: 13rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(15, 118, 110, 0.22), transparent 70%);
+  pointer-events: none;
+}
+
+.panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.75rem;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  padding: 1.45rem;
+}
+
+.panel-wide {
+  grid-column: span 2;
+  background:
+    linear-gradient(135deg, rgba(255, 252, 246, 0.96), rgba(224, 236, 230, 0.86)),
+    var(--card);
+}
+
+/* Eyebrow/kicker labels */
+.eyebrow, .panel-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 252, 246, 0.95);
+  border: 1px solid rgba(17, 35, 30, 0.08);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.hero-panel h1 {
+  margin: 0.75rem 0 0.5rem;
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  max-width: 20ch;
+}
+
+.hero-panel p, .panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  max-width: 62ch;
+}
+
+.panel h2 {
+  margin: 0.9rem 0 0.65rem;
+  font-family: 'Fraunces', serif;
+  font-size: 1.72rem;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.dashboard-grid {
+  margin-top: 1.35rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(17, 35, 30, 0.15); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(17, 35, 30, 0.25); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app-shell {
+    width: min(100% - 1rem, 100%);
+    padding-top: 1rem;
+  }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .panel-wide { grid-column: auto; }
+  .hero-panel, .panel { border-radius: 1.35rem; }
+  .hero-panel { padding: 1.25rem; }
+}
+
+/* Recharts defaults that match claude-workspace */
+.recharts-default-tooltip {
+  border-radius: 16px !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 18px 42px rgba(17, 35, 30, 0.12) !important;
+  font-size: 12px !important;
+  background: white !important;
+}

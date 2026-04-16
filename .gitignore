@@ -1,0 +1,65 @@
+# ─── Dados sensíveis de saúde (NÃO commitar) ──────────────────────────────────
+# CSVs de Apple Health AutoExport — histórico real do Anders
+**/metrics.csv
+**/mood.csv
+**/sleep_data.csv
+# Log de doses real (quando existir)
+dose_log.json
+# Backups / exports manuais
+*.backup
+data/
+
+# ─── Node / Vite ──────────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/.tmp/
+*.log
+.npm
+
+# ─── Python venv local ────────────────────────────────────────────────────────
+bin/
+lib/
+lib64
+share/
+pyvenv.cfg
+__pycache__/
+*.pyc
+*.pyo
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ─── Build / Temp ─────────────────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.tmp
+*.bak
+*.swp
+
+# ─── IDE / OS ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+.DS_Store
+Thumbs.db
+
+# ─── Env / Secrets ────────────────────────────────────────────────────────────
+.env
+.env.*
+.envrc
+.secret
+.secrets
+credentials.json
+*.pem
+*.key
+*.crt
+
+# ─── SQLite / DBs locais ──────────────────────────────────────────────────────
+*.sqlite3
+*.db

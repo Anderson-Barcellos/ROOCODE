@@ -1,0 +1,99 @@
+# .gitignore robusto para projetos Python
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv/
+.pyenv/
+python_env/
+venv.bak/
+*.env
+bin/
+lib/
+
+
+# Distribuição/Build
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# PyInstaller
+*.spec
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# Configs de IDEs/editores
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Logs, envs e arquivos temporários
+*.log
+*.pot
+*.mo
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Arquivos de testes/coverage
+.coverage
+.tox/
+.nox/
+.cache/
+.pytest_cache/
+
+# Arquivos do mypy
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Arquivos do pytest
+.pytest_cache/
+
+# Arquivos do pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# SQLite DBs e arquivos temporários
+*.sqlite3
+*.db
+
+# Arquivos de histórico IPython e shell
+*~
+*.history
+
+# Dados pessoais/locais
+.env.*
+.envrc
+.secret
+.secrets
+credentials.json
+
+# System folders
+.DS_Store
+Thumbs.db
+
+# VSCode settings (se desejar versionar, comente abaixo)
+.vscode/
+
+# Node modules (caso tenha frontend)
+node_modules/
+
+# Outros
+*.pem
+*.key
+*.crt
+!README.md
+

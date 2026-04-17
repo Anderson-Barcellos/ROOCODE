@@ -9,6 +9,7 @@
 @source "./utils/*.ts";
 @source "./mocks/*.ts";
 @source "./types/*.ts";
+@source "./hooks/*.ts";
 
 :root {
   color-scheme: light;

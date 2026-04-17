@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, UploadFile
 from fastapi.responses import JSONResponse
 from pathlib import Path
@@ -9,11 +10,12 @@ router = APIRouter()
 def _organizeMetrics(path: Path):
     df = pd.read_csv(path)
     drop_list = [header for header in df.columns if "(hr)" in header]
-    try:
-        df.drop(columns=drop_list, inplace=True)
-        df.to_csv(path, index=False)
-    except Exception as e:
-        print(f"[❌]: Error dropping columns - {e}")
+    if drop_list != []:
+        try:
+            df.drop(columns=drop_list, inplace=True)
+            df.to_csv(path, index=False)
+        except Exception as e:
+            print(f"[❌]: Error dropping columns - {e}")
 
 
 @router.post("")
@@ -36,4 +38,5 @@ async def getMetrics():
     if not path.exists():
         return JSONResponse(content=[], status_code=200)
     df = pd.read_csv(path)
-    return JSONResponse(content=df.to_dict(orient="records"))
+    records = json.loads(df.to_json(orient="records"))
+    return JSONResponse(content=records)

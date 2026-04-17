@@ -48,8 +48,7 @@ Todos sob `/health/api/*` via Apache (ou `:8011/*` direto):
 
 ## Quirks do AutoExport (iPhone)
 
-- `/sleep` recebe multipart com filename esquisito (`//mnt/...`) — `UploadFile` falha.
-  Solução: `request.stream()` raw + parse manual do boundary em `Sleep/sleep.py`.
+- `/sleep`, `/metrics`, `/mood` aceitam `UploadFile` simples (field name `HealthData`) — validado com iPhone AutoExport em 2026-04-17. Sem necessidade de parse manual de multipart.
 - Encoding: UTF-8 primário, fallback latin-1 (acentos).
 - Formato de data: ISO 8601 — usar `pd.to_datetime(..., format="mixed")`.
 - `Mood/mood.csv` atualmente tem dados de SONO (Anders copiou URL errada no AutoExport) — endpoint correto: `POST /health/api/mood` com arquivo State of Mind.
@@ -91,11 +90,10 @@ Serviços antigos por-módulo (`sleep-api.service`, `metrics-api.service`, `mood
 - [x] Apache proxy `/health/*` → Vite + `/health/api/*` → FastAPI
 - [x] Frontend scaffold warm editorial (Fraunces + Manrope + gradiente teal/amber)
 - [x] TabNav + SurfaceFrame + DoseLogger funcionais
-- [x] **Fase 2:** portar 9 utils (date, statistics, correlations, aggregation, pharmacokinetics, medication-bridge, anomaly-engine, data-pipeline, pharma-analytics) + types (apple-health, analytics) + roocode-adapter
-- [x] **Fase 3:** portar 14 charts + criar ChartsDemo (`#charts-demo`) com MOCK_SNAPSHOTS de 14 dias
-- [x] **Fase 5:** mock data (`snapshotMock`, `doseMock`, `moodMock`) com correlação HRV × Valence R ≈ 0.43 embutida
-- [ ] **Fase 4:** implementar 4 surfaces (Executive, Mood+Meds, Sleep, Patterns) consumindo charts + adapter
-- [ ] **Fase 6:** hooks computados (useCorrelationMatrix, useScatterPair) — opcional, pode fatiar em Fase 4
+- [x] **Fase 2:** portar 9 utils analíticos + types + roocode-adapter
+- [x] **Fase 3:** portar 14 charts + ChartsDemo (`#charts-demo`) com mocks de 14 dias
+- [x] **Fase 4:** 4 surfaces instanciadas + `useRooCodeData` + `useCardioAnalysis` + `useActivityAnalysis` (concluída 2026-04-17)
+- [ ] **Fase 5:** interpolação Claude pra lacunas temporais (dados reais chegam esparsos)
 
 ---
 
@@ -112,99 +110,51 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Próxima Sessão (Fase 4)
+## KICKOFF — Próxima Sessão (Fase 5: Interpolação Claude)
 
 > Texto pra colar quando voltar ao projeto. Claude lê e executa.
 
-**Estado (pós Fase 2+3, concluída em 2026-04-16):**
-- 14 charts portados do `/root/claude-workspace` em `src/components/charts/`
-- 9 utils analíticos em `src/utils/` (correlations, statistics, pharmacokinetics, aggregation, medication-bridge, anomaly-engine, data-pipeline, pharma-analytics, date)
-- `src/utils/roocode-adapter.ts` converte `useSleep+useMetrics+useMood+useDoses` → `DailySnapshot[]` (via reuso de `buildDailySnapshots` do aggregation.ts)
-- `src/types/{apple-health,analytics}.ts` — tipos base + payload backend
-- `src/mocks/{snapshotMock,doseMock,moodMock}.ts` — 14 dias determinísticos com R≈0.43 HRV×Valence
-- `#charts-demo` (hash route em App.tsx) renderiza todos os 14 charts com mock data
-- Stubs em `src/hooks/{useCardioAnalysis,useActivityAnalysis}.ts` — só tipos, hook real fica pra Fase 4
-- `weightKg` default corrigido de 80 → 91 em `lib/api.ts`
-- Build: 789kB JS / 56kB CSS, zero erros tsc
+**Estado (pós Fase 4, concluída em 2026-04-17, commit `391ce92`):**
+- 4 surfaces (Executive, MoodMeds, Sleep, Patterns) funcionais em App.tsx consumindo adapter + mocks
+- `useRooCodeData` orquestra api.ts + adapter + mocks + derivações (pkGroups, overview, weeklyPattern, dates)
+- `useCardioAnalysis` real: baseline HRV rolling 14d, overtraining ≥7d, recovery score 0-100
+- `useActivityAnalysis` real: weeklyPattern, loadBalance, 4 impacts correlacionais
+- Toggle `VITE_USE_MOCK=true` + `MockBanner` amber quando ativo
+- Fix /metrics: 500 → NaN via df.to_json + json.loads
+- Build: 827kB JS / 57.8kB CSS · tsc zero erros
+- iPhone AutoExport validado com `UploadFile` simples (advertência CLAUDE.md corrigida)
 
-**⚠️ Atenção:** repositório ainda **não está sob git** — Anders precisa decidir `git init` antes do primeiro commit.
+**Problema da Fase 5:** dados reais chegam **esparsos**. Em 2026-04-17: sleep tem 5 dias, metrics 7, mood 6, doses 0. Pra surfaces renderizarem análises significativas (correlação, weekly pattern, baseline ±1σ), precisam ≥14-30 dias **contínuos**. Lacunas hoje fazem chart crashar em `EmptyAnalyticsState`.
 
-**Agora (Fase 4):** instanciar as 4 surfaces consumindo o adapter + charts.
+**Agora (Fase 5):** interpolar lacunas temporais com 3 estratégias: `linear` (vizinhos), `claude` (LLM contextual via Gemini API), `off`. Toggle no TabNav. Dias interpolados renderizam com opacity/dash diferente + tooltip "valor estimado".
 
-### Passo-a-passo Fase 4
+### Estratégia de interpolação
 
-1. **ExecutiveSurface** — grid de 6 MetricCards (sleep7d, hrv7d, rhr7d, mood7d, activeEnergy7d, steps) via `buildOverviewMetrics(snapshots)`. Timeline chart multi-série (sleep+HRV+RHR) + InsightList.
-2. **MoodMedsSurface** — pk-concentration-chart (todas drogas ativas) + grid 2col: mood-timeline + mood-donut. pk-individual-chart pra Lexapro. DoseLogger preservado.
-3. **SleepSurface** — sleep-stages-chart + grid 1.25fr_0.75fr: hrv-analysis + heart-rate-bands. weekly-pattern-chart.
-4. **PatternsSurface** — correlation-heatmap (N×N, todas métricas) + scatter-correlation interativo. Lag analysis eventual.
+1. **Linear** (baseline, sem IA): média ponderada entre dia anterior e próximo com dado real. Falha se lacuna > 3 dias consecutivos.
+2. **Claude** (Gemini 2.5 Flash, batch 1 request): "Dado 30 snapshots do Anders com lacunas nos dias X, Y, Z, preencha cada lacuna com `{value, confidence 0-1, rationale}`. Considera week-day effects, tendências, medicação ativa." Uma request pra todas as lacunas — não 1 por lacuna.
+3. **Off**: comportamento Fase 4 atual (chart cru).
 
-### Dados
-- Até `/mood` ser corrigido (bug AutoExport) e Anders ter 30+ pontos reais → cada surface fala com adapter que detecta data quality e cai pra `MOCK_SNAPSHOTS` automaticamente.
-- `adapter.moodQuality` já retorna `'valid'|'corrupted'|'empty'` — surface pode exibir banner ("⚠️ Usando mock — /mood corrompido" etc.)
+### Passo-a-passo Fase 5
+
+1. **`src/utils/interpolate.ts`** — `interpolateSnapshots(snapshots, strategy) → snapshots + flags`. Set `DailyHealthMetrics.interpolated = true` nos dias preenchidos (campo já existe no tipo, hoje morto).
+2. **`Interpolate/interpolate.py`** — endpoint `POST /health/api/interpolate` que recebe snapshots + strategy, chama Gemini API (`/root/GEMINI_API/` já configurado), retorna preenchido. Cache por hash(snapshots).
+3. **`src/hooks/useInterpolation.ts`** — wrapper useMemo + TanStack query pra batch.
+4. **UI visual**: charts detectam `interpolated === true` → linha dashed ou alpha 0.4 + tooltip badge "⚠ estimado".
+5. **TabNav toggle**: `Interpolação: off | linear | claude`. Persiste em `localStorage` por ser preference.
+6. **Validação**: mock com 30% lacunas artificiais, plot real vs interpolado, medir R².
 
 ### Open loops
-- `detectMoodDataQuality` em `roocode-adapter.ts` tem stub simples (detecta qualquer field sleep). Anders pode refinar thresholds.
-- `pk-concentration-chart` precisa de ≥10 pares PK×mood — mock tem 14, backend real vai precisar semanas.
-- Sessão de Fase 4 deve começar lendo `src/pages/ChartsDemo.tsx` pra ver os props exatos de cada chart.
-
----
-
-## KICKOFF anterior — Fase 2+3 (concluído 2026-04-16)
-
-**Estado:** Shell warm editorial renderizando em `https://ultrassom.ai/health/`. Fase 0+1 aprovadas por Anders (confirmação visual em 2026-04-16). 4 surfaces-esqueleto com TabNav e SurfaceFrame funcionais, DoseLogger estilizado, fontes Fraunces+Manrope self-hosted, gradiente teal+amber no background.
-
-**Agora (Fase 2+3):** portar **utils** + **charts** do `/root/claude-workspace` para renderizar análises reais.
-
-### Passo-a-passo mecânico
-
-1. **Ler** `/root/.claude/plans/wise-puzzling-shell.md` (plano completo aprovado)
-2. **Portar 5 utils core** (copy-paste direto, eles já usam `@/`):
-   ```bash
-   cp /root/claude-workspace/src/utils/{correlations,statistics,date,aggregation,pharmacokinetics}.ts \
-      /root/RooCode/frontend/src/utils/
-   ```
-3. **Portar 13 charts**:
-   ```bash
-   cp /root/claude-workspace/src/components/charts/*.tsx \
-      /root/RooCode/frontend/src/components/charts/
-   ```
-4. **Adicionar cada arquivo novo ao `@source` em `src/index.css`** (ver gotcha Tailwind v4 acima) — SEM ESSE PASSO, classes Tailwind são perdidas silenciosamente. Sugestão: adicionar `@source` para cada pasta de uma vez:
-   ```css
-   @source "./utils/*.ts";
-   @source "./components/charts/*.tsx";
-   ```
-   Se globs pararem de funcionar, listar arquivos individualmente.
-5. **Resolver imports** dos charts — alguns importam tipos específicos do claude-workspace (`AnalyticsPayload`, `MoodDriver`, etc.). Esses tipos já estão em `src/components/analytics/types.ts` (já portado).
-6. **Criar `analytics-adapter.ts`** em `src/utils/` que converte:
-   - `useSleep()`, `useMetrics()`, `useMood()`, `useDoses()`, `usePKCurve()` do RooCode
-   - → nos formatos esperados pelas surfaces (`ExecutiveAnalyticsPayload`, `MoodMedicationAnalyticsPayload`, etc.)
-7. **Build check** após cada lote:
-   ```bash
-   cd /root/RooCode/frontend && npm run build
-   ```
-8. **Depois (Fase 4)**: instanciar as 4 surfaces (`ExecutiveSurface`, `MoodMedsSurface`, `SleepSurface`, `PatternsSurface`) consumindo `analytics-adapter` + charts.
-
-### Decisões de design já tomadas (não re-perguntar)
-- Tema: **light warm parchment** (NÃO dark)
-- Nav: **tab top** (sidebar removida)
-- shadcn/ui: **adiado** — hand-rolled como claude-workspace
-- Correlações: **matriz N×N completa** (PK × humor × sono × HRV × atividade)
-- Mock data: **sim**, toggle via `import.meta.env.VITE_USE_MOCK`
-- Peso: **91 kg** hardcoded como `WEIGHT_KG` em App.tsx
-
-### Pontos de atenção
-- `Mood/mood.csv` ainda tem estrutura de sono (Anders vai reconfigurar AutoExport)
-- `dose_log.json` ainda não existe — PK chart mostrará placeholder até primeira dose registrada
-- Backend em 8011 roda sem systemd (morre no reboot) — criar service eventualmente
-- 3 serviços antigos (sleep-api, metrics-api, mood-api) devem ser desabilitados
+- Custo de tokens: batch claude em 1 request é a ideia; validar cost/latency.
+- Interpolação é só pra **passado** — projeção futura é escopo Fase 6.
+- `confidence` do claude pode virar barra de erro nos charts (lag opcional).
+- `detectMoodDataQuality` continua stub (fora de escopo 5).
 
 ### Comando de boot
 ```bash
-# Backend
+# Backend (main.py já tem reload=True)
 source /root/RooCode/bin/activate && ./bin/python main.py &
-# Frontend
-cd /root/RooCode/frontend && nohup npm run dev -- --host 0.0.0.0 > /tmp/roocode-vite.log 2>&1 &
+# Frontend dev (mock mode pra teste sem dados reais)
+cd /root/RooCode/frontend && VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0 &
 # Validar
-curl -s -H "Host: ultrassom.ai" http://localhost:3031/health/ -o /dev/null -w "%{http_code}\n"
 curl -s http://localhost:8011/farma/substances | python3 -c "import sys,json;print(len(json.load(sys.stdin)),'substâncias')"
 ```

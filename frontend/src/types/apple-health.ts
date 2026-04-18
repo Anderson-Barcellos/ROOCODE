@@ -112,6 +112,8 @@ export interface DailySnapshot {
   health: DailyHealthMetrics | null
   mood: DailyMoodMetrics | null
   medications: DailyMedicationMetrics | null
+  interpolated?: boolean
+  confidence?: number
 }
 
 export type TimelineSeriesKey =
@@ -130,6 +132,7 @@ export type TimelineSeriesKey =
 export interface TimelinePoint {
   date: string
   values: Partial<Record<TimelineSeriesKey, number | null>>
+  interpolated?: boolean
 }
 
 export interface MoodHeatmapDay {

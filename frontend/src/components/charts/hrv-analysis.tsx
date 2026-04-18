@@ -45,9 +45,16 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
 
     const data = filtered.map((s, i) => {
       const band = bandsByDate.get(s.date)
+      const v = s.health?.hrvSdnn ?? null
+      const isInterp = s.interpolated === true
+      const prevInterp = filtered[i - 1]?.interpolated === true
+      const nextInterp = filtered[i + 1]?.interpolated === true
       return {
         label: dayLabel(s.date),
-        hrv: s.health?.hrvSdnn ?? null,
+        hrv: v,
+        hrv_real: isInterp ? null : v,
+        hrv_interp: isInterp ? v : (prevInterp || nextInterp) ? v : null,
+        interpolated: isInterp,
         sma7: smaValues[i],
         bandUpper: band?.upper ?? null,
         bandLower: band?.lower ?? null,
@@ -102,9 +109,16 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
             <YAxis tick={{ fill: '#475569', fontSize: 11 }} tickLine={false} axisLine={false} width={40} tickFormatter={(v: number) => `${v}ms`} />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
-              formatter={(v, name) => {
+              formatter={(v, name, item) => {
                 if (name === 'bandUpper' || name === 'bandLower' || name === 'bandMean') return [null, null]
-                return [typeof v === 'number' ? `${v.toFixed(1)} ms` : '—']
+                if (name === 'hrv_real' || name === 'hrv_interp') return [null, null]
+                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                if (name === 'hrv') {
+                  const text = typeof v === 'number' ? `${v.toFixed(1)} ms${interp ? ' ⚠ estimado' : ''}` : '—'
+                  return [text, 'HRV']
+                }
+                if (name === 'sma7') return [typeof v === 'number' ? `${v.toFixed(1)} ms` : '—', 'SMA 7d']
+                return [typeof v === 'number' ? `${v.toFixed(1)} ms` : '—', name]
               }}
               itemSorter={() => 0}
             />
@@ -126,7 +140,8 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
                 <Line type="monotone" dataKey="bandMean" stroke="#10b981" strokeWidth={1} strokeDasharray="4 3" dot={false} connectNulls activeDot={false} legendType="none" />
               </>
             ) : null}
-            <Area type="monotone" dataKey="hrv" stroke="#0f766e" fill="#0f766e" fillOpacity={0.12} strokeWidth={1.5} dot={false} connectNulls={false} name="hrv" />
+            <Area type="monotone" dataKey="hrv_real" stroke="#0f766e" fill="#0f766e" fillOpacity={0.12} strokeWidth={1.5} dot={false} connectNulls={false} name="hrv" legendType="none" />
+            <Line type="monotone" dataKey="hrv_interp" stroke="#0f766e" strokeWidth={1.8} strokeDasharray="5 4" strokeOpacity={0.7} dot={{ r: 3, fill: '#0f766e', stroke: '#fff', strokeWidth: 1 }} connectNulls name="hrv (estim.)" legendType="none" />
             <Line type="monotone" dataKey="sma7" stroke="#0f766e" strokeWidth={2.8} dot={false} connectNulls={false} name="sma7" />
           </ComposedChart>
         </ResponsiveContainer>

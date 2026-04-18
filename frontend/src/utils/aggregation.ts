@@ -225,6 +225,7 @@ export function buildTimelineSeries(
     return {
       date: snapshot.date,
       values,
+      interpolated: snapshot.interpolated === true,
     }
   })
 }

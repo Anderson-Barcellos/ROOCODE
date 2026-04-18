@@ -1,17 +1,27 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { BrainCircuit, LayoutDashboard, MoonStar, Orbit } from 'lucide-react'
+import { BrainCircuit, LayoutDashboard, MoonStar, Orbit, Sparkles } from 'lucide-react'
+import type { InterpolationMode } from '@/hooks/useInterpolation'
 
 export type TabKey = 'executive' | 'moodMedication' | 'sleepPhysiology' | 'patterns'
 
 export const rangeOptions = ['7d', '30d', '90d', '1y', 'all'] as const
 export type RangeOption = (typeof rangeOptions)[number]
 
+const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = [
+  { key: 'off', label: 'Off' },
+  { key: 'linear', label: 'Linear' },
+  { key: 'claude', label: 'Claude' },
+]
+
 interface TabNavProps {
   activeTab: TabKey
   onTabChange: (tab: TabKey) => void
   range: RangeOption
   onRangeChange: (range: RangeOption) => void
+  interpolation: InterpolationMode
+  onInterpolationChange: (mode: InterpolationMode) => void
+  interpolationLoading?: boolean
 }
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -21,7 +31,15 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> 
   { key: 'patterns', label: 'Padrões', icon: Orbit },
 ]
 
-export function TabNav({ activeTab, onTabChange, range, onRangeChange }: TabNavProps) {
+export function TabNav({
+  activeTab,
+  onTabChange,
+  range,
+  onRangeChange,
+  interpolation,
+  onInterpolationChange,
+  interpolationLoading = false,
+}: TabNavProps) {
   return (
     <nav className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-900/10 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 pt-3 pb-2">
@@ -62,6 +80,40 @@ export function TabNav({ activeTab, onTabChange, range, onRangeChange }: TabNavP
               {option}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-6 pb-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1 inline-flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            Interpolação
+          </span>
+          {interpolationOptions.map(({ key, label }) => {
+            const active = interpolation === key
+            const showSpinner = active && key === 'claude' && interpolationLoading
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onInterpolationChange(key)}
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+                  active
+                    ? key === 'claude'
+                      ? 'bg-teal-700 text-white'
+                      : key === 'linear'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-slate-950 text-white'
+                    : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {label}
+                {showSpinner && (
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" aria-label="loading" />
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
     </nav>

@@ -11,6 +11,7 @@ import {
   detectMoodDataQuality,
   type MoodDataQuality,
 } from '@/utils/roocode-adapter'
+import { useInterpolation, type InterpolationMode } from './useInterpolation'
 import type { WeeklyDayStats } from './useActivityAnalysis'
 
 export interface RooCodeData {
@@ -25,6 +26,11 @@ export interface RooCodeData {
   loading: boolean
   error: boolean
   usedMock: boolean
+  // Interpolação (Fase 5)
+  interpolationMode: InterpolationMode
+  interpolationLoading: boolean
+  interpolationError: boolean
+  interpolationFilledCount: number
 }
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -68,7 +74,7 @@ function buildLast14Days(): string[] {
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-export function useRooCodeData(): RooCodeData {
+export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCodeData {
   const sleepQuery = useSleep()
   const metricsQuery = useMetrics()
   const moodQuery = useMood()
@@ -108,13 +114,29 @@ export function useRooCodeData(): RooCodeData {
     }
   }, [sleepQuery.data, metricsQuery.data, moodQuery.data, dosesQuery.data])
 
+  // ─── Interpolação ──────────────────────────────────────────────────────────
+  // Aplica depois do adapter, antes das derivações. Charts recebem array já
+  // enriquecido com dias sintéticos marcados (interpolated=true).
+  const interp = useInterpolation(resolved.snapshots, interpolation)
+  const effectiveSnapshots = interp.snapshots
+
+  // ─── Derivações (sempre a partir de effectiveSnapshots) ────────────────────
   const pkGroups = useMemo(() => buildMedGroups(resolved.medicationRows), [resolved.medicationRows])
-  const overview = useMemo(() => buildOverviewMetrics(resolved.snapshots), [resolved.snapshots])
-  const weeklyPattern = useMemo(() => buildWeeklyPattern(resolved.snapshots), [resolved.snapshots])
-  const dates = useMemo(() => (USE_MOCK ? MOCK_DATES : buildLast14Days()), [])
+  const overview = useMemo(() => buildOverviewMetrics(effectiveSnapshots), [effectiveSnapshots])
+  const weeklyPattern = useMemo(() => buildWeeklyPattern(effectiveSnapshots), [effectiveSnapshots])
+
+  // ─── dates: fix do gotcha Fase 4 ───────────────────────────────────────────
+  // Antes (Fase 4): dates era wall-clock 14d, independente de snapshots.
+  // Agora: quando interpolado, usa as datas dos snapshots (garante alinhamento).
+  // Mock continua usando MOCK_DATES.
+  const dates = useMemo(() => {
+    if (USE_MOCK) return MOCK_DATES
+    if (interpolation === 'off') return buildLast14Days()
+    return effectiveSnapshots.map((s) => s.date)
+  }, [interpolation, effectiveSnapshots])
 
   return {
-    snapshots: resolved.snapshots,
+    snapshots: effectiveSnapshots,
     medicationRows: resolved.medicationRows,
     doses: resolved.doses,
     dates,
@@ -125,5 +147,9 @@ export function useRooCodeData(): RooCodeData {
     loading,
     error,
     usedMock: resolved.usedMock,
+    interpolationMode: interpolation,
+    interpolationLoading: interp.loading,
+    interpolationError: interp.error,
+    interpolationFilledCount: interp.filledCount,
   }
 }

@@ -2,6 +2,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   ReferenceLine,
   ResponsiveContainer,
@@ -21,6 +22,7 @@ interface SleepStagesPoint {
   core: number | null
   awake: number | null
   efficiency: number | null
+  interpolated: boolean
 }
 
 function buildSleepStagesData(snapshots: DailySnapshot[]): { points: SleepStagesPoint[]; hasStages: boolean } {
@@ -35,6 +37,7 @@ function buildSleepStagesData(snapshots: DailySnapshot[]): { points: SleepStages
       awake: s.health?.sleepAwakeHours ?? null,
       total: s.health?.sleepTotalHours ?? null,
       efficiency: s.health?.sleepEfficiencyPct ?? null,
+      interpolated: s.interpolated === true,
     }))
 
   const hasStages = points.some((p) => p.deep != null || p.core != null || p.awake != null)
@@ -99,9 +102,11 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
             />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
-              formatter={(value) => [
-                typeof value === 'number' ? `${value.toFixed(1)}h` : '—',
-              ]}
+              formatter={(value, name, item) => {
+                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                const text = typeof value === 'number' ? `${value.toFixed(1)}h${interp ? ' ⚠ estimado' : ''}` : '—'
+                return [text, name]
+              }}
             />
             <Legend
               formatter={(value) => (
@@ -111,15 +116,27 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
             <ReferenceLine y={7} stroke="#10b981" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: '7h', position: 'right', fill: '#10b981', fontSize: 11 }} />
             {hasStages ? (
               <>
-                <Bar dataKey="deep" stackId="sleep" fill="#1e3a5f" name="Profundo" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="rem" stackId="sleep" fill="#7c3aed" name="REM" />
-                <Bar dataKey="core" stackId="sleep" fill="#3b82f6" name="Núcleo" />
-                <Bar dataKey="awake" stackId="sleep" fill="#94a3b8" name="Acordado" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="deep" stackId="sleep" fill="#1e3a5f" name="Profundo" radius={[0, 0, 0, 0]}>
+                  {data.map((entry, i) => <Cell key={`d-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
+                </Bar>
+                <Bar dataKey="rem" stackId="sleep" fill="#7c3aed" name="REM">
+                  {data.map((entry, i) => <Cell key={`r-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
+                </Bar>
+                <Bar dataKey="core" stackId="sleep" fill="#3b82f6" name="Núcleo">
+                  {data.map((entry, i) => <Cell key={`c-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
+                </Bar>
+                <Bar dataKey="awake" stackId="sleep" fill="#94a3b8" name="Acordado" radius={[3, 3, 0, 0]}>
+                  {data.map((entry, i) => <Cell key={`a-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
+                </Bar>
               </>
             ) : (
               <>
-                <Bar dataKey="total" fill="#0f766e" name="Total" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="rem" fill="#7c3aed" name="REM" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="total" fill="#0f766e" name="Total" radius={[3, 3, 0, 0]}>
+                  {data.map((entry, i) => <Cell key={`t-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
+                </Bar>
+                <Bar dataKey="rem" fill="#7c3aed" name="REM" radius={[3, 3, 0, 0]}>
+                  {data.map((entry, i) => <Cell key={`r2-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
+                </Bar>
               </>
             )}
           </BarChart>

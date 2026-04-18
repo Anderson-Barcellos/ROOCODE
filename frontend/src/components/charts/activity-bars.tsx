@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -37,6 +38,7 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
         energia: s.health?.activeEnergyKcal ?? null,
         exercicio: s.health?.exerciseMinutes ?? null,
         luz: s.health?.daylightMinutes ?? null,
+        interpolated: s.interpolated === true,
       }))
   }, [snapshots])
 
@@ -86,19 +88,25 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
             />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
-              formatter={(v, name) => {
+              formatter={(v, name, item) => {
+                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                const suffix = interp ? ' ⚠ estimado' : ''
                 if (typeof v !== 'number') return ['—', name]
-                if (name === 'energia') return [`${v.toFixed(0)} kcal`, 'Energia ativa']
-                if (name === 'exercicio') return [`${v.toFixed(0)} min`, 'Exercício']
-                return [`${v.toFixed(0)} min`, 'Luz do dia']
+                if (name === 'energia') return [`${v.toFixed(0)} kcal${suffix}`, 'Energia ativa']
+                if (name === 'exercicio') return [`${v.toFixed(0)} min${suffix}`, 'Exercício']
+                return [`${v.toFixed(0)} min${suffix}`, 'Luz do dia']
               }}
             />
             <Legend formatter={(value) => {
               const labels: Record<string, string> = { energia: 'Energia (kcal)', exercicio: 'Exercício (min)', luz: 'Luz do dia (min)' }
               return <span style={{ fontSize: 12, color: '#475569' }}>{labels[value] ?? value}</span>
             }} />
-            <Bar yAxisId="kcal" dataKey="energia" fill="#ea580c" fillOpacity={0.75} radius={[2, 2, 0, 0]} name="energia" />
-            <Bar yAxisId="min" dataKey="exercicio" fill="#15803d" fillOpacity={0.75} radius={[2, 2, 0, 0]} name="exercicio" />
+            <Bar yAxisId="kcal" dataKey="energia" fill="#ea580c" radius={[2, 2, 0, 0]} name="energia">
+              {data.map((entry, i) => <Cell key={`e-${i}`} fillOpacity={entry.interpolated ? 0.3 : 0.75} />)}
+            </Bar>
+            <Bar yAxisId="min" dataKey="exercicio" fill="#15803d" radius={[2, 2, 0, 0]} name="exercicio">
+              {data.map((entry, i) => <Cell key={`x-${i}`} fillOpacity={entry.interpolated ? 0.3 : 0.75} />)}
+            </Bar>
             <Line yAxisId="min" type="monotone" dataKey="luz" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={false} name="luz" />
           </ComposedChart>
         </ResponsiveContainer>

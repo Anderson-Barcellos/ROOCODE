@@ -93,7 +93,14 @@ Serviços antigos por-módulo (`sleep-api.service`, `metrics-api.service`, `mood
 - [x] **Fase 2:** portar 9 utils analíticos + types + roocode-adapter
 - [x] **Fase 3:** portar 14 charts + ChartsDemo (`#charts-demo`) com mocks de 14 dias
 - [x] **Fase 4:** 4 surfaces instanciadas + `useRooCodeData` + `useCardioAnalysis` + `useActivityAnalysis` (concluída 2026-04-17)
-- [ ] **Fase 5:** interpolação Claude pra lacunas temporais (dados reais chegam esparsos)
+- [x] **Fase 5:** interpolação temporal Gemini + linear (concluída 2026-04-17)
+  - Backend: `Interpolate/router.py` com `POST /health/api/interpolate`, cache md5, fallback gracioso
+  - Frontend: `useInterpolation` hook + toggle TabNav (off/linear/claude) + `InterpolationBanner`
+  - Visual: dashed lines (Timeline, HRV) + alpha 0.4 (SleepStages, ActivityBars) + tooltip "⚠ estimado"
+  - Fix gotcha `dates` da Fase 4: re-derivado de `effectiveSnapshots` quando modo ≠ off
+  - 2 TODO(Anders) marcados: prompt Gemini + HEALTH_POLICIES de linear
+- [ ] **Fase 5b:** polish + demo R² (aplicar visual nos 6 charts restantes + demo page com ground truth)
+- [ ] **Fase 6:** projeção futura (forecasting 3-7 dias pra frente)
 
 ---
 
@@ -110,51 +117,62 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Próxima Sessão (Fase 5: Interpolação Claude)
+## KICKOFF — Próxima Sessão (Fase 5b: Polish + Demo R²)
 
 > Texto pra colar quando voltar ao projeto. Claude lê e executa.
 
-**Estado (pós Fase 4, concluída em 2026-04-17, commit `391ce92`):**
-- 4 surfaces (Executive, MoodMeds, Sleep, Patterns) funcionais em App.tsx consumindo adapter + mocks
-- `useRooCodeData` orquestra api.ts + adapter + mocks + derivações (pkGroups, overview, weeklyPattern, dates)
-- `useCardioAnalysis` real: baseline HRV rolling 14d, overtraining ≥7d, recovery score 0-100
-- `useActivityAnalysis` real: weeklyPattern, loadBalance, 4 impacts correlacionais
-- Toggle `VITE_USE_MOCK=true` + `MockBanner` amber quando ativo
-- Fix /metrics: 500 → NaN via df.to_json + json.loads
-- Build: 827kB JS / 57.8kB CSS · tsc zero erros
-- iPhone AutoExport validado com `UploadFile` simples (advertência CLAUDE.md corrigida)
+**Estado pós Fase 5 (concluída 2026-04-17):**
+- Backend: `POST /health/api/interpolate` via Gemini 2.5 Flash, cache md5, fallback linear on error. `google-genai` 1.73.1 no venv. Endpoint testado live — Gemini retorna dias preenchidos fisiologicamente plausíveis (7.2→7.5→7.0→6.8h de sono).
+- Frontend: `useInterpolation(snapshots, mode)` wrapper TanStack, `InterpolationMode = 'off' | 'linear' | 'claude'`, `useRooCodeData(mode)` re-deriva pkGroups/overview/weeklyPattern/dates a partir de snapshots interpolados.
+- UI: toggle TabNav (segunda linha) + `InterpolationBanner` (teal/amber por modo) + filledCount dinâmico.
+- Visual (4 de 10 charts feitos): TimelineChart + HrvAnalysis com dual-series dashed; SleepStagesChart + ActivityBars com `<Cell>` fillOpacity 0.4 em dias interpolados.
+- localStorage: `roocode-interpolation` persiste entre sessões.
+- 2 TODO(Anders) marcados: `Interpolate/router.py::_build_prompt()` e `src/utils/interpolate.ts::HEALTH_POLICIES`.
+- Build: 836.99 kB JS (+10 KB) · 59.12 kB CSS (+1.3 KB) · tsc zero erros.
 
-**Problema da Fase 5:** dados reais chegam **esparsos**. Em 2026-04-17: sleep tem 5 dias, metrics 7, mood 6, doses 0. Pra surfaces renderizarem análises significativas (correlação, weekly pattern, baseline ±1σ), precisam ≥14-30 dias **contínuos**. Lacunas hoje fazem chart crashar em `EmptyAnalyticsState`.
+**Agora (Fase 5b):** fechar Fase 5 de verdade com polish visual + validação quantitativa.
 
-**Agora (Fase 5):** interpolar lacunas temporais com 3 estratégias: `linear` (vizinhos), `claude` (LLM contextual via Gemini API), `off`. Toggle no TabNav. Dias interpolados renderizam com opacity/dash diferente + tooltip "valor estimado".
+### Escopo
 
-### Estratégia de interpolação
+1. **Aplicar diferenciação visual nos 6 charts restantes:**
+   - `MoodTimeline` (line chart — padrão dual-series como Timeline/HRV)
+   - `ScatterCorrelation` (scatter — `<Scatter>` com fillOpacity condicional)
+   - `CorrelationHeatmap` (cells — marcar bordas das células envolvendo dias interpolados)
+   - `HeartRateBands` (line/area — dual-series)
+   - `Spo2Chart` (line — dual-series)
+   - `WeeklyPatternChart` (aggregated — discutir se faz sentido distinguir; provavelmente não, já que é média)
 
-1. **Linear** (baseline, sem IA): média ponderada entre dia anterior e próximo com dado real. Falha se lacuna > 3 dias consecutivos.
-2. **Claude** (Gemini 2.5 Flash, batch 1 request): "Dado 30 snapshots do Anders com lacunas nos dias X, Y, Z, preencha cada lacuna com `{value, confidence 0-1, rationale}`. Considera week-day effects, tendências, medicação ativa." Uma request pra todas as lacunas — não 1 por lacuna.
-3. **Off**: comportamento Fase 4 atual (chart cru).
+2. **Criar `src/pages/InterpolationDemo.tsx`** (rota `#interpolation-demo` espelhando `#charts-demo`):
+   - Gera mock "ground truth" com 14 dias completos
+   - Injeta 30% de lacunas aleatórias
+   - Plota lado-a-lado: original / linear / claude
+   - Computa R² per field (sleepTotalHours, hrvSdnn, restingHeartRate, activeEnergyKcal, exerciseMinutes, valence)
+   - Exibe tabela simples: `{strategy, field, R², mean_error}`
 
-### Passo-a-passo Fase 5
+3. **Screenshot A/B antes/depois** — tirar prints de Executive tab com toggle off vs claude, salvar em `/root/RooCode/frontend/docs/fase5-ab.png` (criar pasta se preciso).
 
-1. **`src/utils/interpolate.ts`** — `interpolateSnapshots(snapshots, strategy) → snapshots + flags`. Set `DailyHealthMetrics.interpolated = true` nos dias preenchidos (campo já existe no tipo, hoje morto).
-2. **`Interpolate/interpolate.py`** — endpoint `POST /health/api/interpolate` que recebe snapshots + strategy, chama Gemini API (`/root/GEMINI_API/` já configurado), retorna preenchido. Cache por hash(snapshots).
-3. **`src/hooks/useInterpolation.ts`** — wrapper useMemo + TanStack query pra batch.
-4. **UI visual**: charts detectam `interpolated === true` → linha dashed ou alpha 0.4 + tooltip badge "⚠ estimado".
-5. **TabNav toggle**: `Interpolação: off | linear | claude`. Persiste em `localStorage` por ser preference.
-6. **Validação**: mock com 30% lacunas artificiais, plot real vs interpolado, medir R².
+### Arquivos a tocar
+- `src/components/charts/mood-timeline.tsx`
+- `src/components/charts/scatter-correlation.tsx`
+- `src/components/charts/correlation-heatmap.tsx`
+- `src/components/charts/heart-rate-bands.tsx`
+- `src/components/charts/spo2-chart.tsx`
+- `src/pages/InterpolationDemo.tsx` (criar)
+- `src/App.tsx` (rotear `#interpolation-demo`)
 
 ### Open loops
-- Custo de tokens: batch claude em 1 request é a ideia; validar cost/latency.
-- Interpolação é só pra **passado** — projeção futura é escopo Fase 6.
-- `confidence` do claude pode virar barra de erro nos charts (lag opcional).
-- `detectMoodDataQuality` continua stub (fora de escopo 5).
+- **Tooltip consistency:** hoje cada chart tem sua própria `Tooltip formatter`. Talvez valha um `InterpolationTooltip` compartilhado pra evitar drift visual.
+- **`WeeklyPatternChart`:** agregação por dia da semana. Se DOW tiver 3 dias reais + 1 interpolado, mostrar fillOpacity por % de dias interpolados? Ou só ignorar dias interpolados na agregação? Decisão UX tua.
+- **Accessibility:** dashed + alpha podem sumir em P&B ou low-contrast. Considerar ícone diagonal hatching ou pattern fill no futuro.
 
 ### Comando de boot
 ```bash
-# Backend (main.py já tem reload=True)
-source /root/RooCode/bin/activate && ./bin/python main.py &
-# Frontend dev (mock mode pra teste sem dados reais)
-cd /root/RooCode/frontend && VITE_USE_MOCK=true npm run dev -- --host 0.0.0.0 &
-# Validar
-curl -s http://localhost:8011/farma/substances | python3 -c "import sys,json;print(len(json.load(sys.stdin)),'substâncias')"
+# Backend já roda via uvicorn --reload (PID 2020958)
+# Frontend dev
+cd /root/RooCode/frontend && npm run dev -- --host 0.0.0.0 &
+# Testar live
+curl -s -X POST http://localhost:8011/interpolate \
+  -H "Content-Type: application/json" \
+  -d '{"snapshots":[{"date":"2026-04-10","health":{"sleepTotalHours":7.2,"hrvSdnn":42},"mood":{"valence":0.3},"medications":null},{"date":"2026-04-13","health":{"sleepTotalHours":6.8,"hrvSdnn":38},"mood":{"valence":-0.1},"medications":null}],"strategy":"claude"}' \
+  | python3 -m json.tool
 ```

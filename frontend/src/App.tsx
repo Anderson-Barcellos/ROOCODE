@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Compass, BrainCircuit, MoonStar, Orbit } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
+import type { InterpolationMode } from '@/hooks/useInterpolation'
 import { SurfaceFrame, MetricGrid, EmptyAnalyticsState } from '@/components/analytics/shared'
 import type { AnalyticsMetric, AnalyticsTone } from '@/components/analytics/types'
 import DoseLogger from '@/components/DoseLogger'
@@ -106,11 +107,51 @@ function MockBanner() {
   )
 }
 
+interface InterpolationBannerProps {
+  mode: InterpolationMode
+  loading: boolean
+  error: boolean
+  filledCount: number
+}
+
+function InterpolationBanner({ mode, loading, error, filledCount }: InterpolationBannerProps) {
+  if (mode === 'off') return null
+
+  const palette =
+    mode === 'claude'
+      ? { border: 'border-teal-200', bg: 'bg-teal-50', strong: 'text-teal-900', soft: 'text-teal-700/80' }
+      : { border: 'border-amber-200', bg: 'bg-amber-50', strong: 'text-amber-900', soft: 'text-amber-700/80' }
+
+  const label = mode === 'claude' ? 'Interpolação IA (Gemini)' : 'Interpolação linear'
+  const status = loading
+    ? ' — Gemini preenchendo lacunas…'
+    : error
+    ? ' — Erro na chamada IA, usando linear como fallback.'
+    : filledCount > 0
+    ? ` — ${filledCount} ${filledCount === 1 ? 'dia preenchido' : 'dias preenchidos'}. Pontos estimados aparecem tracejados nos charts.`
+    : ' — sem lacunas no intervalo atual.'
+
+  return (
+    <div className={`mb-4 flex items-center gap-2 rounded-xl border ${palette.border} ${palette.bg} px-4 py-2.5 text-sm ${palette.strong}`}>
+      <span className="font-semibold">{label}</span>
+      <span className={palette.soft}>{status}</span>
+    </div>
+  )
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('executive')
   const [range, setRange] = useState<RangeOption>('30d')
   const [hash, setHash] = useState(() => window.location.hash)
-  const data = useRooCodeData()
+  const [interpolation, setInterpolationState] = useState<InterpolationMode>(() => {
+    const saved = localStorage.getItem('roocode-interpolation')
+    return saved === 'linear' || saved === 'claude' ? saved : 'off'
+  })
+  const setInterpolation = (mode: InterpolationMode) => {
+    setInterpolationState(mode)
+    localStorage.setItem('roocode-interpolation', mode)
+  }
+  const data = useRooCodeData(interpolation)
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
   const cardio = useCardioAnalysis(ranged)
   const executiveMetrics = useMemo(() => buildExecutiveMetrics(data.overview), [data.overview])
@@ -132,7 +173,15 @@ export default function App() {
 
   return (
     <>
-      <TabNav activeTab={activeTab} onTabChange={setActiveTab} range={range} onRangeChange={setRange} />
+      <TabNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        range={range}
+        onRangeChange={setRange}
+        interpolation={interpolation}
+        onInterpolationChange={setInterpolation}
+        interpolationLoading={data.interpolationLoading}
+      />
 
       <main className="app-shell">
         {/* Hero panel */}
@@ -149,6 +198,12 @@ export default function App() {
 
         <div className="mt-6">
           {data.usedMock && <MockBanner />}
+          <InterpolationBanner
+            mode={data.interpolationMode}
+            loading={data.interpolationLoading}
+            error={data.interpolationError}
+            filledCount={data.interpolationFilledCount}
+          />
 
           {activeTab === 'executive' && (
             <SurfaceFrame

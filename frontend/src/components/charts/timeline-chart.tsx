@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import {
   CartesianGrid,
   Legend,
@@ -32,43 +33,102 @@ const seriesPalette: Record<TimelineSeriesKey, string> = {
   valence: '#15803d',
 }
 
+/**
+ * Splita cada série em real_<key> e interp_<key> pra renderizar solid vs dashed.
+ * Real: valor em dias não-interpolados, null nos interpolados.
+ * Interp: valor em dias interpolados + valores-fronteira (dia real adjacente a
+ *         um interpolado) pra conectar visualmente o segmento tracejado.
+ */
 function flattenData(data: TimelinePoint[], seriesKeys: TimelineSeriesKey[]) {
-  const rows = data.map((point) => ({
-    date: point.date,
-    label: dayLabel(point.date),
-    ...point.values,
-  }))
+  const rows = data.map((point, idx) => {
+    const row: Record<string, number | string | boolean | null> = {
+      date: point.date,
+      label: dayLabel(point.date),
+      interpolated: point.interpolated === true,
+    }
+    const isInterp = point.interpolated === true
+    const prevInterp = data[idx - 1]?.interpolated === true
+    const nextInterp = data[idx + 1]?.interpolated === true
 
-  if (rows.length < 2) {
-    return rows
-  }
+    for (const key of seriesKeys) {
+      const v = point.values[key] ?? null
+      if (isInterp) {
+        row[`${key}_real`] = null
+        row[`${key}_interp`] = v
+      } else {
+        row[`${key}_real`] = v
+        row[`${key}_interp`] = prevInterp || nextInterp ? v : null
+      }
+    }
+    return row
+  })
 
-  const flattened: Array<Record<string, number | string | null>> = []
+  if (rows.length < 2) return rows
+
+  const flattened: Array<Record<string, number | string | boolean | null>> = []
 
   for (let index = 0; index < rows.length; index += 1) {
     const current = rows[index]
     flattened.push(current)
 
     const next = rows[index + 1]
-    if (!next) {
-      continue
-    }
+    if (!next) continue
 
     if (calculateDayGapDays(current.date as string, next.date as string) > 2) {
-      const gapRow: Record<string, number | string | null> = {
+      const gapRow: Record<string, number | string | boolean | null> = {
         date: `${current.date}-gap`,
         label: '',
+        interpolated: false,
       }
-
       for (const key of seriesKeys) {
-        gapRow[key] = null
+        gapRow[`${key}_real`] = null
+        gapRow[`${key}_interp`] = null
       }
-
       flattened.push(gapRow)
     }
   }
 
   return flattened
+}
+
+interface TooltipRow {
+  dataKey: string
+  value: number
+  color: string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function TimelineTooltip({ active, payload, label, labels }: any) {
+  if (!active || !payload?.length) return null
+  const rows = payload as TooltipRow[]
+  const isInterp = rows[0]?.value != null && rows.some((r) => r.dataKey.endsWith('_interp'))
+  // Consolida: para cada série base mostra um único valor (real ou interp)
+  const shown = new Map<string, TooltipRow>()
+  for (const r of rows) {
+    if (r.value == null) continue
+    const base = r.dataKey.replace(/_real$|_interp$/, '')
+    if (!shown.has(base)) shown.set(base, { ...r, dataKey: base })
+  }
+  if (shown.size === 0) return null
+
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-2 text-xs shadow-[0_18px_42px_rgba(17,35,30,0.12)]">
+      <div className="mb-1 font-semibold text-slate-700">{label}</div>
+      {Array.from(shown.values()).map((r) => (
+        <div key={r.dataKey} className="flex items-center gap-2 py-0.5">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: r.color }} />
+          <span className="text-slate-600">{labels[r.dataKey as TimelineSeriesKey] ?? r.dataKey}:</span>
+          <span className="font-semibold text-slate-900">{typeof r.value === 'number' ? r.value.toFixed(1) : r.value}</span>
+        </div>
+      ))}
+      {isInterp && (
+        <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">
+          <span>⚠</span>
+          <span>estimado</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function TimelineChart({ data, seriesKeys, labels }: TimelineChartProps) {
@@ -86,8 +146,8 @@ export function TimelineChart({ data, seriesKeys, labels }: TimelineChartProps) 
           </h3>
         </div>
         <p className="max-w-md text-sm leading-6 text-slate-600">
-          Linhas são interrompidas quando existe um gap maior que dois dias, para
-          não insinuar continuidade onde os dados somem.
+          Linhas são interrompidas quando existe um gap maior que dois dias.
+          Trechos tracejados indicam dias estimados por interpolação.
         </p>
       </div>
 
@@ -117,28 +177,39 @@ export function TimelineChart({ data, seriesKeys, labels }: TimelineChartProps) 
               axisLine={false}
               width={42}
             />
-            <Tooltip
-              contentStyle={{
-                borderRadius: 18,
-                border: '1px solid rgba(15, 23, 42, 0.08)',
-                boxShadow: '0 18px 42px rgba(17,35,30,0.14)',
-              }}
-            />
+            <Tooltip content={<TimelineTooltip labels={labels} />} />
             <Legend />
 
             {seriesKeys.map((key, index) => (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                yAxisId={index === 0 ? 'left' : 'right'}
-                stroke={seriesPalette[key]}
-                strokeWidth={2.4}
-                dot={false}
-                activeDot={{ r: 5 }}
-                name={labels[key]}
-                connectNulls={false}
-              />
+              <Fragment key={key}>
+                <Line
+                  key={`${key}-real`}
+                  type="monotone"
+                  dataKey={`${key}_real`}
+                  yAxisId={index === 0 ? 'left' : 'right'}
+                  stroke={seriesPalette[key]}
+                  strokeWidth={2.4}
+                  dot={false}
+                  activeDot={{ r: 5 }}
+                  name={labels[key]}
+                  connectNulls={false}
+                />
+                <Line
+                  key={`${key}-interp`}
+                  type="monotone"
+                  dataKey={`${key}_interp`}
+                  yAxisId={index === 0 ? 'left' : 'right'}
+                  stroke={seriesPalette[key]}
+                  strokeWidth={1.8}
+                  strokeDasharray="5 4"
+                  strokeOpacity={0.7}
+                  dot={{ r: 3, fill: seriesPalette[key], stroke: '#fff', strokeWidth: 1 }}
+                  activeDot={{ r: 5 }}
+                  name={`${labels[key]} (estimado)`}
+                  connectNulls
+                  legendType="none"
+                />
+              </Fragment>
             ))}
           </LineChart>
         </ResponsiveContainer>

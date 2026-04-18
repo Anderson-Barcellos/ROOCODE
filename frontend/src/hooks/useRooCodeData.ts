@@ -31,6 +31,9 @@ export interface RooCodeData {
   interpolationLoading: boolean
   interpolationError: boolean
   interpolationFilledCount: number
+  // Progressive Unlock (Fase 5d)
+  validRealDays: number
+  validMoodDays: number
 }
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -125,6 +128,19 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
   const overview = useMemo(() => buildOverviewMetrics(effectiveSnapshots), [effectiveSnapshots])
   const weeklyPattern = useMemo(() => buildWeeklyPattern(effectiveSnapshots), [effectiveSnapshots])
 
+  // ─── Progressive Unlock (Fase 5d) ──────────────────────────────────────────
+  // Conta só dias REAIS (não interpolados) — readiness reflete dados coletados.
+  const { validRealDays, validMoodDays } = useMemo(() => {
+    let real = 0
+    let mood = 0
+    for (const s of effectiveSnapshots) {
+      if (s.interpolated) continue
+      if (s.health != null) real += 1
+      if (s.mood?.valence != null) mood += 1
+    }
+    return { validRealDays: real, validMoodDays: mood }
+  }, [effectiveSnapshots])
+
   // ─── dates: fix do gotcha Fase 4 ───────────────────────────────────────────
   // Antes (Fase 4): dates era wall-clock 14d, independente de snapshots.
   // Agora: quando interpolado, usa as datas dos snapshots (garante alinhamento).
@@ -151,5 +167,7 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
     interpolationLoading: interp.loading,
     interpolationError: interp.error,
     interpolationFilledCount: interp.filledCount,
+    validRealDays,
+    validMoodDays,
   }
 }

@@ -14,6 +14,8 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface ActivityBarsProps {
@@ -43,6 +45,11 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
       }))
   }, [snapshots])
 
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.activityBars, 'Atividade'),
+    [snapshots],
+  )
+
   if (!data.length) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -65,6 +72,7 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
       </h3>
       <p className="mt-1 text-sm text-slate-500">Energia ativa (kcal) · exercício e luz do dia (min)</p>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }} barSize={barSize}>
@@ -111,6 +119,7 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

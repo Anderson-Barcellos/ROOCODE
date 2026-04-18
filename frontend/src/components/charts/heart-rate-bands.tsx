@@ -16,7 +16,9 @@ import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import type { DailySnapshot } from '@/types/apple-health'
 import type { OvertrainingStatus } from '@/hooks/useCardioAnalysis'
 import { dayLabel } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { sma, trendDirection, METRIC_POLARITY } from '@/utils/statistics'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface HeartRateBandsProps {
@@ -61,6 +63,11 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
     return { data, trend }
   }, [snapshots])
 
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.heartRateBands, 'FC repouso'),
+    [snapshots],
+  )
+
   const { Icon, color, label } = TREND_ICON[trend]
 
   if (!data.length) {
@@ -99,6 +106,7 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
         <p className="mt-1 text-xs leading-5 text-slate-500">&lt;60 bpm é normal com histórico atlético. Aumento sustentado da FC repouso (mesmo dentro de 60-80) pode indicar estresse, desconicionamento ou infecção. Correlaciona inversamente com HRV.</p>
       </details>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
@@ -129,6 +137,7 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

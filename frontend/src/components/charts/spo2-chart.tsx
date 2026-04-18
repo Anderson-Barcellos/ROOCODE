@@ -13,6 +13,8 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface Spo2ChartProps {
@@ -45,6 +47,11 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
     return { data, hasAlert }
   }, [snapshots])
 
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.spo2Chart, 'SpO₂'),
+    [snapshots],
+  )
+
   if (!data.length) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -74,6 +81,7 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
         <p className="mt-1 text-xs leading-5 text-slate-500">SpO2 noturna &lt;93% em múltiplos dias é indicativo de apneia/UARS e justifica avaliação com polissonografia. Valores episódicos podem refletir posição ou hipoventilação.</p>
       </details>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
@@ -104,6 +112,7 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

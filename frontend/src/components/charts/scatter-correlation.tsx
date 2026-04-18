@@ -19,7 +19,9 @@ import {
   extractMetricValues,
   type MetricKey,
 } from '@/utils/correlations'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { pearson } from '@/utils/statistics'
+import { DataReadinessGate } from './shared/DataReadinessGate'
 
 type ExtraMetrics = Record<string, { label: string; values: Array<number | null> }>
 
@@ -131,6 +133,14 @@ export function ScatterCorrelation({ snapshots, extraMetrics = {} }: ScatterCorr
     return { scatterData: pairs, regressionLine, result }
   }, [snapshots, extraMetrics, xKey, yKey, lag])
 
+  const readiness = useMemo(
+    () =>
+      evaluateReadiness(snapshots, CHART_REQUIREMENTS.scatterCorrelation, 'Scatter', {
+        pairCount: scatterData.length,
+      }),
+    [snapshots, scatterData.length],
+  )
+
   function applyPreset(idx: number) {
     const p = PRESET_CORRELATIONS[idx]
     setXKey(p.xKey)
@@ -191,6 +201,7 @@ export function ScatterCorrelation({ snapshots, extraMetrics = {} }: ScatterCorr
         </div>
       </div>
 
+      <DataReadinessGate readiness={readiness}>
       {result ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${STRENGTH_BADGE[result.strength]}`}>
@@ -290,6 +301,7 @@ export function ScatterCorrelation({ snapshots, extraMetrics = {} }: ScatterCorr
           </div>
         )}
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

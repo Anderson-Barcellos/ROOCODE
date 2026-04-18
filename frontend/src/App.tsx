@@ -26,6 +26,7 @@ import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { OverviewMetrics, TimelineSeriesKey } from '@/types/apple-health'
 import { buildTimelineSeries, selectSnapshotRange } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 
 const TIMELINE_LABELS: Record<TimelineSeriesKey, string> = {
   sleepTotalHours: 'Sono (h)',
@@ -55,42 +56,55 @@ function toneFor(value: number | null, positive: number, watch: number, lowerIsB
   return 'negative'
 }
 
-function buildExecutiveMetrics(ov: OverviewMetrics): AnalyticsMetric[] {
-  const moodPct = ov.mood7d != null ? Math.round(ov.mood7d * 100) : null
+function buildExecutiveMetrics(
+  ov: OverviewMetrics,
+  days: { validRealDays: number; validMoodDays: number },
+): AnalyticsMetric[] {
+  // Fase 5d: KPIs de média-7d só fazem sentido com 7+ dias reais.
+  // Abaixo disso, value vira null → MetricGrid mostra "Sem dados".
+  const enoughReal = days.validRealDays >= 7
+  const enoughMood = days.validMoodDays >= 7
+  const sleep = enoughReal ? ov.sleep7dHours : null
+  const hrv = enoughReal ? ov.hrv7d : null
+  const rhr = enoughReal ? ov.restingHeartRate7d : null
+  const mood = enoughMood ? ov.mood7d : null
+  const moodPct = mood != null ? Math.round(mood * 100) : null
+  const kcal = enoughReal ? ov.activeEnergy7dKcal : null
+  const exMin = enoughReal ? ov.exercise7dMinutes : null
   return [
-    { label: 'Sono 7d', value: ov.sleep7dHours, unit: 'h', tone: toneFor(ov.sleep7dHours, 7, 6) },
-    { label: 'HRV 7d', value: ov.hrv7d, unit: 'ms', tone: toneFor(ov.hrv7d, 40, 25) },
+    { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
+    { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
     {
       label: 'FC Repouso 7d',
-      value: ov.restingHeartRate7d,
+      value: rhr,
       unit: 'bpm',
-      tone: toneFor(ov.restingHeartRate7d, 60, 70, true),
+      tone: toneFor(rhr, 60, 70, true),
     },
     {
       label: 'Humor 7d',
       value: moodPct,
       unit: '%',
-      tone: ov.mood7d == null
+      tone: mood == null
         ? 'neutral'
-        : ov.mood7d >= 0.35
+        : mood >= 0.35
         ? 'positive'
-        : ov.mood7d >= -0.1
+        : mood >= -0.1
         ? 'watch'
         : 'negative',
     },
     {
       label: 'Energia ativa 7d',
-      value: ov.activeEnergy7dKcal,
+      value: kcal,
       unit: 'kcal',
-      tone: toneFor(ov.activeEnergy7dKcal, 400, 200),
+      tone: toneFor(kcal, 400, 200),
     },
     {
       label: 'Exercício 7d',
-      value: ov.exercise7dMinutes,
+      value: exMin,
       unit: 'min',
-      tone: ov.exercise7dMinutes == null
+      tone: exMin == null
         ? 'neutral'
-        : ov.exercise7dMinutes >= 30
+        : exMin >= 30
         ? 'positive'
         : 'watch',
     },
@@ -155,8 +169,19 @@ export default function App() {
   const data = useRooCodeData(interpolation)
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
   const cardio = useCardioAnalysis(ranged)
-  const executiveMetrics = useMemo(() => buildExecutiveMetrics(data.overview), [data.overview])
+  const executiveMetrics = useMemo(
+    () =>
+      buildExecutiveMetrics(data.overview, {
+        validRealDays: data.validRealDays,
+        validMoodDays: data.validMoodDays,
+      }),
+    [data.overview, data.validRealDays, data.validMoodDays],
+  )
   const timelineData = useMemo(() => buildTimelineSeries(ranged, EXEC_SERIES), [ranged])
+  const timelineReadiness = useMemo(
+    () => evaluateReadiness(ranged, CHART_REQUIREMENTS.timelineChart, 'Timeline'),
+    [ranged],
+  )
   const lexaproGroup = useMemo(
     () => data.pkGroups.find((g) => g.presetKey === 'escitalopram') ?? null,
     [data.pkGroups],
@@ -224,7 +249,7 @@ export default function App() {
 
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="lg:col-span-2">
-                      <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} />
+                      <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} />
                     </div>
                     <div>
                       <HrvAnalysis snapshots={ranged} baselineBands={cardio.hrvBaselineBands} />
@@ -310,7 +335,7 @@ export default function App() {
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <Spo2Chart snapshots={ranged} />
-                    <WeeklyPatternChart pattern={data.weeklyPattern} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
+                    <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                   </div>
                 </div>
               )}
@@ -332,7 +357,7 @@ export default function App() {
                 <div className="space-y-4">
                   <CorrelationHeatmap snapshots={ranged} />
                   <ScatterCorrelation snapshots={ranged} />
-                  <WeeklyPatternChart pattern={data.weeklyPattern} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
+                  <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                 </div>
               )}
             </SurfaceFrame>

@@ -3,7 +3,9 @@ import { interpolateRgbBasis } from 'd3'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { correlate, METRIC_LABELS, type MetricKey } from '@/utils/correlations'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { pearson } from '@/utils/statistics'
+import { DataReadinessGate } from './shared/DataReadinessGate'
 
 type ExtraMetrics = Record<string, { label: string; values: Array<number | null> }>
 
@@ -86,6 +88,23 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
 
   const hasAnyData = rows.some((r) => r.lag0 || r.lag1)
 
+  // pairCount representativo = mínimo entre todas as rows × lags.
+  // Conservador: se QUALQUER métrica tem poucos pares, heatmap sinaliza.
+  const minPairCount = useMemo(() => {
+    const counts = rows.flatMap((r) =>
+      [r.lag0?.n, r.lag1?.n].filter((n): n is number => n != null),
+    )
+    return counts.length > 0 ? Math.min(...counts) : 0
+  }, [rows])
+
+  const readiness = useMemo(
+    () =>
+      evaluateReadiness(snapshots, CHART_REQUIREMENTS.correlationHeatmap, 'Heatmap', {
+        pairCount: minPairCount,
+      }),
+    [snapshots, minPairCount],
+  )
+
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
@@ -104,37 +123,35 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
         </p>
       )}
 
-      {!hasAnyData ? (
-        <p className="mt-6 text-sm text-slate-400">
-          Dados de humor insuficientes para calcular correlações (mín. 10 pares).
-        </p>
-      ) : (
-        <div className="mt-4">
-          <div className="mb-2 grid grid-cols-[1fr_80px_80px] gap-2 px-1">
-            <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Métrica</span>
-            <span className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Lag 0</span>
-            <span className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Lag +1</span>
-          </div>
+      <DataReadinessGate readiness={readiness}>
+        {hasAnyData ? (
+          <div className="mt-4">
+            <div className="mb-2 grid grid-cols-[1fr_80px_80px] gap-2 px-1">
+              <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Métrica</span>
+              <span className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Lag 0</span>
+              <span className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Lag +1</span>
+            </div>
 
-          <div className="space-y-1.5">
-            {rows.map((row) => (
-              <div key={row.key} className="grid grid-cols-[1fr_80px_80px] items-center gap-2">
-                <span className="truncate text-sm font-medium text-slate-700">{row.label}</span>
-                <RCell data={row.lag0} />
-                <RCell data={row.lag1} />
-              </div>
-            ))}
-          </div>
+            <div className="space-y-1.5">
+              {rows.map((row) => (
+                <div key={row.key} className="grid grid-cols-[1fr_80px_80px] items-center gap-2">
+                  <span className="truncate text-sm font-medium text-slate-700">{row.label}</span>
+                  <RCell data={row.lag0} />
+                  <RCell data={row.lag1} />
+                </div>
+              ))}
+            </div>
 
-          <div className="mt-5 flex items-center gap-3">
-            <span className="text-xs text-slate-400">Negativo</span>
-            <div className="h-2 flex-1 rounded-full" style={{
-              background: 'linear-gradient(to right, #b91c1c, #f5ece0, #15803d)'
-            }} />
-            <span className="text-xs text-slate-400">Positivo</span>
+            <div className="mt-5 flex items-center gap-3">
+              <span className="text-xs text-slate-400">Negativo</span>
+              <div className="h-2 flex-1 rounded-full" style={{
+                background: 'linear-gradient(to right, #b91c1c, #f5ece0, #15803d)'
+              }} />
+              <span className="text-xs text-slate-400">Positivo</span>
+            </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </DataReadinessGate>
     </div>
   )
 }

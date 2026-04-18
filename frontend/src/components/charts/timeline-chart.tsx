@@ -12,11 +12,14 @@ import {
 
 import type { TimelinePoint, TimelineSeriesKey } from '@/types/apple-health'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
+import type { DataReadiness } from '@/utils/data-readiness'
+import { DataReadinessGate } from './shared/DataReadinessGate'
 
 interface TimelineChartProps {
   data: TimelinePoint[]
   seriesKeys: TimelineSeriesKey[]
   labels: Record<TimelineSeriesKey, string>
+  readiness?: DataReadiness
 }
 
 const seriesPalette: Record<TimelineSeriesKey, string> = {
@@ -131,27 +134,11 @@ function TimelineTooltip({ active, payload, label, labels }: any) {
   )
 }
 
-export function TimelineChart({ data, seriesKeys, labels }: TimelineChartProps) {
+export function TimelineChart({ data, seriesKeys, labels, readiness }: TimelineChartProps) {
   const chartData = flattenData(data, seriesKeys)
 
-  return (
-    <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/80 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <span className="inline-flex rounded-full border border-slate-900/10 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
-            Timeline
-          </span>
-          <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-            Séries multi-eixo
-          </h3>
-        </div>
-        <p className="max-w-md text-sm leading-6 text-slate-600">
-          Linhas são interrompidas quando existe um gap maior que dois dias.
-          Trechos tracejados indicam dias estimados por interpolação.
-        </p>
-      </div>
-
-      <div className="h-[360px] w-full">
+  const chartBody = (
+    <div className="h-[360px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 16, right: 18, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="rgba(100,116,139,0.14)" vertical={false} />
@@ -213,7 +200,31 @@ export function TimelineChart({ data, seriesKeys, labels }: TimelineChartProps) 
             ))}
           </LineChart>
         </ResponsiveContainer>
+    </div>
+  )
+
+  return (
+    <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/80 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span className="inline-flex rounded-full border border-slate-900/10 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+            Timeline
+          </span>
+          <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
+            Séries multi-eixo
+          </h3>
+        </div>
+        <p className="max-w-md text-sm leading-6 text-slate-600">
+          Linhas são interrompidas quando existe um gap maior que dois dias.
+          Trechos tracejados indicam dias estimados por interpolação.
+        </p>
       </div>
+
+      {readiness ? (
+        <DataReadinessGate readiness={readiness}>{chartBody}</DataReadinessGate>
+      ) : (
+        chartBody
+      )}
     </div>
   )
 }

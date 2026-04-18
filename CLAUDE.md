@@ -51,7 +51,10 @@ Todos sob `/health/api/*` via Apache (ou `:8011/*` direto):
 - `/sleep`, `/metrics`, `/mood` aceitam `UploadFile` simples (field name `HealthData`) — validado com iPhone AutoExport em 2026-04-17. Sem necessidade de parse manual de multipart.
 - Encoding: UTF-8 primário, fallback latin-1 (acentos).
 - Formato de data: ISO 8601 — usar `pd.to_datetime(..., format="mixed")`.
-- `Mood/mood.csv` atualmente tem dados de SONO (Anders copiou URL errada no AutoExport) — endpoint correto: `POST /health/api/mood` com arquivo State of Mind.
+- `Mood/mood.csv` contém dados reais de humor do State of Mind do iPhone (validado 2026-04-18 — 22 linhas, 26/03 a 17/04). Colunas: `Iniciar` (DD/MM/AAAA), `Fim` (tipo: `Humor Diário` ou `Emoção Momentânea`), `Associações` (score), `Valência` (classe textual PT-BR: `Muito Desagradável` → `Muito Agradável`). Endpoint: `POST /health/api/mood`.
+- **Gotcha resolvido 2026-04-18:** `GET /metrics` retornava string JSON duplamente encoded porque `df.to_json(orient="records")` já serializa, e `JSONResponse` envolvia de novo. Fix em `Metrics/metrics.py:41-45`: `json.loads(df.to_json(...))` — pandas converte NaN → null, json.loads devolve `list[dict]` nativo. Sleep e Mood não tinham esse bug.
+- **Gotcha: `VITE_USE_MOCK=true` órfão no processo Vite.** Se dev server subiu uma vez com a env var setada, o Vite **não revalida `import.meta.env`** em HMR — fica mock pra sempre até restart. Se o app mostrar "Mock · 14 dias" sem `.env` existir: `cat /proc/<pid-vite>/environ | grep VITE_USE_MOCK`. Kill + relançar com `env -u VITE_USE_MOCK`.
+- **Uvicorn `--reload` em loop** acontece quando Apache tem conexões em `CLOSE_WAIT` + processo antigo zombie. Sintoma: log spammando `Errno 98 address already in use` a cada edição Python. Fix: `kill -9` no PID master + relançar **sem** `--reload` pra uso pessoal (reiniciar manual em edits).
 
 ---
 
@@ -109,6 +112,13 @@ Serviços antigos por-módulo (`sleep-api.service`, `metrics-api.service`, `mood
   - `HEALTH_POLICIES` em `src/utils/interpolate.ts` — nova policy `linear_bounded` pra `pulseTemperatureC` (±0.3°C/dia); `valenceClass` derivado via `classifyValence` em ambos os lados (frontend linear + backend claude em `_classify_valence`)
   - Rota `#interpolation-demo` agora valida **Linear vs Claude lado a lado** (botão "Validar Claude", subcomponentes `MetricsCard`/`ClaudeMetricsCard`, fetch direto em `/health/api/interpolate`)
   - Pasta `frontend/docs/` com README + checklist de 9 screenshots (Anders captura manualmente)
+- [x] **Fase 5d:** Progressive Unlock (concluída 2026-04-18)
+  - `utils/data-readiness.ts` — `ReadinessRequirement` discriminado por tipo (`days` | `pairs` | `dow_coverage`), `evaluateReadiness()`, `CHART_REQUIREMENTS` como fonte única de thresholds; `buildPendingMessage()` tom clínico (`"Análise requer N dias · X/N · faltam Y"`)
+  - `components/charts/shared/DataReadinessGate.tsx` — wrapper 3 estados (ready/partial/pending); reusa `EmptyAnalyticsState` + badge amber inline (padrão já estabelecido em `correlation-heatmap.tsx:101-105`)
+  - 11 charts migrados: scatter/heatmap (pares ≥20 ready, 10-19 partial), weekly (dow_coverage ≥5 DOWs + ≥14 dias), timeline (days, readiness opcional via prop), hrv/heartRate/moodTimeline/moodDonut (ready ≥7 dias de field específico), activity/sleepStages/spo2 (ready ≥3 dias)
+  - **Princípio chave:** interpolados **NÃO contam** pra readiness — reflete dados coletados. Toggle `off → linear → claude` não altera badges
+  - `useRooCodeData` expõe `validRealDays` + `validMoodDays`; KPIs executivos mostram `"Sem dados"` quando `validRealDays < 7` (em vez de média-7d falsa de 2-3 dias)
+  - Delta bundle: +3.5 kB JS, CSS inalterado (reuso total de componentes existentes)
 - [ ] **Fase 6:** projeção futura (forecasting 5 dias pra frente)
 
 ---
@@ -130,9 +140,14 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 > Texto pra colar em sessão fresh. Claude lê e executa.
 
-**Estado pós Fase 5 + 5b + 5c (concluídas 2026-04-17 / 2026-04-18):**
-- Interpolação temporal completa e validada. Rota `#interpolation-demo` compara R² **Linear vs Claude lado a lado**. Prompt Gemini é clínico preciso com farmacocinética explícita. `HEALTH_POLICIES` resolvido com `linear_bounded` pra temperatura e `classifyValence` dos dois lados. Helper `tooltip-helpers.ts` centraliza o cast de `interpolated`. Frontend 848 kB / 59 kB CSS, tsc zero erros.
-- Plano detalhado da Fase 6 em `/root/.claude/plans/bora-fechar-as-pontas-fuzzy-knuth.md` — **ler primeiro**.
+**Estado pós Fase 5 + 5b + 5c + 5d (concluídas 2026-04-17 / 2026-04-18):**
+- **Interpolação + Progressive Unlock ativos.** Rota `#interpolation-demo` compara R² Linear vs Claude. Prompt Gemini clínico com PK explícita. Helper `tooltip-helpers.ts` centraliza cast `interpolated`. **Fase 5d** adicionou gating por readiness em 11 charts via `utils/data-readiness.ts` + `DataReadinessGate`. Frontend 852 kB / 60 kB CSS, tsc zero erros.
+- **App roda em dados reais** (`VITE_USE_MOCK=false`). Backend CSVs validados: sleep 117 linhas, metrics 331 linhas, mood 22 linhas (humor real, não sono). Fix backend `Metrics/metrics.py:41` (double-encoding de `to_json`) aplicado 18/04 tarde.
+- Plano detalhado da Fase 6 em `/root/.claude/plans/bora-fechar-as-pontas-fuzzy-knuth.md` — **ler primeiro**. Plano da 5d em `/root/.claude/plans/isso-so-mais-pra-bubbly-newt.md` como referência.
+
+**Oportunidades novas viabilizadas pela Fase 5d (consider no prompt e na UI da Fase 6):**
+- `data.validRealDays` e `data.validMoodDays` estão expostos via `useRooCodeData`. O forecast pode **modular `confidence`** pelo histórico: <14 dias reais → `confidence ≤ 0.4`; <30 dias → `≤ 0.7`; ≥60 dias → até `0.9`. Isso evita o Gemini "chutar alto" com base pobre.
+- Charts com `readiness.status === 'pending'` NÃO devem receber forecast (o usuário nem tem presente, quanto mais futuro). Gate a projeção em `readiness.status !== 'pending'`.
 
 **Decisões arquiteturais já tomadas (não re-perguntar ao Anders):**
 1. **Horizonte:** fixo em **5 dias** (sem slider nesta fase).
@@ -165,12 +180,23 @@ Scope guardrails:
 - Não fazer backtest rigoroso (fica pra 6b)
 - Dark mode / tokens semânticos ficam **fora** (Sprint 5d separada)
 
-Comando de boot:
+Comando de boot (ambiente já está ativo, mas confirma):
 ```bash
-# Backend já roda via uvicorn --reload
-cd /root/RooCode/frontend && npm run dev -- --host 0.0.0.0 &
-# Sanidade:
-curl -s http://localhost:8011/farma/substances | python3 -c "import sys,json;print(len(json.load(sys.stdin)),'substâncias')"
-# Ler o plano:
+# Backend: uvicorn SEM --reload (estável; reiniciar manual em edits Python)
+ps aux | grep -E "uvicorn main:app.*8011" | grep -v grep
+# Frontend:
+ps aux | grep -E "RooCode.*vite" | grep -v grep
+# Sanidade (todos devem retornar 200 + list):
+curl -s -o /dev/null -w "metrics=%{http_code}\n" http://localhost:8011/metrics
+curl -s -o /dev/null -w "sleep=%{http_code}\n"   http://localhost:8011/sleep
+curl -s -o /dev/null -w "mood=%{http_code}\n"    http://localhost:8011/mood
+# Confirmar modo real (nenhum deve voltar "true"):
+cat /proc/$(pgrep -f "RooCode/frontend.*vite" | head -1)/environ 2>/dev/null | tr '\0' '\n' | grep VITE_USE_MOCK || echo "OK (dados reais)"
+# Ler planos:
 cat /root/.claude/plans/bora-fechar-as-pontas-fuzzy-knuth.md
 ```
+
+**Pendências leves arrastadas da 5d (opcional, baixa prioridade):**
+- Screenshots A/B dos 11 gates em `frontend/docs/` (Anders captura manualmente quando quiser)
+- Rodar `code-reviewer` e `code-simplifier` sobre `data-readiness.ts` + `DataReadinessGate.tsx` em sessão nova com contexto fresco
+- Proteção defensiva no `roocode-adapter.ts` contra API retornando tipo inesperado (`Array.isArray(x) ? x : []`)

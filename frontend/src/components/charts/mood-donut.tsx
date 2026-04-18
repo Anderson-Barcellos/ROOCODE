@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 
 interface MoodDonutProps {
   snapshots: DailySnapshot[]
@@ -74,6 +76,11 @@ export function MoodDonut({ snapshots }: MoodDonutProps) {
     }
   }, [snapshots])
 
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.moodDonut, 'Humor'),
+    [snapshots],
+  )
+
   if (!segments.length) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -96,6 +103,7 @@ export function MoodDonut({ snapshots }: MoodDonutProps) {
         {daysWithMood} dos {totalDays} dias do período
       </p>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="relative mt-4 h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -149,6 +157,7 @@ export function MoodDonut({ snapshots }: MoodDonutProps) {
           )
         })}
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

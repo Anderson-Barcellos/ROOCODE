@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   Bar,
   CartesianGrid,
@@ -10,9 +11,13 @@ import {
   YAxis,
 } from 'recharts'
 import type { WeeklyDayStats } from '@/hooks/useActivityAnalysis'
+import type { DailySnapshot } from '@/types/apple-health'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
+import { DataReadinessGate } from './shared/DataReadinessGate'
 
 interface WeeklyPatternChartProps {
   pattern: WeeklyDayStats[]
+  snapshots: DailySnapshot[]
   interpolatedCount?: number
 }
 
@@ -22,7 +27,7 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-export function WeeklyPatternChart({ pattern, interpolatedCount = 0 }: WeeklyPatternChartProps) {
+export function WeeklyPatternChart({ pattern, snapshots, interpolatedCount = 0 }: WeeklyPatternChartProps) {
   const data = pattern.map((d) => ({
     dia: d.dayName,
     exercicio: d.avgExercise != null ? Math.round(d.avgExercise) : null,
@@ -31,18 +36,13 @@ export function WeeklyPatternChart({ pattern, interpolatedCount = 0 }: WeeklyPat
     n: d.count,
   }))
 
-  const hasAnyData = data.some((d) => d.exercicio != null || d.energia != null)
-
-  if (!hasAnyData) {
-    return (
-      <p className="mt-4 text-sm text-slate-400">
-        Sem dados suficientes para o padrão semanal.
-      </p>
-    )
-  }
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.weeklyPatternChart, 'Padrão semanal'),
+    [snapshots],
+  )
 
   return (
-    <>
+    <DataReadinessGate readiness={readiness}>
       {interpolatedCount > 0 && (
         <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
           <span>⚠</span>
@@ -128,6 +128,6 @@ export function WeeklyPatternChart({ pattern, interpolatedCount = 0 }: WeeklyPat
         </ComposedChart>
       </ResponsiveContainer>
     </div>
-    </>
+    </DataReadinessGate>
   )
 }

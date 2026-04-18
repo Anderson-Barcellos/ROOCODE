@@ -15,7 +15,9 @@ import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import type { DailySnapshot } from '@/types/apple-health'
 import type { HrvBaselineBand } from '@/hooks/useCardioAnalysis'
 import { dayLabel } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { sma, trendDirection, METRIC_POLARITY } from '@/utils/statistics'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface HrvAnalysisProps {
@@ -66,6 +68,11 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
     return { data, trend }
   }, [snapshots, baselineBands])
 
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.hrvAnalysis, 'HRV'),
+    [snapshots],
+  )
+
   const { Icon, color, label } = TREND_ICON[trend]
 
   if (!data.length) {
@@ -96,6 +103,7 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
         <p className="mt-1 text-xs leading-5 text-slate-500">Tendência importa mais que valor absoluto. Medicações (escitalopram, clonazepam) podem influenciar. HRV baixo cronicamente pode refletir sobrecarga autonômica.</p>
       </details>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
@@ -147,6 +155,7 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

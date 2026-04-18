@@ -38,5 +38,8 @@ async def getMetrics():
     if not path.exists():
         return JSONResponse(content=[], status_code=200)
     df = pd.read_csv(path)
+    # Pipeline: to_json converte NaN → null (pandas safe) → json.loads volta pra list[dict].
+    # Por que não to_dict direto: preserva NaN (float) que Starlette rejeita com ValueError.
+    # Por que não to_json como resposta: geraria double-encoding (string JSON envolta em aspas).
     records = json.loads(df.to_json(orient="records"))
     return JSONResponse(content=records)

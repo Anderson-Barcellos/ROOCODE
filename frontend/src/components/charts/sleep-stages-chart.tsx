@@ -11,8 +11,12 @@ import {
   YAxis,
 } from 'recharts'
 
+import { useMemo } from 'react'
+
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface SleepStagesPoint {
@@ -59,13 +63,10 @@ const TOOLTIP_STYLE = {
 export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
   const { points: data, hasStages } = buildSleepStagesData(snapshots)
 
-  if (!data.length) {
-    return (
-      <div className="flex h-[320px] items-center justify-center text-sm text-slate-500">
-        Nenhum dado de sono disponível para o período selecionado.
-      </div>
-    )
-  }
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.sleepStagesChart, 'Estágios de sono'),
+    [snapshots],
+  )
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -83,6 +84,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
         </p>
       </div>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 0 }} barSize={data.length > 60 ? 4 : data.length > 30 ? 6 : 10}>
@@ -143,6 +145,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

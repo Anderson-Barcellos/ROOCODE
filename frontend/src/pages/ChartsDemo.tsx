@@ -154,7 +154,7 @@ export function ChartsDemo() {
         </DemoCard>
 
         <DemoCard title="Weekly Pattern">
-          <WeeklyPatternChart pattern={weeklyPattern} />
+          <WeeklyPatternChart pattern={weeklyPattern} snapshots={MOCK_SNAPSHOTS} />
         </DemoCard>
 
         <DemoCard title="Mood Timeline">

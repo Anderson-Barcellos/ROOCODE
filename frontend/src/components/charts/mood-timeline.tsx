@@ -15,7 +15,9 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { sma } from '@/utils/statistics'
+import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 
 interface MoodTimelineProps {
   snapshots: DailySnapshot[]
@@ -112,6 +114,11 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
     }
   }, [snapshots, smaWindow])
 
+  const readiness = useMemo(
+    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.moodTimeline, 'Humor'),
+    [snapshots],
+  )
+
   const formatXTick = (val: string): string => {
     if (!val) return ''
     const d = parseISO(val)
@@ -183,6 +190,7 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
         </span>
       </div>
 
+      <DataReadinessGate readiness={readiness}>
       <div className="mt-3 h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
@@ -243,6 +251,7 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      </DataReadinessGate>
     </div>
   )
 }

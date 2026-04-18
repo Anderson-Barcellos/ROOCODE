@@ -27,10 +27,19 @@ const TOOLTIP_STYLE = {
 export function Spo2Chart({ snapshots }: Spo2ChartProps) {
   const { data, hasAlert } = useMemo(() => {
     const filtered = snapshots.filter((s) => s.health?.spo2 != null)
-    const data = filtered.map((s) => ({
-      label: dayLabel(s.date),
-      spo2: s.health?.spo2 ?? null,
-    }))
+    const data = filtered.map((s, i) => {
+      const v = s.health?.spo2 ?? null
+      const isInterp = s.interpolated === true
+      const prevInterp = filtered[i - 1]?.interpolated === true
+      const nextInterp = filtered[i + 1]?.interpolated === true
+      return {
+        label: dayLabel(s.date),
+        spo2: v,
+        spo2_real: isInterp ? null : v,
+        spo2_interp: isInterp ? v : prevInterp || nextInterp ? v : null,
+        interpolated: isInterp,
+      }
+    })
     const hasAlert = data.some((d) => d.spo2 != null && d.spo2 < 94)
     return { data, hasAlert }
   }, [snapshots])
@@ -78,10 +87,19 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
               domain={[88, 100]}
               tickFormatter={(v: number) => `${v}%`}
             />
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [typeof v === 'number' ? `${v.toFixed(1)}%` : '—']} />
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
+              formatter={(v, name, item) => {
+                if (name === 'spo2_real' || name === 'spo2_interp') return [null, null]
+                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                const text = typeof v === 'number' ? `${v.toFixed(1)}%${interp ? ' ⚠ estimado' : ''}` : '—'
+                return [text, 'SpO2']
+              }}
+            />
             <ReferenceLine y={95} stroke="#f97316" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: '95%', position: 'right', fill: '#f97316', fontSize: 11 }} />
             <ReferenceLine y={94} stroke="#dc2626" strokeWidth={1.5} label={{ value: '94% ⚠', position: 'right', fill: '#dc2626', fontSize: 11 }} />
-            <Line type="monotone" dataKey="spo2" stroke="#7c3aed" strokeWidth={2} dot={false} connectNulls={false} name="SpO2" />
+            <Line type="monotone" dataKey="spo2_real" stroke="#7c3aed" strokeWidth={2} dot={false} connectNulls={false} name="SpO2" legendType="none" />
+            <Line type="monotone" dataKey="spo2_interp" stroke="#7c3aed" strokeWidth={1.8} strokeDasharray="5 4" strokeOpacity={0.7} dot={{ r: 3, fill: '#7c3aed', stroke: '#fff', strokeWidth: 1 }} connectNulls legendType="none" name="SpO2 (estim.)" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

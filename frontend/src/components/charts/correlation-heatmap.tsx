@@ -59,6 +59,10 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
     () => snapshots.map((s) => s.mood?.valence ?? null),
     [snapshots],
   )
+  const interpolatedCount = useMemo(
+    () => snapshots.filter((s) => s.interpolated === true).length,
+    [snapshots],
+  )
 
   const rows = useMemo<CellData[]>(() => {
     const standard = HEATMAP_ROWS.map((key) => {
@@ -93,6 +97,12 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
       <p className="mt-1 text-sm leading-6 text-slate-500">
         Pearson R. * = p &lt; 0,05. Lag 0 = mesmo dia, Lag +1 = métrica hoje / humor amanhã.
       </p>
+      {interpolatedCount > 0 && (
+        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+          <span>⚠</span>
+          <span>inclui {interpolatedCount} {interpolatedCount === 1 ? 'dia estimado' : 'dias estimados'} na amostra</span>
+        </p>
+      )}
 
       {!hasAnyData ? (
         <p className="mt-6 text-sm text-slate-400">

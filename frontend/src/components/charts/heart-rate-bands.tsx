@@ -42,11 +42,20 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
     const smaValues = sma(rhrValues, 7)
     const trend = trendDirection(rhrValues, METRIC_POLARITY.restingHeartRate)
 
-    const data = filtered.map((s, i) => ({
-      label: dayLabel(s.date),
-      rhr: s.health?.restingHeartRate ?? null,
-      sma7: smaValues[i],
-    }))
+    const data = filtered.map((s, i) => {
+      const v = s.health?.restingHeartRate ?? null
+      const isInterp = s.interpolated === true
+      const prevInterp = filtered[i - 1]?.interpolated === true
+      const nextInterp = filtered[i + 1]?.interpolated === true
+      return {
+        label: dayLabel(s.date),
+        rhr: v,
+        rhr_real: isInterp ? null : v,
+        rhr_interp: isInterp ? v : prevInterp || nextInterp ? v : null,
+        interpolated: isInterp,
+        sma7: smaValues[i],
+      }
+    })
 
     return { data, trend }
   }, [snapshots])
@@ -98,12 +107,23 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#475569', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={20} />
             <YAxis tick={{ fill: '#475569', fontSize: 11 }} tickLine={false} axisLine={false} width={36} domain={['auto', 'auto']} tickFormatter={(v: number) => `${v}`} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [typeof v === 'number' ? `${v.toFixed(0)} bpm` : '—']} />
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
+              formatter={(v, name, item) => {
+                if (name === 'rhr_real' || name === 'rhr_interp') return [null, null]
+                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                if (typeof v !== 'number') return ['—', name]
+                if (name === 'rhr') return [`${v.toFixed(0)} bpm${interp ? ' ⚠ estimado' : ''}`, 'FC repouso']
+                if (name === 'sma7') return [`${v.toFixed(0)} bpm`, 'SMA 7d']
+                return [`${v.toFixed(0)} bpm`, name]
+              }}
+            />
             <Legend formatter={(value) => <span style={{ fontSize: 12, color: '#475569' }}>{value === 'rhr' ? 'FC repouso' : 'SMA 7d'}</span>} />
             {overtraining?.baselineMean ? (
               <ReferenceLine y={overtraining.baselineMean} stroke="#6366f1" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: `Baseline ${overtraining.baselineMean}`, position: 'right', fill: '#6366f1', fontSize: 10 }} />
             ) : null}
-            <Line type="monotone" dataKey="rhr" stroke="#be123c" strokeWidth={1.5} dot={false} opacity={0.5} connectNulls={false} name="rhr" />
+            <Line type="monotone" dataKey="rhr_real" stroke="#be123c" strokeWidth={1.5} dot={false} opacity={0.5} connectNulls={false} name="rhr" legendType="none" />
+            <Line type="monotone" dataKey="rhr_interp" stroke="#be123c" strokeWidth={1.5} strokeDasharray="5 4" strokeOpacity={0.55} dot={{ r: 3, fill: '#be123c', stroke: '#fff', strokeWidth: 1 }} connectNulls legendType="none" name="rhr (estim.)" />
             <Line type="monotone" dataKey="sma7" stroke="#be123c" strokeWidth={2.8} dot={false} connectNulls={false} name="sma7" />
           </ComposedChart>
         </ResponsiveContainer>

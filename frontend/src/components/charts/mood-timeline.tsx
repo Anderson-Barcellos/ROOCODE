@@ -34,6 +34,7 @@ interface MoodDataPoint {
   trend: number | null
   valenceClass: string | null
   color: string
+  interpolated: boolean
 }
 
 const TOOLTIP_STYLE = {
@@ -55,6 +56,20 @@ function ValenceDot(props: {
 }) {
   const { cx, cy, payload } = props
   if (cx == null || cy == null || !payload || payload.valence == null) return null
+  if (payload.interpolated) {
+    // Hollow circle com stroke tracejada pra indicar valor estimado
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill="white"
+        stroke={payload.color}
+        strokeWidth={1.5}
+        strokeDasharray="2 1.5"
+      />
+    )
+  }
   return (
     <circle
       cx={cx}
@@ -81,6 +96,7 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
       trend: smoothed[i],
       valenceClass: s.mood?.valenceClass ?? null,
       color: s.mood?.valence != null ? moodColor(s.mood.valence) : '#94a3b8',
+      interpolated: s.interpolated === true || s.mood?.interpolated === true,
     }))
 
     const totalDays = data.length
@@ -197,6 +213,9 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
                     <p className="font-semibold text-slate-800">{p.label}</p>
                     <p className="text-slate-600">{p.valenceClass ?? '—'}</p>
                     <p className="font-mono text-slate-500">V = {p.valence.toFixed(3)}</p>
+                    {p.interpolated && (
+                      <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">⚠ estimado</p>
+                    )}
                   </div>
                 )
               }}

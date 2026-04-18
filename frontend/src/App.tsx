@@ -21,6 +21,7 @@ import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { TimelineChart } from '@/components/charts/timeline-chart'
 import { WeeklyPatternChart } from '@/components/charts/weekly-pattern-chart'
 import { ChartsDemo } from '@/pages/ChartsDemo'
+import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { OverviewMetrics, TimelineSeriesKey } from '@/types/apple-health'
@@ -168,6 +169,7 @@ export default function App() {
   }, [])
 
   if (hash === '#charts-demo') return <ChartsDemo />
+  if (hash === '#interpolation-demo') return <InterpolationDemo />
 
   const today = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
 
@@ -308,7 +310,7 @@ export default function App() {
 
                   <div className="grid gap-4 lg:grid-cols-2">
                     <Spo2Chart snapshots={ranged} />
-                    <WeeklyPatternChart pattern={data.weeklyPattern} />
+                    <WeeklyPatternChart pattern={data.weeklyPattern} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                   </div>
                 </div>
               )}
@@ -330,7 +332,7 @@ export default function App() {
                 <div className="space-y-4">
                   <CorrelationHeatmap snapshots={ranged} />
                   <ScatterCorrelation snapshots={ranged} />
-                  <WeeklyPatternChart pattern={data.weeklyPattern} />
+                  <WeeklyPatternChart pattern={data.weeklyPattern} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                 </div>
               )}
             </SurfaceFrame>

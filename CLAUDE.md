@@ -96,10 +96,13 @@ Serviços antigos por-módulo (`sleep-api.service`, `metrics-api.service`, `mood
 - [x] **Fase 5:** interpolação temporal Gemini + linear (concluída 2026-04-17)
   - Backend: `Interpolate/router.py` com `POST /health/api/interpolate`, cache md5, fallback gracioso
   - Frontend: `useInterpolation` hook + toggle TabNav (off/linear/claude) + `InterpolationBanner`
-  - Visual: dashed lines (Timeline, HRV) + alpha 0.4 (SleepStages, ActivityBars) + tooltip "⚠ estimado"
+  - Visual (4 charts): dashed lines (Timeline, HRV) + alpha 0.4 (SleepStages, ActivityBars)
   - Fix gotcha `dates` da Fase 4: re-derivado de `effectiveSnapshots` quando modo ≠ off
   - 2 TODO(Anders) marcados: prompt Gemini + HEALTH_POLICIES de linear
-- [ ] **Fase 5b:** polish + demo R² (aplicar visual nos 6 charts restantes + demo page com ground truth)
+- [x] **Fase 5b:** polish + demo R² (concluída 2026-04-17, autopilot)
+  - Visual nos 6 charts restantes: SpO2/HRBands dual-series dashed, MoodTimeline ValenceDot hollow, ScatterCorrelation Scatter shape per-pair, CorrelationHeatmap + WeeklyPattern badge amber de contagem
+  - Rota `#interpolation-demo` com R² per field (sleep/HRV/RHR/energia/exercício/SpO2/luz) usando MOCK_SNAPSHOTS como ground truth
+  - `interpolatedCount` propagado pra WeeklyPatternChart (nova prop)
 - [ ] **Fase 6:** projeção futura (forecasting 3-7 dias pra frente)
 
 ---
@@ -117,62 +120,98 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Próxima Sessão (Fase 5b: Polish + Demo R²)
+## KICKOFF — Próxima Sessão (Fase 6: Projeção Futura / Forecasting)
 
 > Texto pra colar quando voltar ao projeto. Claude lê e executa.
 
-**Estado pós Fase 5 (concluída 2026-04-17):**
-- Backend: `POST /health/api/interpolate` via Gemini 2.5 Flash, cache md5, fallback linear on error. `google-genai` 1.73.1 no venv. Endpoint testado live — Gemini retorna dias preenchidos fisiologicamente plausíveis (7.2→7.5→7.0→6.8h de sono).
-- Frontend: `useInterpolation(snapshots, mode)` wrapper TanStack, `InterpolationMode = 'off' | 'linear' | 'claude'`, `useRooCodeData(mode)` re-deriva pkGroups/overview/weeklyPattern/dates a partir de snapshots interpolados.
-- UI: toggle TabNav (segunda linha) + `InterpolationBanner` (teal/amber por modo) + filledCount dinâmico.
-- Visual (4 de 10 charts feitos): TimelineChart + HrvAnalysis com dual-series dashed; SleepStagesChart + ActivityBars com `<Cell>` fillOpacity 0.4 em dias interpolados.
-- localStorage: `roocode-interpolation` persiste entre sessões.
-- 2 TODO(Anders) marcados: `Interpolate/router.py::_build_prompt()` e `src/utils/interpolate.ts::HEALTH_POLICIES`.
-- Build: 836.99 kB JS (+10 KB) · 59.12 kB CSS (+1.3 KB) · tsc zero erros.
+**Estado pós Fase 5 + 5b (concluídas 2026-04-17):**
+- Interpolação temporal completa: off/linear/claude via TabNav. 10/10 charts diferenciam visualmente dias estimados (dashed em line, alpha 0.4 em bars, hollow dot em MoodTimeline, custom shape em Scatter, badge ⚠ em Heatmap/WeeklyPattern).
+- Rota `#interpolation-demo` valida R² per field (MOCK_SNAPSHOTS como ground truth, 30% sparsify, linear reconstrói).
+- Backend `/health/api/interpolate` estável. Frontend 845 kB JS / 59 kB CSS. tsc zero erros.
+- Fase 5 commit: `0d6f869`. Fase 5b commit: pendente quando Anders acordar e validar.
+- 2 TODO(Anders) vivos: prompt Gemini em `Interpolate/router.py::_build_prompt()` e `HEALTH_POLICIES` em `src/utils/interpolate.ts`.
 
-**Agora (Fase 5b):** fechar Fase 5 de verdade com polish visual + validação quantitativa.
+**Fase 6 (agora):** projeção futura. Fase 5 preenche passado; Fase 6 prevê futuro. Novo modo no toggle ou nova feature separada — decisão UX.
 
-### Escopo
+### PERGUNTAS CLÍNICAS QUE ANDERS PRECISA RESPONDER ANTES DE COMEÇAR
 
-1. **Aplicar diferenciação visual nos 6 charts restantes:**
-   - `MoodTimeline` (line chart — padrão dual-series como Timeline/HRV)
-   - `ScatterCorrelation` (scatter — `<Scatter>` com fillOpacity condicional)
-   - `CorrelationHeatmap` (cells — marcar bordas das células envolvendo dias interpolados)
-   - `HeartRateBands` (line/area — dual-series)
-   - `Spo2Chart` (line — dual-series)
-   - `WeeklyPatternChart` (aggregated — discutir se faz sentido distinguir; provavelmente não, já que é média)
+Claude NÃO deve começar a implementação de Fase 6 em autopilot — cada uma dessas perguntas muda materialmente o design:
 
-2. **Criar `src/pages/InterpolationDemo.tsx`** (rota `#interpolation-demo` espelhando `#charts-demo`):
-   - Gera mock "ground truth" com 14 dias completos
-   - Injeta 30% de lacunas aleatórias
-   - Plota lado-a-lado: original / linear / claude
-   - Computa R² per field (sleepTotalHours, hrvSdnn, restingHeartRate, activeEnergyKcal, exerciseMinutes, valence)
-   - Exibe tabela simples: `{strategy, field, R², mean_error}`
+**1. Horizonte de projeção**
+- [ ] **3 dias** (conservador, alta confiança, serve pra "como tá próxima semana")
+- [ ] **5 dias** (balanço, cobre sábado-domingo a partir de terça)
+- [ ] **7 dias** (semana completa, mais speculation)
+- [ ] **Horizonte variável** (slider 1-14 dias, usuário controla)
 
-3. **Screenshot A/B antes/depois** — tirar prints de Executive tab com toggle off vs claude, salvar em `/root/RooCode/frontend/docs/fase5-ab.png` (criar pasta se preciso).
+**2. Quais fields prever?**
+- [ ] Só os 5-6 clinicamente acionáveis: sleep, HRV, RHR, valence, exerciseMinutes
+- [ ] Todos os 22 (mesma lista que interpolação Claude filtra pra 6)
+- [ ] Subset escolhido por tab (Executive: sleep+HRV; MoodMeds: valence; Sleep+Physio: sleep completo)
 
-### Arquivos a tocar
-- `src/components/charts/mood-timeline.tsx`
-- `src/components/charts/scatter-correlation.tsx`
-- `src/components/charts/correlation-heatmap.tsx`
-- `src/components/charts/heart-rate-bands.tsx`
-- `src/components/charts/spo2-chart.tsx`
-- `src/pages/InterpolationDemo.tsx` (criar)
-- `src/App.tsx` (rotear `#interpolation-demo`)
+**3. Como representar incerteza no chart?**
+- [ ] **Error bands** (upper/lower 95% CI via Gemini percentis) — visual rich, complexo
+- [ ] **Confidence no tooltip** (só texto, pontual) — simples, mas perde forma da uncertainty
+- [ ] **Dotted line** sem banda (assume confidence decresce com horizonte) — visual minimal
+- [ ] **Fan chart** (multiple scenarios coloridos) — overkill pro nosso caso?
 
-### Open loops
-- **Tooltip consistency:** hoje cada chart tem sua própria `Tooltip formatter`. Talvez valha um `InterpolationTooltip` compartilhado pra evitar drift visual.
-- **`WeeklyPatternChart`:** agregação por dia da semana. Se DOW tiver 3 dias reais + 1 interpolado, mostrar fillOpacity por % de dias interpolados? Ou só ignorar dias interpolados na agregação? Decisão UX tua.
-- **Accessibility:** dashed + alpha podem sumir em P&B ou low-contrast. Considerar ícone diagonal hatching ou pattern fill no futuro.
+**4. Diferenciação visual vs Fase 5**
+Dias interpolados hoje usam dashed `5 4` em linha + alpha em barras. Forecast precisa ser claramente distinto:
+- [ ] **Dotted `2 3`** (mais denso que dashed, visualmente "menos firme")
+- [ ] **Color-shifted** (linha fica cinza-azulada ao entrar no futuro)
+- [ ] **ReferenceLine vertical "hoje"** separando passado/futuro + opacity 0.5 no futuro
+- [ ] Combinação das acima
+
+**5. Actionable vs descritivo**
+- [ ] Forecast só mostra projeção, usuário interpreta
+- [ ] Forecast gera **alertas clínicos** ("HRV projetado cai 20% — reduza treino") — atenção: autoridade narrativa da IA sobre decisões de saúde
+- [ ] Meio-termo: mostra projeção + "sinais a vigiar" textual sem recomendação direta
+
+**6. Refresh cadence + cache**
+- [ ] Forecast recomputado em toda query invalidation (mesma logic do Claude interpolate)
+- [ ] Forecast "congelado" por 24h (calcula 1x/dia, evita churn narrativo)
+- [ ] Usuário decide via botão "recalcular projeção"
+
+**7. Integração com medicações**
+- [ ] Forecast considera dose_log.json real (timing explícito, onset/offset)
+- [ ] Forecast assume regime atual estável (não pede log)
+- [ ] Forecast simula cenários ("e se eu pular uma dose de escitalopram amanhã?") — scope creep?
+
+### Arquitetura proposta (depois das respostas acima)
+
+**Backend: `Forecast/router.py`** (espelhando `Interpolate/router.py`):
+- `POST /health/api/forecast` com `{ snapshots: recent[], horizon: 3|5|7, fields?: [] }`
+- Cache md5 com TTL de 24h (se escolha 6b)
+- Prompt Gemini: histórico + medicação + pergunta de forecasting
+- Response: `{ forecast: [{ date, values, confidence, p5, p95, rationale }], meta }`
+
+**Frontend:**
+- Novo modo `'forecast'` no TabNav OU botão separado "Projetar 5d" (depende de Q3)
+- `useForecast(snapshots, horizon)` hook wrapper TanStack
+- Charts aceitam `forecastData?: TimelinePoint[]` opcional e renderizam no final da série
+
+**Dados:**
+- `DailySnapshot.forecasted?: boolean` + `DailySnapshot.forecastConfidence?: number`
+- `TimelinePoint.forecasted?: boolean` propagado via `buildTimelineSeries`
 
 ### Comando de boot
 ```bash
-# Backend já roda via uvicorn --reload (PID 2020958)
-# Frontend dev
+# Ler as respostas do Anders ANTES de codar
+# Backend já roda via uvicorn --reload
 cd /root/RooCode/frontend && npm run dev -- --host 0.0.0.0 &
-# Testar live
-curl -s -X POST http://localhost:8011/interpolate \
-  -H "Content-Type: application/json" \
-  -d '{"snapshots":[{"date":"2026-04-10","health":{"sleepTotalHours":7.2,"hrvSdnn":42},"mood":{"valence":0.3},"medications":null},{"date":"2026-04-13","health":{"sleepTotalHours":6.8,"hrvSdnn":38},"mood":{"valence":-0.1},"medications":null}],"strategy":"claude"}' \
-  | python3 -m json.tool
+# Sanidade:
+curl -s http://localhost:8011/farma/substances | python3 -c "import sys,json;print(len(json.load(sys.stdin)),'substâncias')"
 ```
+
+### Scope guardrails (não fazer em Fase 6)
+- Não construir engine próprio de forecasting — usar Gemini como black box
+- Não prever medicações (mesmo hard rule da Fase 5)
+- Não fazer backtest rigoroso nesta fase — R² validation fica pra 6b se justificar
+
+## KICKOFF alternativo — Fase 5c (se Anders quiser refinar Fase 5 antes de Fase 6)
+
+Escopo menor, polish tardio:
+- Adicionar testes R² pra estratégia 'claude' no demo (chamar backend real)
+- Screenshots A/B salvos em `/frontend/docs/fase5-ab.png`
+- Preencher TODO(Anders) do prompt Gemini e HEALTH_POLICIES com decisões dele
+- `InterpolationTooltip` component compartilhado pra todos os charts (DRY)
+- Accessibility: testar dashed/alpha em modo escuro e P&B

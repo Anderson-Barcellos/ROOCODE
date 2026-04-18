@@ -19,7 +19,7 @@ import {
   extractMetricValues,
   type MetricKey,
 } from '@/utils/correlations'
-import { laggedPairs, pearson } from '@/utils/statistics'
+import { pearson } from '@/utils/statistics'
 
 type ExtraMetrics = Record<string, { label: string; values: Array<number | null> }>
 
@@ -77,11 +77,20 @@ export function ScatterCorrelation({ snapshots, extraMetrics = {} }: ScatterCorr
     const ys = getValues(yKey)
 
     const pairs = lag === 0
-      ? xs.flatMap((x, i): { sx: number; sy: number }[] => {
+      ? xs.flatMap((x, i): { sx: number; sy: number; interp: boolean }[] => {
           const y = ys[i]
-          return x != null && y != null ? [{ sx: x, sy: y }] : []
+          if (x == null || y == null) return []
+          const s = snapshots[i]
+          return [{ sx: x, sy: y, interp: s?.interpolated === true }]
         })
-      : laggedPairs(xs, ys, lag).map(([sx, sy]) => ({ sx, sy }))
+      : xs.flatMap((x, i): { sx: number; sy: number; interp: boolean }[] => {
+          const y = ys[i + lag]
+          if (x == null || y == null || i + lag >= snapshots.length) return []
+          const sx_snap = snapshots[i]
+          const sy_snap = snapshots[i + lag]
+          const interp = sx_snap?.interpolated === true || sy_snap?.interpolated === true
+          return [{ sx: x, sy: y, interp }]
+        })
 
     const isExtraKey = (k: string) => k in extraMetrics
     const result = (!isExtraKey(xKey) && !isExtraKey(yKey))
@@ -234,14 +243,32 @@ export function ScatterCorrelation({ snapshots, extraMetrics = {} }: ScatterCorr
                   border: '1px solid rgba(15,23,42,0.08)',
                   fontSize: 12,
                 }}
-                formatter={(value) => [typeof value === 'number' ? value.toFixed(2) : String(value)]}
+                formatter={(value, _name, item) => {
+                  const interp = (item?.payload as { interp?: boolean } | undefined)?.interp
+                  const txt = typeof value === 'number' ? value.toFixed(2) : String(value)
+                  return [`${txt}${interp ? ' ⚠ estimado' : ''}`]
+                }}
               />
               <Scatter
                 name={xLabel}
                 data={scatterData}
-                fill="#0f766e"
-                opacity={0.65}
-                r={4}
+                shape={(props: unknown) => {
+                  const p = props as { cx?: number; cy?: number; payload?: { interp?: boolean } }
+                  if (p.cx == null || p.cy == null) return <g />
+                  const isInterp = p.payload?.interp === true
+                  return (
+                    <circle
+                      cx={p.cx}
+                      cy={p.cy}
+                      r={4}
+                      fill={isInterp ? 'white' : '#0f766e'}
+                      stroke="#0f766e"
+                      strokeWidth={isInterp ? 1.5 : 1}
+                      strokeDasharray={isInterp ? '2 1.5' : undefined}
+                      opacity={isInterp ? 0.7 : 0.65}
+                    />
+                  )
+                }}
               />
               {regressionLine.length === 2 && (
                 <Line

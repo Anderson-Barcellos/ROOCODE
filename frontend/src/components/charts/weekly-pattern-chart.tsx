@@ -13,6 +13,7 @@ import type { WeeklyDayStats } from '@/hooks/useActivityAnalysis'
 
 interface WeeklyPatternChartProps {
   pattern: WeeklyDayStats[]
+  interpolatedCount?: number
 }
 
 const TOOLTIP_STYLE = {
@@ -21,7 +22,7 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-export function WeeklyPatternChart({ pattern }: WeeklyPatternChartProps) {
+export function WeeklyPatternChart({ pattern, interpolatedCount = 0 }: WeeklyPatternChartProps) {
   const data = pattern.map((d) => ({
     dia: d.dayName,
     exercicio: d.avgExercise != null ? Math.round(d.avgExercise) : null,
@@ -41,6 +42,13 @@ export function WeeklyPatternChart({ pattern }: WeeklyPatternChartProps) {
   }
 
   return (
+    <>
+      {interpolatedCount > 0 && (
+        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+          <span>⚠</span>
+          <span>agregação inclui {interpolatedCount} {interpolatedCount === 1 ? 'dia estimado' : 'dias estimados'}</span>
+        </p>
+      )}
     <div className="mt-4 h-[260px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }} barSize={18}>
@@ -120,5 +128,6 @@ export function WeeklyPatternChart({ pattern }: WeeklyPatternChartProps) {
         </ComposedChart>
       </ResponsiveContainer>
     </div>
+    </>
   )
 }

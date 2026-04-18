@@ -17,6 +17,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import type { OvertrainingStatus } from '@/hooks/useCardioAnalysis'
 import { dayLabel } from '@/utils/aggregation'
 import { sma, trendDirection, METRIC_POLARITY } from '@/utils/statistics'
+import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface HeartRateBandsProps {
   snapshots: DailySnapshot[]
@@ -111,9 +112,9 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 if (name === 'rhr_real' || name === 'rhr_interp') return [null, null]
-                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                const suffix = getInterpolationSuffix(item)
                 if (typeof v !== 'number') return ['—', name]
-                if (name === 'rhr') return [`${v.toFixed(0)} bpm${interp ? ' ⚠ estimado' : ''}`, 'FC repouso']
+                if (name === 'rhr') return [`${v.toFixed(0)} bpm${suffix}`, 'FC repouso']
                 if (name === 'sma7') return [`${v.toFixed(0)} bpm`, 'SMA 7d']
                 return [`${v.toFixed(0)} bpm`, name]
               }}

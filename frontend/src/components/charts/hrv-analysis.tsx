@@ -16,6 +16,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import type { HrvBaselineBand } from '@/hooks/useCardioAnalysis'
 import { dayLabel } from '@/utils/aggregation'
 import { sma, trendDirection, METRIC_POLARITY } from '@/utils/statistics'
+import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface HrvAnalysisProps {
   snapshots: DailySnapshot[]
@@ -112,9 +113,9 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
               formatter={(v, name, item) => {
                 if (name === 'bandUpper' || name === 'bandLower' || name === 'bandMean') return [null, null]
                 if (name === 'hrv_real' || name === 'hrv_interp') return [null, null]
-                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
+                const suffix = getInterpolationSuffix(item)
                 if (name === 'hrv') {
-                  const text = typeof v === 'number' ? `${v.toFixed(1)} ms${interp ? ' ⚠ estimado' : ''}` : '—'
+                  const text = typeof v === 'number' ? `${v.toFixed(1)} ms${suffix}` : '—'
                   return [text, 'HRV']
                 }
                 if (name === 'sma7') return [typeof v === 'number' ? `${v.toFixed(1)} ms` : '—', 'SMA 7d']

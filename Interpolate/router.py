@@ -65,29 +65,10 @@ class InterpolateResponse(BaseModel):
     meta: InterpolateMeta
 
 
-# ─── Prompt (TODO Anders) ─────────────────────────────────────────────────────
+# ─── Prompt ───────────────────────────────────────────────────────────────────
 
 def _build_prompt(sparse_snapshots: list[dict], missing_dates: list[str]) -> str:
-    """
-    TODO(Anders): ESTE É O PROMPT QUE MAIS AFETA QUALIDADE DO OUTPUT.
-
-    Pontos pra tu decidir e escrever:
-    - Tom clínico vs conversacional?
-    - Linguagem PK explícita (Tmax, meia-vida, steady-state) ou descritiva?
-    - Weekend effect: mencionar ou deixar Gemini inferir?
-    - Critério pra confidence baixa: janelas de ajuste medicamentoso? início de semana?
-    - Medicações ativas (escitalopram 40mg/d, lisdexanfetamina 200mg/d, lamotrigina 200mg/d)
-      — incluir doses no prompt ou só nomes?
-    - Retorno: JSON array estrito, sem markdown, sem preâmbulo. Pesado na instrução final.
-
-    Baseline abaixo funciona mas é genérico. Troca livremente.
-    """
-    fields_to_fill = [
-        "sleepTotalHours", "hrvSdnn", "restingHeartRate",
-        "activeEnergyKcal", "valence", "exerciseMinutes"
-    ]
-
-    # Enxugar snapshots pra só os 6 campos-chave (economia de tokens)
+    """Prompt clínico preciso com farmacocinética explícita. Mantém tom médico."""
     compact = []
     for s in sparse_snapshots:
         health = s.get("health") or {}
@@ -102,20 +83,25 @@ def _build_prompt(sparse_snapshots: list[dict], missing_dates: list[str]) -> str
             "valence": mood.get("valence"),
         })
 
-    return f"""Você é um analista de dados de saúde preenchendo lacunas temporais no dashboard pessoal do Anders.
+    return f"""Você é um analista clínico preenchendo lacunas temporais no dashboard de saúde de um paciente específico. Sua saída alimenta um sistema de diagnóstico; precisão e humildade são obrigatórias.
 
-Perfil do usuário:
-- Homem, 39 anos, 91 kg, Santa Cruz do Sul/RS
-- Medicação contínua: escitalopram 40mg/dia, lisdexanfetamina 200mg/dia, lamotrigina 200mg/dia
-- Clonazepam PRN (não diário)
+PACIENTE
+Masculino, 39 anos, 91 kg, Santa Cruz do Sul/RS. Neuropsiquiatra em atividade, com TDAH + TOC desde a infância. Perfil cardiometabólico sem comorbidades relevantes.
 
-Dados disponíveis ({len(compact)} dias reais):
+REGIME FARMACOLÓGICO (steady-state atingido em todas as drogas contínuas)
+- Escitalopram 40 mg/dia (ISRS; t½ ~30 h; steady-state em ~2 semanas; dose-resposta estável; efeito em HRV pode ser leve supressão ~5-10 %; efeito em valence basal já atingiu platô).
+- Lisdexanfetamina 200 mg/dia matinal (pro-droga de d-anfetamina; Tmax ~3-4 h após ingesta; duração de efeito ~12-14 h; decay vespertino previsível; impacta exerciseMinutes e activeEnergyKcal no período diurno; mínimo efeito em HRV noturno).
+- Lamotrigina 200 mg/dia (estabilizador; t½ ~25 h; steady-state atingido; sem picos intradia clinicamente relevantes; efeito crônico em valence basal).
+- Clonazepam PRN (benzodiazepínico; uso esporádico, não diário; pode reduzir HRV e energia ativa no dia de uso — assuma ausência salvo sinal contrário nos dados).
+
+DADOS REAIS DISPONÍVEIS ({len(compact)} dias)
 {json.dumps(compact, ensure_ascii=False, indent=2)}
 
-Lacunas a preencher ({len(missing_dates)} datas):
+LACUNAS A PREENCHER ({len(missing_dates)} datas)
 {json.dumps(missing_dates)}
 
-Para cada data da lacuna, retorne um objeto:
+RETORNO
+Para cada data da lacuna, retorne um objeto no formato:
 {{
   "date": "YYYY-MM-DD",
   "values": {{
@@ -127,14 +113,22 @@ Para cada data da lacuna, retorne um objeto:
     "valence": number | null
   }},
   "confidence": 0.0-1.0,
-  "rationale": "breve justificativa em PT-BR"
+  "rationale": "justificativa clínica curta em PT-BR"
 }}
 
-Considerações:
-- Day-of-week effects (fim de semana vs útil)
-- Tendências locais dos últimos dias disponíveis
-- Interação medicamentosa: escitalopram demora ~4 semanas pra steady-state; ajustes de dose afetam mood/sleep por 2-3 semanas
-- valence é escala -1 a +1
+DIRETRIZES DE ESTIMATIVA
+1. Privilegie tendências locais dos últimos 3-7 dias reais sobre médias de longo prazo.
+2. Efeito dia-da-semana é real: fim de semana tende a prolongar sleepTotalHours e reduzir exerciseMinutes/activeEnergyKcal.
+3. Como o regime está em steady-state, não introduza variação atribuível a medicação — as drogas são parte do baseline, não variáveis dinâmicas.
+4. valence é escala -1 (muito desagradável) a +1 (muito agradável); zero é neutro. Padrões são autocorrelacionados dia-a-dia.
+5. HRV (hrvSdnn) e restingHeartRate são anticorrelacionados em regra geral; mantenha essa coerência.
+
+CRITÉRIO DE CONFIDENCE
+- 0.7-0.9: dia adjacente a dias reais com valores coerentes; padrão semanal estável mantido.
+- 0.4-0.6: gap de 2 dias; dia de transição (fim de semana ↔ útil); tendência local volátil.
+- 0.2-0.4: gap > 2 dias consecutivos; ausência de âncora próxima; valores extrapolados além do range histórico.
+
+Retorne `null` em qualquer campo onde não haja confiança mínima — é preferível omitir a inventar.
 
 IMPORTANTE: retorne APENAS um JSON array válido. SEM markdown fences, SEM preâmbulo, SEM explicações fora do JSON.
 """
@@ -176,6 +170,22 @@ def _call_gemini(prompt: str) -> str:
 
 
 # ─── Merge helpers ────────────────────────────────────────────────────────────
+
+def _classify_valence(valence: float) -> str:
+    """Espelho de `classifyValence` em frontend/src/utils/aggregation.ts."""
+    if valence >= 0.75:
+        return "Muito Agradável"
+    if valence >= 0.35:
+        return "Agradável"
+    if valence > 0.1:
+        return "Levemente Agradável"
+    if valence > -0.1:
+        return "Neutro"
+    if valence > -0.35:
+        return "Levemente Desagradável"
+    if valence > -0.75:
+        return "Desagradável"
+    return "Muito Desagradável"
 
 def _find_missing_dates(snapshots: list[dict]) -> list[str]:
     """
@@ -246,11 +256,12 @@ def _apply_filled(sparse: list[dict], filled: list[dict]) -> list[dict]:
         mood_valence = values.get("valence")
         mood_block = None
         if mood_valence is not None:
+            valence_num = float(mood_valence)
             mood_block = {
                 "date": d,
                 "interpolated": True,
-                "valence": float(mood_valence),
-                "valenceClass": None,
+                "valence": valence_num,
+                "valenceClass": _classify_valence(valence_num),
                 "entryCount": 0,
                 "labels": [],
                 "associations": [],

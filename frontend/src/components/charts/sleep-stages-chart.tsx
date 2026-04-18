@@ -13,6 +13,7 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface SleepStagesPoint {
   date: string
@@ -103,8 +104,8 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name, item) => {
-                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
-                const text = typeof value === 'number' ? `${value.toFixed(1)}h${interp ? ' ⚠ estimado' : ''}` : '—'
+                const suffix = getInterpolationSuffix(item)
+                const text = typeof value === 'number' ? `${value.toFixed(1)}h${suffix}` : '—'
                 return [text, name]
               }}
             />

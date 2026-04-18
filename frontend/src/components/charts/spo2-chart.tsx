@@ -13,6 +13,7 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface Spo2ChartProps {
   snapshots: DailySnapshot[]
@@ -91,8 +92,8 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 if (name === 'spo2_real' || name === 'spo2_interp') return [null, null]
-                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
-                const text = typeof v === 'number' ? `${v.toFixed(1)}%${interp ? ' ⚠ estimado' : ''}` : '—'
+                const suffix = getInterpolationSuffix(item)
+                const text = typeof v === 'number' ? `${v.toFixed(1)}%${suffix}` : '—'
                 return [text, 'SpO2']
               }}
             />

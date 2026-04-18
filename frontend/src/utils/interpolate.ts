@@ -12,30 +12,22 @@ import type {
   DailyMoodMetrics,
   DailySnapshot,
 } from '@/types/apple-health'
+import { classifyValence } from '@/utils/aggregation'
 
-// ─── Policy por campo ─────────────────────────────────────────────────────────
-// TODO(Anders): revisar se esta política fisiológica faz sentido.
-//
-// 'interpolate' = média ponderada entre vizinhos (linear).
-// 'skip'        = fica null no dia sintético, não tenta estimar.
-//
-// Decisão tua: o que faz sentido interpolar linearmente pra dados diários
-// de saúde pessoal? Campos de duração (sleepHours, exerciseMin) são trend-like
-// e toleram interpolação. Campos de métrica instantânea (HRV, RHR, SpO₂)
-// seguem padrões circadianos e também toleram. Métricas metadata (recordCount)
-// nunca devem ser interpoladas.
-//
-// Dúvidas clínicas que tu consegue responder melhor que eu:
-//   - `pulseTemperatureC` é confiável demais pra interpolar ou varia muito dia-a-dia?
-//   - `valenceClass` deriva de valence numérico — interpolar ambos ou só o numérico?
-//   - `respiratoryDisturbances` pode indicar apneia — silenciar lacunas é risco clínico?
+// 'interpolate'    = média ponderada entre vizinhos (linear)
+// 'linear_bounded' = linear clampado a ±delta do dia anterior (fisiologicamente limitado)
+// 'skip'           = fica null no dia sintético
 
-type FieldPolicy = 'interpolate' | 'skip'
+type FieldPolicy = 'interpolate' | 'linear_bounded' | 'skip'
+
+// Deltas máximos toleráveis em 24h para campos com policy 'linear_bounded'.
+const BOUNDED_DELTAS: Partial<Record<keyof DailyHealthMetrics, number>> = {
+  pulseTemperatureC: 0.3, // ±0.3°C/dia na ausência de febre
+}
 
 const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   date: 'skip',
   interpolated: 'skip',
-  // Sono (durações)
   sleepTotalHours: 'interpolate',
   sleepAsleepHours: 'interpolate',
   sleepInBedHours: 'interpolate',
@@ -45,25 +37,20 @@ const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   sleepAwakeHours: 'interpolate',
   sleepEfficiencyPct: 'interpolate',
   respiratoryDisturbances: 'skip', // sinal clínico — não inventar
-  // Energia (agregados)
   activeEnergyKcal: 'interpolate',
   restingEnergyKcal: 'interpolate',
-  // Cardio (instantâneas)
   heartRateMin: 'interpolate',
   heartRateMax: 'interpolate',
   heartRateMean: 'interpolate',
   restingHeartRate: 'interpolate',
   hrvSdnn: 'interpolate',
-  // Respiratório
   spo2: 'interpolate',
   respiratoryRate: 'interpolate',
-  pulseTemperatureC: 'interpolate',
-  // Movimento
+  pulseTemperatureC: 'linear_bounded',
   exerciseMinutes: 'interpolate',
   movementMinutes: 'interpolate',
   standingMinutes: 'interpolate',
   daylightMinutes: 'interpolate',
-  // Metadata — NUNCA interpolar
   recordCount: 'skip',
   placeholderRestingEnergyRows: 'skip',
 }
@@ -94,6 +81,20 @@ function interpolateNumeric(
 ): number | null {
   if (prev == null || next == null) return null
   return lerp(prev, next, t)
+}
+
+function clampToDelta(value: number, reference: number, delta: number): number {
+  return Math.max(reference - delta, Math.min(reference + delta, value))
+}
+
+function interpolateBounded(
+  prev: number | null | undefined,
+  next: number | null | undefined,
+  t: number,
+  delta: number,
+): number | null {
+  if (prev == null || next == null) return null
+  return clampToDelta(lerp(prev, next, t), prev, delta)
 }
 
 // ─── Core ─────────────────────────────────────────────────────────────────────
@@ -228,16 +229,20 @@ function interpolateHealth(
   }
 
   for (const [field, policy] of Object.entries(HEALTH_POLICIES) as [keyof DailyHealthMetrics, FieldPolicy][]) {
-    if (policy !== 'interpolate') continue
+    if (policy === 'skip') continue
     const pv = prev[field]
     const nv = next[field]
-    const interp = interpolateNumeric(
-      typeof pv === 'number' ? pv : null,
-      typeof nv === 'number' ? nv : null,
-      t,
-    )
-    // Assign only if field type is number | null (policy garante)
-    ;(out as unknown as Record<string, unknown>)[field] = interp
+    const pvNum = typeof pv === 'number' ? pv : null
+    const nvNum = typeof nv === 'number' ? nv : null
+
+    let value: number | null
+    if (policy === 'linear_bounded') {
+      const delta = BOUNDED_DELTAS[field] ?? 0.3
+      value = interpolateBounded(pvNum, nvNum, t, delta)
+    } else {
+      value = interpolateNumeric(pvNum, nvNum, t)
+    }
+    ;(out as unknown as Record<string, unknown>)[field] = value
   }
 
   return out
@@ -256,7 +261,7 @@ function interpolateMood(
     date,
     interpolated: true,
     valence,
-    valenceClass: null, // derivação deixada fora (TODO Anders: quer classificar estimado?)
+    valenceClass: classifyValence(valence),
     entryCount: 0,
     labels: [],
     associations: [],

@@ -14,6 +14,7 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
+import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface ActivityBarsProps {
   snapshots: DailySnapshot[]
@@ -89,8 +90,7 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
-                const interp = (item?.payload as { interpolated?: boolean } | undefined)?.interpolated
-                const suffix = interp ? ' ⚠ estimado' : ''
+                const suffix = getInterpolationSuffix(item)
                 if (typeof v !== 'number') return ['—', name]
                 if (name === 'energia') return [`${v.toFixed(0)} kcal${suffix}`, 'Energia ativa']
                 if (name === 'exercicio') return [`${v.toFixed(0)} min${suffix}`, 'Exercício']

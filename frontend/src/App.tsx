@@ -1,20 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Compass, BrainCircuit, MoonStar, Orbit } from 'lucide-react'
+import { Compass, BrainCircuit, MoonStar, Orbit, FlaskConical } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 import { SurfaceFrame, MetricGrid, EmptyAnalyticsState } from '@/components/analytics/shared'
 import type { AnalyticsMetric, AnalyticsTone } from '@/components/analytics/types'
 import DoseLogger from '@/components/DoseLogger'
+import DoseHistoryView from '@/components/DoseHistoryView'
+import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
+// NOTE: MedicationRegimenEditor removido da UI (Fase 6a, 2026-04-20). Backend /farma/regimen
+// e o arquivo MedicationRegimenEditor.tsx ficam preservados dormindo — reintroduzir quando
+// virar útil (autofill do DoseLogger ou dashboard de aderência na Fase 7+).
 import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
 import { HeartRateBands } from '@/components/charts/heart-rate-bands'
 import { HrvAnalysis } from '@/components/charts/hrv-analysis'
 import { MoodDonut } from '@/components/charts/mood-donut'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
-import { PKConcentrationChart } from '@/components/charts/pk-concentration-chart'
-import { PKIndividualChart } from '@/components/charts/pk-individual-chart'
+// NOTE: pk-concentration-chart.tsx substituído por PKMedicationGrid em 2026-04-20.
+// O componente antigo fica no disco sem consumer — avaliar remoção na Fase 7.
+import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
@@ -158,6 +164,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('executive')
   const [range, setRange] = useState<RangeOption>('30d')
   const [hash, setHash] = useState(() => window.location.hash)
+  const [catalogOpen, setCatalogOpen] = useState(false)
   const [interpolation, setInterpolationState] = useState<InterpolationMode>(() => {
     const saved = localStorage.getItem('roocode-interpolation')
     return saved === 'linear' || saved === 'claude' ? saved : 'off'
@@ -182,11 +189,6 @@ export default function App() {
     () => evaluateReadiness(ranged, CHART_REQUIREMENTS.timelineChart, 'Timeline'),
     [ranged],
   )
-  const lexaproGroup = useMemo(
-    () => data.pkGroups.find((g) => g.presetKey === 'escitalopram') ?? null,
-    [data.pkGroups],
-  )
-
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHash)
@@ -277,34 +279,37 @@ export default function App() {
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
-              <div className="space-y-4">
-                <PKConcentrationChart
-                  medicationRows={data.medicationRows}
-                  dates={data.dates}
-                  snapshots={ranged}
-                />
+              <div className="min-w-0 space-y-4">
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setCatalogOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-900/15 bg-white/80 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-white hover:shadow-md"
+                    type="button"
+                  >
+                    <FlaskConical className="h-3.5 w-3.5" />
+                    Catálogo de substâncias
+                  </button>
+                </div>
+                <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <div className="lg:col-span-2">
+                <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+                  <div className="min-w-0 lg:col-span-2">
                     <MoodTimeline snapshots={ranged} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <MoodDonut snapshots={ranged} />
                   </div>
                 </div>
 
-                {lexaproGroup && (
-                  <PKIndividualChart
-                    medication={lexaproGroup.medication}
-                    doses={lexaproGroup.doses}
-                    snapshots={ranged}
-                    color="#0f766e"
-                    daysRange={7}
-                  />
-                )}
+                <PKMedicationGrid hoursWindow={168} />
 
-                <div className="mt-5 max-w-md">
-                  <DoseLogger />
+                <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
+                  <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+                    <DoseLogger />
+                  </div>
+                  <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur" style={{ minHeight: 320 }}>
+                    <DoseHistoryView />
+                  </div>
                 </div>
               </div>
             </SurfaceFrame>

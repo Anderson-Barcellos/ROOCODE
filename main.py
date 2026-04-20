@@ -25,4 +25,4 @@ app.include_router(interpolate_router, prefix="/interpolate", tags=["interpolate
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8011, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8011)

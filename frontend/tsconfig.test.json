@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "outDir": "../.tmp/roocode-frontend-tests",
+    "rootDir": ".",
+    "ignoreDeprecations": "6.0",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": [
+    "src/types/apple-health.ts",
+    "src/types/pharmacology.ts",
+    "src/utils/date.ts",
+    "src/utils/aggregation.ts",
+    "src/utils/pharmacokinetics.ts",
+    "src/utils/medication-bridge.ts",
+    "src/utils/statistics.ts",
+    "tests/**/*.ts"
+  ]
+}

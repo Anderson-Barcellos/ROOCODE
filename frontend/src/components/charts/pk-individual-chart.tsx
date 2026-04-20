@@ -12,6 +12,7 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from 'recharts'
+import type { TooltipContentProps } from 'recharts'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Eye, EyeOff, Activity, TrendingUp, Smile } from 'lucide-react'
@@ -106,6 +107,7 @@ export function PKIndividualChart({
   const [showTrendCurve, setShowTrendCurve] = useState(isChronic)
   const [showCss, setShowCss] = useState(isChronic)
   const [showOptimalZone, setShowOptimalZone] = useState(false)
+  const [currentTimestamp] = useState(() => Date.now())
 
   const effectMetrics = useMemo(() => getEffectMetrics(medication), [medication])
   const adherenceMetrics = useMemo(() => calculateAdherenceEffectLag(medication), [medication])
@@ -117,9 +119,9 @@ export function PKIndividualChart({
     const doseTimestamps = doses.map((d) => d.timestamp)
     const lastDose = doseTimestamps.length > 0 ? Math.max(...doseTimestamps) : 0
     const futureExtension = futureHours * 3600 * 1000
-    const endTime = Math.max(lastDose + futureExtension, Date.now())
+    const nowTs = currentTimestamp
+    const endTime = Math.max(lastDose + futureExtension, nowTs)
     const startTime = endTime - daysRange * 24 * 3600 * 1000
-    const nowTs = Date.now()
 
     const totalPoints = daysRange * POINTS_PER_DAY
     const interval = (endTime - startTime) / totalPoints
@@ -224,7 +226,7 @@ export function PKIndividualChart({
       nowTimestamp: nowTs,
       doseMarkers: visibleDoses,
     }
-  }, [medication, doses, snapshots, daysRange, futureHours, isChronic])
+  }, [medication, doses, snapshots, daysRange, futureHours, isChronic, currentTimestamp])
 
   // ─── Domain ─────────────────────────────────────────────────────────────────
 
@@ -264,7 +266,7 @@ export function PKIndividualChart({
   // ─── Tooltip ────────────────────────────────────────────────────────────────
 
   const CustomTooltip = useCallback(
-    ({ active, payload }: any) => {
+    ({ active, payload }: TooltipContentProps) => {
       if (!active || !payload?.length) return null
       const point = payload[0]?.payload as ChartDataPoint
       if (!point) return null

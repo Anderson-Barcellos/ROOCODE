@@ -6,14 +6,24 @@ import {
   startOfDay,
 } from 'date-fns'
 
-const DATE_PATTERNS = [
-  'yyyy-MM-dd HH:mm:ss XXX',
-  'yyyy-MM-dd HH:mm:ss xx',
-  'yyyy-MM-dd HH:mm:ss',
-  'yyyy-MM-dd HH:mm',
-  "yyyy-MM-dd'T'HH:mm:ssXXX",
-  "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-  'yyyy-MM-dd',
+interface DatePattern {
+  pattern: string
+  matcher: RegExp
+}
+
+const DATE_PATTERNS: DatePattern[] = [
+  { pattern: 'dd/MM/yyyy HH:mm:ss XXX', matcher: /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{2}:\d{2}$/ },
+  { pattern: 'dd/MM/yyyy HH:mm:ss xx', matcher: /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4}$/ },
+  { pattern: 'dd/MM/yyyy HH:mm:ss', matcher: /^\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2}$/ },
+  { pattern: 'dd/MM/yyyy', matcher: /^\d{2}\/\d{2}\/\d{4}$/ },
+  { pattern: 'dd-MM-yy', matcher: /^\d{2}-\d{2}-\d{2}$/ },
+  { pattern: 'yyyy-MM-dd HH:mm:ss XXX', matcher: /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{2}:\d{2}$/ },
+  { pattern: 'yyyy-MM-dd HH:mm:ss xx', matcher: /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4}$/ },
+  { pattern: 'yyyy-MM-dd HH:mm:ss', matcher: /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/ },
+  { pattern: 'yyyy-MM-dd HH:mm', matcher: /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/ },
+  { pattern: "yyyy-MM-dd'T'HH:mm:ssXXX", matcher: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/ },
+  { pattern: "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", matcher: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/ },
+  { pattern: 'yyyy-MM-dd', matcher: /^\d{4}-\d{2}-\d{2}$/ },
 ]
 
 export function parseLooseDateTime(input: string | null | undefined): Date | null {
@@ -27,7 +37,11 @@ export function parseLooseDateTime(input: string | null | undefined): Date | nul
     return direct
   }
 
-  for (const pattern of DATE_PATTERNS) {
+  for (const { pattern, matcher } of DATE_PATTERNS) {
+    if (!matcher.test(text)) {
+      continue
+    }
+
     const parsed = parse(text, pattern, new Date())
     if (isValid(parsed)) {
       return parsed

@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:unit": "tsc -p tsconfig.test.json && NODE_PATH=./node_modules node ../.tmp/roocode-frontend-tests/tests/run-all.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource/fraunces": "5.2.9",
     "@fontsource/manrope": "5.2.8",
+    "@radix-ui/react-dialog": "1.1.15",
     "@tanstack/react-query": "5.99.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",

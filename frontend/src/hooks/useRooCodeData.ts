@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 
-import { useDoses, useMetrics, useMood, useSleep, type DoseRecord } from '@/lib/api'
-import { MOCK_DOSES, MOCK_DATES, MOCK_MED_ROWS } from '@/mocks/doseMock'
+import { useDoses, useMetrics, useMood, useRegimen, useSleep, type DoseRecord } from '@/lib/api'
+import { MOCK_DOSES, MOCK_DATES, MOCK_MED_ROWS, MOCK_REGIMEN } from '@/mocks/doseMock'
 import { MOCK_SNAPSHOTS } from '@/mocks/snapshotMock'
 import type { DailySnapshot, MedicationRow, OverviewMetrics } from '@/types/apple-health'
+import type { MedicationRegimenEntry } from '@/types/pharmacology'
 import { buildOverviewMetrics } from '@/utils/aggregation'
 import { buildMedGroups, type MedGroup } from '@/utils/medication-bridge'
 import {
@@ -17,6 +18,7 @@ import type { WeeklyDayStats } from './useActivityAnalysis'
 export interface RooCodeData {
   snapshots: DailySnapshot[]
   medicationRows: MedicationRow[]
+  regimen: MedicationRegimenEntry[]
   doses: DoseRecord[]
   dates: string[]
   pkGroups: MedGroup[]
@@ -82,19 +84,25 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
   const metricsQuery = useMetrics()
   const moodQuery = useMood()
   const dosesQuery = useDoses(14 * 24)
+  const regimenQuery = useRegimen(!USE_MOCK)
 
   const loading =
     !USE_MOCK &&
-    (sleepQuery.isLoading || metricsQuery.isLoading || moodQuery.isLoading || dosesQuery.isLoading)
+    (sleepQuery.isLoading ||
+      metricsQuery.isLoading ||
+      moodQuery.isLoading ||
+      dosesQuery.isLoading ||
+      regimenQuery.isLoading)
   const error =
     !USE_MOCK &&
-    Boolean(sleepQuery.error || metricsQuery.error || moodQuery.error || dosesQuery.error)
+    Boolean(sleepQuery.error || metricsQuery.error || moodQuery.error || dosesQuery.error || regimenQuery.error)
 
   const resolved = useMemo(() => {
     if (USE_MOCK) {
       return {
         snapshots: MOCK_SNAPSHOTS,
         medicationRows: MOCK_MED_ROWS,
+        regimen: MOCK_REGIMEN,
         doses: MOCK_DOSES,
         moodQuality: detectMoodDataQuality(undefined),
         usedMock: true,
@@ -111,11 +119,12 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
     return {
       snapshots: adapterOut.snapshots,
       medicationRows: adapterOut.medicationRows,
+      regimen: regimenQuery.data ?? [],
       doses: dosesQuery.data ?? [],
       moodQuality: adapterOut.moodQuality,
       usedMock: false,
     }
-  }, [sleepQuery.data, metricsQuery.data, moodQuery.data, dosesQuery.data])
+  }, [sleepQuery.data, metricsQuery.data, moodQuery.data, dosesQuery.data, regimenQuery.data])
 
   // ─── Interpolação ──────────────────────────────────────────────────────────
   // Aplica depois do adapter, antes das derivações. Charts recebem array já
@@ -154,6 +163,7 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
   return {
     snapshots: effectiveSnapshots,
     medicationRows: resolved.medicationRows,
+    regimen: resolved.regimen,
     doses: resolved.doses,
     dates,
     pkGroups,

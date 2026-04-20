@@ -59,6 +59,7 @@ const EFFECT_LAG_BY_CLASS: Record<string, number> = {
 const AUTOINDUCTION_DRUGS = ['lamotrigine', 'lamictal', 'lamotrigina', 'lamictal']
 const AUTOINDUCTION_DAYS = 21
 const AUTOINDUCTION_HL_REDUCTION = 0.2
+export const DEFAULT_PK_BODY_WEIGHT_KG = 91
 
 function getKa(med: PKMedication): number {
   if (Number.isFinite(med.absorptionRate) && med.absorptionRate > 0) return med.absorptionRate
@@ -86,26 +87,72 @@ function getAdjustedHalfLife(med: PKMedication, doses: PKDose[]): number {
   return med.halfLife * (1 - AUTOINDUCTION_HL_REDUCTION * progress)
 }
 
+function concentrationForSingleDoseWithHalfLife(
+  med: PKMedication,
+  doseAmount: number,
+  ageHours: number,
+  bodyWeight: number,
+  halfLife: number,
+): number {
+  if (ageHours < 0) return 0
+  if (!Number.isFinite(doseAmount) || doseAmount <= 0) return 0
+  if (!Number.isFinite(halfLife) || halfLife <= 0) return 0
+  if (!Number.isFinite(med.volumeOfDistribution) || med.volumeOfDistribution <= 0) return 0
+  if (!Number.isFinite(med.bioavailability) || med.bioavailability <= 0) return 0
+
+  const Ke = Math.LN2 / halfLife
+  let Ka = getKa(med)
+  if (Math.abs(Ka - Ke) < 1e-6) Ka = Ke + 1e-3
+
+  const Vd = med.volumeOfDistribution * bodyWeight
+  const F = med.bioavailability
+  const useTwoCompartment = med.volumeOfDistribution > 10
+  let concentration = 0
+
+  if (useTwoCompartment) {
+    const alpha = Math.min(Ka, 3 * Ke)
+    const beta = Ke
+    const periph = Math.min(med.volumeOfDistribution / 20, 0.7)
+    const A = (F * doseAmount * Ka) / (Vd * (Ka - alpha)) * (1 - periph)
+    const B = (F * doseAmount * Ka) / (Vd * (Ka - beta)) * periph
+    concentration =
+      A * (Math.exp(-alpha * ageHours) - Math.exp(-Ka * ageHours)) +
+      B * (Math.exp(-beta * ageHours) - Math.exp(-Ka * ageHours))
+  } else {
+    const denom = Vd * (Ka - Ke)
+    if (!Number.isFinite(denom) || denom === 0) return 0
+    concentration =
+      ((F * doseAmount * Ka) / denom) *
+      (Math.exp(-Ke * ageHours) - Math.exp(-Ka * ageHours))
+  }
+
+  return Math.max(0, concentration) * 1000
+}
+
+export function singleDoseConcentrationAtHours(
+  med: PKMedication,
+  doseAmount: number,
+  ageHours: number,
+  bodyWeight = DEFAULT_PK_BODY_WEIGHT_KG,
+): number {
+  return concentrationForSingleDoseWithHalfLife(
+    med,
+    doseAmount,
+    ageHours,
+    bodyWeight,
+    med.halfLife,
+  )
+}
+
 export function calculateConcentration(
   med: PKMedication,
   doses: PKDose[],
   targetTime: number,
   bodyWeight = 70,
 ): number {
-  const { volumeOfDistribution, bioavailability } = med
   const halfLife = getAdjustedHalfLife(med, doses)
 
   if (!Number.isFinite(halfLife) || halfLife <= 0) return 0
-  if (!Number.isFinite(volumeOfDistribution) || volumeOfDistribution <= 0) return 0
-  if (!Number.isFinite(bioavailability) || bioavailability <= 0) return 0
-
-  const Ke = Math.LN2 / halfLife
-  let Ka = getKa(med)
-  if (Math.abs(Ka - Ke) < 1e-6) Ka = Ke + 1e-3
-
-  const Vd = volumeOfDistribution * bodyWeight
-  const F = bioavailability
-  const useTwoCompartment = volumeOfDistribution > 10
 
   let total = 0
 
@@ -116,28 +163,16 @@ export function calculateConcentration(
     const t = (targetTime - dose.timestamp) / (1000 * 3600)
     if (t < 0) continue
 
-    const D = dose.doseAmount
-    let c = 0
-
-    if (useTwoCompartment) {
-      const alpha = Math.min(Ka, 3 * Ke)
-      const beta = Ke
-      const periph = Math.min(volumeOfDistribution / 20, 0.7)
-      const A = (F * D * Ka) / (Vd * (Ka - alpha)) * (1 - periph)
-      const B = (F * D * Ka) / (Vd * (Ka - beta)) * periph
-      c =
-        A * (Math.exp(-alpha * t) - Math.exp(-Ka * t)) +
-        B * (Math.exp(-beta * t) - Math.exp(-Ka * t))
-    } else {
-      const denom = Vd * (Ka - Ke)
-      if (!Number.isFinite(denom) || denom === 0) continue
-      c = ((F * D * Ka) / denom) * (Math.exp(-Ke * t) - Math.exp(-Ka * t))
-    }
-
-    total += Math.max(0, c)
+    total += concentrationForSingleDoseWithHalfLife(
+      med,
+      dose.doseAmount,
+      t,
+      bodyWeight,
+      halfLife,
+    )
   }
 
-  return total * 1000 // mg/L → ng/mL
+  return total
 }
 
 export function calculateEffectConcentration(
@@ -367,16 +402,20 @@ const NAME_MAP: Record<string, string> = {
   clonazepam: 'clonazepam',
   klonopin: 'clonazepam',
   bacopa: 'bacopa',
+  bacopa_monnieri: 'bacopa',
   'bacopa monnieri': 'bacopa',
   magnesium: 'magnesium',
+  magnesio_treonato: 'magnesium',
   'magnésio': 'magnesium',
   'magnesio': 'magnesium',
   'magnésio l-treonato': 'magnesium',
   omega3: 'omega3',
+  omega_3: 'omega3',
   'omega-3': 'omega3',
   'ômega-3': 'omega3',
   'epa/dha': 'omega3',
   vitamind3: 'vitamind3',
+  vitamina_d3_10000_ui: 'vitamind3',
   'vitamina d': 'vitamind3',
   'vitamina d3': 'vitamind3',
   'vitamina d k2': 'vitamind3',

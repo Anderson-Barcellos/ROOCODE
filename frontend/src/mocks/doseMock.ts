@@ -1,5 +1,6 @@
 import type { DoseRecord } from '@/lib/api'
 import type { MedicationRow } from '@/types/apple-health'
+import type { MedicationRegimenEntry } from '@/types/pharmacology'
 
 /**
  * 14 dias de doses plausíveis baseadas no regime real do Anders:
@@ -83,6 +84,41 @@ export function buildMockMedicationRows(doses: DoseRecord[]): MedicationRow[] {
 
 export const MOCK_DOSES: DoseRecord[] = buildMockDoses()
 export const MOCK_MED_ROWS: MedicationRow[] = buildMockMedicationRows(MOCK_DOSES)
+export const MOCK_REGIMEN: MedicationRegimenEntry[] = [
+  {
+    id: 'lexapro-daily',
+    substance: 'lexapro',
+    dose_mg: 40,
+    times: ['07:00'],
+    days_of_week: [0, 1, 2, 3, 4, 5, 6],
+    active: true,
+    start_date: null,
+    end_date: null,
+    color: '#0f766e',
+  },
+  {
+    id: 'venvanse-weekdays',
+    substance: 'venvanse',
+    dose_mg: 200,
+    times: ['07:00'],
+    days_of_week: [1, 2, 3, 4, 5],
+    active: true,
+    start_date: null,
+    end_date: null,
+    color: '#7c3aed',
+  },
+  {
+    id: 'lamictal-nightly',
+    substance: 'lamictal',
+    dose_mg: 200,
+    times: ['22:00'],
+    days_of_week: [0, 1, 2, 3, 4, 5, 6],
+    active: true,
+    start_date: null,
+    end_date: null,
+    color: '#2563eb',
+  },
+]
 
 /**
  * Datas sequenciais (ISO yyyy-MM-dd) que cobrem a janela dos mocks —

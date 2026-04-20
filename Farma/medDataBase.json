@@ -24,6 +24,9 @@
       "ka_per_hour": 0.604541,
       "vd_l_per_kg": 15.58,
       "vd_basis": "apparent_oral_vd_over_f",
+      "therapeutic_range_min": 10,
+      "therapeutic_range_max": 30,
+      "therapeutic_range_unit": "ng/mL",
       "notes": [
         "O modelo usa a dextroanfetamina formada apos a administracao da lisdexanfetamina.",
         "Como o Vd disponivel na literatura e aparente oral (Vz/F), a bioavailability foi mantida em 1.0 para evitar dupla correcao."
@@ -50,6 +53,9 @@
       "ka_per_hour": 0.707421,
       "vd_l_per_kg": 12.0,
       "vd_basis": "label_value",
+      "therapeutic_range_min": 15,
+      "therapeutic_range_max": 80,
+      "therapeutic_range_unit": "ng/mL",
       "notes": [
         "A bula reporta biodisponibilidade oral de cerca de 80% e Tmax medio em torno de 5 horas.",
         "Usei meia-vida media de 30 horas dentro da faixa usual de 27 a 32 horas."
@@ -75,6 +81,9 @@
       "ka_per_hour": 2.114703,
       "vd_l_per_kg": 1.08,
       "vd_basis": "derived_from_vd_over_f",
+      "therapeutic_range_min": 2000,
+      "therapeutic_range_max": 10000,
+      "therapeutic_range_unit": "ng/mL",
       "notes": [
         "A bula descreve biodisponibilidade de cerca de 98% e Vd/F entre 0.9 e 1.3 L/kg; foi usado o ponto medio ajustado por F.",
         "Esses parametros sao mais aderentes ao uso sem valproato ou indutores enzimaticos."

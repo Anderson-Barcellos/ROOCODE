@@ -17,7 +17,7 @@ import { WeeklyPatternChart } from '@/components/charts/weekly-pattern-chart'
 
 import { buildTimelineSeries } from '@/utils/aggregation'
 import { buildPKMedication, type PKDose } from '@/utils/pharmacokinetics'
-import { MOCK_DOSES, MOCK_MED_ROWS, MOCK_DATES } from '@/mocks/doseMock'
+import { MOCK_DOSES, MOCK_MED_ROWS, MOCK_REGIMEN } from '@/mocks/doseMock'
 import { MOCK_SNAPSHOTS } from '@/mocks/snapshotMock'
 import type { WeeklyDayStats } from '@/hooks/useActivityAnalysis'
 import type { DailySnapshot } from '@/types/apple-health'
@@ -176,7 +176,7 @@ export function ChartsDemo() {
         <DemoCard title="PK Concentration (all meds)">
           <PKConcentrationChart
             medicationRows={MOCK_MED_ROWS}
-            dates={MOCK_DATES}
+            regimen={MOCK_REGIMEN}
             snapshots={MOCK_SNAPSHOTS}
           />
         </DemoCard>

@@ -135,11 +135,12 @@ function metricsRecordToHealthRow(record: MetricsRecord): HealthAutoExportRow | 
 /**
  * 🛠️ TODO(Anders): define a heurística de detecção.
  *
- * Contexto: o endpoint /mood hoje serve dados de sono por bug do AutoExport
- * (Anders copiou URL errada). Um MoodRecord válido tem Iniciar (ISO datetime)
- * + Associações (valence em [-1, +1] presumivelmente). Um MoodRecord corrompido
- * vai ter campos extras de sleep (Total Sleep, Core, Deep, REM) OU Associações
- * vindo como string (e.g. "0,25" locale BR) em vez de number.
+ * Contexto: um MoodRecord válido tem Iniciar + Associações. O backend RooCode
+ * pode entregar Associações na escala Apple normalizada 0..100; mocks antigos
+ * ainda usam valence direto em [-1, +1]. O adapter normaliza os dois formatos.
+ *
+ * Um MoodRecord corrompido vai ter campos extras de sleep (Total Sleep,
+ * Core, Deep, REM). Associações em string numérica (ex: "0,25") é aceita.
  *
  * Decisões a tomar:
  * - Se QUALQUER linha tiver `Total Sleep (hr)` presente → tratar como corrupted?
@@ -169,9 +170,21 @@ export function detectMoodDataQuality(rows: MoodRecord[] | undefined): MoodDataQ
   return 'valid'
 }
 
+function normalizeMoodValence(value: MoodRecord['Associações']): number | null {
+  const numeric =
+    typeof value === 'string'
+      ? Number(value.replace(',', '.'))
+      : value
+
+  if (!Number.isFinite(numeric)) return null
+  if (numeric >= -1 && numeric <= 1) return numeric
+  if (numeric >= 0 && numeric <= 100) return (numeric / 50) - 1
+  return null
+}
+
 /**
  * Converte MoodRecord → MoodEntryRow.
- * Assume `Associações` é valence em [-1, +1]. Se detectar corrupção,
+ * Normaliza `Associações` para valence em [-1, +1]. Se detectar corrupção,
  * retorna array vazio (caller decide se cai pra mock).
  */
 function buildMoodRows(rows: MoodRecord[] | undefined): MoodEntryRow[] {
@@ -183,7 +196,7 @@ function buildMoodRows(rows: MoodRecord[] | undefined): MoodEntryRow[] {
     type: null,
     labels: [],
     associations: [],
-    valence: typeof row.Associações === 'number' ? row.Associações : null,
+    valence: normalizeMoodValence(row.Associações),
     valenceClass: null, // buildMoodMetrics em aggregation.ts classifica na agregação
   }))
 }

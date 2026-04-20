@@ -1,5 +1,4 @@
 import pandas as pd
-from datetime import datetime as dt
 from pathlib import Path
 from fastapi import APIRouter, File, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -10,27 +9,51 @@ path = Path(__file__).parent / "mood.csv"
 path.parent.mkdir(parents=True, exist_ok=True)
 
 def _scalingValence(value: int | float) -> float:
+    """
+    Scales the valence value to a range of 0 to 100.
+    """
     return (value + 100) / 2
 
 
-def _organizeMood():
-    dataframe = pd.read_csv(path)
+def _format_mood_date(value: object) -> str:
+    parsed = pd.to_datetime(value, format="mixed", dayfirst=True, errors="raise") # type: ignore
+    return parsed.strftime("%d/%m/%Y")
+
+
+def _normalize_mood_association(value: object) -> float:
+    numeric = float(str(value).replace(",", "."))
+    if -1 <= numeric <= 1:
+        return _scalingValence(numeric * 100)
+    if 0 <= numeric <= 100:
+        return numeric
+    raise ValueError(f"Associações fora da escala esperada: {value}")
+
+
+def _organizeMood() -> bool:
+    """
+    Organizes the mood data by converting the "Iniciar" column to a standardized format,
+    dropping unnecessary columns, and saving the result to the disk.
+    """
     try:
-        dataframe["Iniciar"] = dataframe["Iniciar"].apply(
-            lambda x: dt.strptime(x, "%Y-%m-%d %H:%M:%S -0300")
-        )
-        dataframe["Iniciar"] = dataframe["Iniciar"].apply(
-            lambda x: dt.strftime(x, "%d/%m/%Y")
-        )
+        #Loading the CSV file
+        dataframe = pd.read_csv(path)
+        #Converting the "Iniciar" column to a standardized format
+        dataframe["Iniciar"] = dataframe["Iniciar"].apply(_format_mood_date)
+
+        #Dropping unnecessary columns
         dataframe = dataframe.drop(
-            ["Tipo", "Rótulos", "Classificação de Valência"], axis=1
+            ["Tipo", "Rótulos", "Classificação de Valência"], axis=1, errors="ignore"
         )
+        #scaling the valence value to a range of 0 to 100
         dataframe["Associações"] = dataframe["Associações"].apply(
-            lambda value: _scalingValence(int(value * 100))
+            _normalize_mood_association
         )
+        #Saving the result to the disk
         dataframe.to_csv(path, index=False)
-    except Exception as e:
+        return True
+    except (EmptyDataError, KeyError, ValueError) as e:
         print(e)
+        return False
 
 
 @router.post("")
@@ -38,8 +61,24 @@ async def process_mood_data(
     request: Request,
     HealthData: UploadFile | None = File(default=None),
 ):
-    upload = HealthData
+    """
+    Receives and processes an uploaded mood data CSV file.
 
+    This endpoint accepts an upload of a CSV file containing mood records.
+    The uploaded file is saved to disk and then cleaned/organized:
+    - Dates are standardized.
+    - Unnecessary columns are dropped.
+    - Valence scores are scaled.
+
+    Accepts file via multipart/form-data as 'HealthData', or, if not present,
+    attempts to extract the file from any provided form field.
+
+    Returns:
+        JSONResponse: {"message": "File created"} on success,
+        or an error message with status 422 if no file is found.
+    """
+    upload = HealthData
+    # Handling file content differently from Fast API UploadFile (for some reaason, Auto Export fails to generate a compatible filename)
     if upload is None:
         form = await request.form()
         upload = next(
@@ -62,7 +101,11 @@ async def process_mood_data(
     with open(path, "wb") as f:
         f.write(binary)
 
-    _organizeMood()
+    if not _organizeMood():
+        return JSONResponse(
+            content={"message": "Mood file is empty or invalid"},
+            status_code=422,
+        )
     return JSONResponse(content={"message": "File created"})
 
 

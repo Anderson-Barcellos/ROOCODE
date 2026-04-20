@@ -20,6 +20,8 @@ frontend/node_modules/.tmp/
 # ─── Python venv local ────────────────────────────────────────────────────────
 bin/
 lib/
+!frontend/src/lib/
+!frontend/src/lib/**
 lib64
 share/
 pyvenv.cfg
@@ -32,6 +34,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+.tmp/
 
 # ─── Build / Temp ─────────────────────────────────────────────────────────────
 build/

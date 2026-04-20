@@ -11,8 +11,6 @@ import {
   YAxis,
 } from 'recharts'
 
-import { useMemo } from 'react'
-
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
@@ -62,11 +60,7 @@ const TOOLTIP_STYLE = {
 
 export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
   const { points: data, hasStages } = buildSleepStagesData(snapshots)
-
-  const readiness = useMemo(
-    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.sleepStagesChart, 'Estágios de sono'),
-    [snapshots],
-  )
+  const readiness = evaluateReadiness(snapshots, CHART_REQUIREMENTS.sleepStagesChart, 'Estágios de sono')
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">

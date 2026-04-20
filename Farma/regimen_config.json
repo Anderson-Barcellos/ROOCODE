@@ -1,0 +1,23 @@
+[
+  {
+    "id": "447e97d7-6468-42ee-acdf-9b9fcccbde0d",
+    "substance": "venvanse",
+    "dose_mg": 1.0,
+    "times": [
+      "07:00"
+    ],
+    "days_of_week": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "active": true,
+    "start_date": null,
+    "end_date": null,
+    "color": null
+  }
+]

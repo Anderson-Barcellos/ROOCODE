@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { differenceInCalendarDays, format, isValid, parseISO, startOfDay, subDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 import type {
@@ -167,7 +167,7 @@ export function buildDailySnapshots(bundle: Pick<AppleHealthBundle, 'healthRows'
 }
 
 export function buildOverviewMetrics(snapshots: DailySnapshot[]): OverviewMetrics {
-  const latestSnapshots = lastDays(snapshots, 7)
+  const latestSnapshots = selectSnapshotRange(snapshots, '7d')
 
   return {
     sleep7dHours: averageNested(latestSnapshots, (snapshot) => snapshot.health?.sleepTotalHours),
@@ -191,14 +191,6 @@ function averageNested(
 ): number | null {
   const values = snapshots.map((snapshot) => getter(snapshot))
   return mean(values)
-}
-
-function lastDays(snapshots: DailySnapshot[], days: number): DailySnapshot[] {
-  if (snapshots.length <= days) {
-    return snapshots
-  }
-
-  return snapshots.slice(-days)
 }
 
 export function buildMoodHeatmap(snapshots: DailySnapshot[]): MoodHeatmapDay[] {
@@ -265,8 +257,9 @@ export function selectSnapshotRange(
   snapshots: DailySnapshot[],
   range: '7d' | '30d' | '90d' | '1y' | 'all' = '7d',
 ): DailySnapshot[] {
+  const sorted = [...snapshots].sort((left, right) => left.date.localeCompare(right.date))
   if (range === 'all') {
-    return snapshots
+    return sorted
   }
 
   const rangeMap: Record<'7d' | '30d' | '90d' | '1y', number> = {
@@ -276,7 +269,22 @@ export function selectSnapshotRange(
     '1y': 365,
   }
 
-  return lastDays(snapshots, rangeMap[range])
+  const validSnapshots = sorted.filter((snapshot) => isValid(parseISO(snapshot.date)))
+  if (!validSnapshots.length) {
+    return []
+  }
+
+  const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd')
+  const nonFutureSnapshots = validSnapshots.filter((snapshot) => snapshot.date <= todayKey)
+  const anchor = nonFutureSnapshots.at(-1) ?? validSnapshots.at(-1)
+  if (!anchor) {
+    return []
+  }
+
+  const anchorDate = startOfDay(parseISO(anchor.date))
+  const startKey = format(subDays(anchorDate, rangeMap[range] - 1), 'yyyy-MM-dd')
+
+  return validSnapshots.filter((snapshot) => snapshot.date >= startKey && snapshot.date <= anchor.date)
 }
 
 export function calculateDayGapDays(left: string, right: string): number {

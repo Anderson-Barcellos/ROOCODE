@@ -89,6 +89,10 @@ export interface SleepRecord {
 
 export interface MoodRecord {
   Iniciar: string
+  // Fase 8B — 'Fim' distingue tipo do registro no State of Mind:
+  //   'Humor Diário' (agregado do dia, sem hora no Iniciar)
+  //   'Emoção Momentânea' (ponto com timestamp HH:MM:SS no Iniciar)
+  Fim?: string
   Associações: number | string
   Valência?: string
 }

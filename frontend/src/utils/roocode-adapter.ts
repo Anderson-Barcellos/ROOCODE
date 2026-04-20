@@ -215,11 +215,12 @@ function buildMoodRows(rows: MoodRecord[] | undefined): MoodEntryRow[] {
   return rows.map((row) => ({
     start: row.Iniciar,
     end: null,
-    type: null,
+    // Fase 8B — propaga tipo do iPhone pra permitir filtrar emoções momentâneas.
+    type: row.Fim ?? null,
     labels: [],
     associations: [],
     valence: normalizeMoodValence(row.Associações),
-    valenceClass: null, // buildMoodMetrics em aggregation.ts classifica na agregação
+    valenceClass: row.Valência ?? null,
   }))
 }
 

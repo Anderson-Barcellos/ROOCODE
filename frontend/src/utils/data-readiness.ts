@@ -168,4 +168,11 @@ export const CHART_REQUIREMENTS = {
   walkingVitalityChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'walkingSpeedKmh' },
   // Steps é o sinal mais denso — quase sempre presente se o watch foi usado.
   stepsTimelineChart: { type: 'days', readyMin: 3, partialMin: 1, field: 'steps' },
+  // Fase 8B — Descritivo e Insights
+  // Scatter PK×humor: cada par = 1 emoção momentânea. Pearson r com n<10 é ruído.
+  pkMoodScatter: { type: 'pairs', readyMin: 20, partialMin: 10 },
+  // Lag correlation: mesma base de pares, threshold ligeiramente maior pra estabilidade.
+  lagCorrelation: { type: 'pairs', readyMin: 25, partialMin: 12 },
+  // Adherence: 3 doses por substância é o mínimo pra std dev ter semântica.
+  medicationAdherence: { type: 'pairs', readyMin: 3, partialMin: 2 },
 } as const satisfies Record<string, ReadinessRequirement>

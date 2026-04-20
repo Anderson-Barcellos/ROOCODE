@@ -16,8 +16,20 @@ def _scalingValence(value: int | float) -> float:
 
 
 def _format_mood_date(value: object) -> str:
-    parsed = pd.to_datetime(value, format="mixed", dayfirst=True, errors="raise") # type: ignore
-    return parsed.strftime("%d/%m/%Y")
+    """
+    Preserva granularidade horária quando presente no payload do iPhone.
+
+    Apple State of Mind envia dois tipos via AutoExport:
+    - 'Humor Diário' → só data (DD/MM/AAAA)
+    - 'Emoção Momentânea' → data + hora (DD/MM/AAAA HH:MM:SS)
+
+    Antes (bug pré-Fase 8B): strftime("%d/%m/%Y") descartava a hora em todas
+    as linhas, impossibilitando análise intraday PK×humor. Agora formatamos
+    com hora quando o parse detectar componente temporal não-zero.
+    """
+    parsed = pd.to_datetime(value, format="mixed", dayfirst=True, errors="raise")  # type: ignore
+    has_time = parsed.hour != 0 or parsed.minute != 0 or parsed.second != 0  # type: ignore
+    return parsed.strftime("%d/%m/%Y %H:%M:%S" if has_time else "%d/%m/%Y")  # type: ignore
 
 
 def _normalize_mood_association(value: object) -> float:

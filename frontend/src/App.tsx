@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Compass, BrainCircuit, MoonStar, Orbit, FlaskConical } from 'lucide-react'
+import { Compass, BrainCircuit, MoonStar, Orbit, FlaskConical, Telescope } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
@@ -25,6 +25,9 @@ import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
+import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
+import { MedicationAdherenceChart } from '@/components/charts/medication-adherence-chart'
+import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { TimelineChart } from '@/components/charts/timeline-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -486,6 +489,31 @@ export default function App() {
                   <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                 </div>
               )}
+            </SurfaceFrame>
+          )}
+
+          {activeTab === 'insights' && (
+            <SurfaceFrame
+              icon={<Telescope className="h-4 w-4" />}
+              kicker="Descritivo + Insights"
+              title="Exploração intraday e hipóteses clínicas"
+              description="Análises em granularidade horária — concentração × humor momentâneo, lag analysis e regularidade de doses. Observações, não diagnósticos."
+              window={{ label: range, coveredDays: ranged.length }}
+              status={data.usedMock ? 'Mock · sem eventos momentâneos' : `${data.snapshots.length} dias`}
+            >
+              <div className="space-y-4">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                  <span className="font-semibold">⚠ Análise exploratória.</span>{' '}
+                  <span className="text-amber-700/90">
+                    Correlação ≠ causalidade. n pequeno = r ruidoso. Emoções momentâneas têm sampling bias
+                    (tu loga quando a emoção é forte). Use como hipótese, não evidência. Precisa ~60 dias de
+                    dados pra conclusão robusta.
+                  </span>
+                </div>
+                <PKMoodScatterChart />
+                <LagCorrelationChart />
+                <MedicationAdherenceChart />
+              </div>
             </SurfaceFrame>
           )}
         </div>

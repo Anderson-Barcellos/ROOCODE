@@ -6,6 +6,7 @@ import {
   ComposedChart,
   Legend,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,10 +17,11 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface ActivityBarsProps {
   snapshots: DailySnapshot[]
+  forecastStartDate?: string
 }
 
 const TOOLTIP_STYLE = {
@@ -28,7 +30,7 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-export function ActivityBars({ snapshots }: ActivityBarsProps) {
+export function ActivityBars({ snapshots, forecastStartDate }: ActivityBarsProps) {
   const data = useMemo(() => {
     return snapshots
       .filter((s) => s.health != null && (
@@ -42,6 +44,8 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
         exercicio: s.health?.exerciseMinutes ?? null,
         luz: s.health?.daylightMinutes ?? null,
         interpolated: s.interpolated === true,
+        forecasted: s.forecasted === true,
+        forecastConfidence: s.forecastConfidence ?? null,
       }))
   }, [snapshots])
 
@@ -98,7 +102,7 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
-                const suffix = getInterpolationSuffix(item)
+                const suffix = getDataSuffix(item)
                 if (typeof v !== 'number') return ['—', name]
                 if (name === 'energia') return [`${v.toFixed(0)} kcal${suffix}`, 'Energia ativa']
                 if (name === 'exercicio') return [`${v.toFixed(0)} min${suffix}`, 'Exercício']
@@ -109,11 +113,12 @@ export function ActivityBars({ snapshots }: ActivityBarsProps) {
               const labels: Record<string, string> = { energia: 'Energia (kcal)', exercicio: 'Exercício (min)', luz: 'Luz do dia (min)' }
               return <span style={{ fontSize: 12, color: '#475569' }}>{labels[value] ?? value}</span>
             }} />
+            {forecastStartDate && <ReferenceLine x={dayLabel(forecastStartDate)} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />}
             <Bar yAxisId="kcal" dataKey="energia" fill="#ea580c" radius={[2, 2, 0, 0]} name="energia">
-              {data.map((entry, i) => <Cell key={`e-${i}`} fillOpacity={entry.interpolated ? 0.3 : 0.75} />)}
+              {data.map((entry, i) => <Cell key={`e-${i}`} fillOpacity={entry.forecasted ? 0.35 : entry.interpolated ? 0.3 : 0.75} />)}
             </Bar>
             <Bar yAxisId="min" dataKey="exercicio" fill="#15803d" radius={[2, 2, 0, 0]} name="exercicio">
-              {data.map((entry, i) => <Cell key={`x-${i}`} fillOpacity={entry.interpolated ? 0.3 : 0.75} />)}
+              {data.map((entry, i) => <Cell key={`x-${i}`} fillOpacity={entry.forecasted ? 0.35 : entry.interpolated ? 0.3 : 0.75} />)}
             </Bar>
             <Line yAxisId="min" type="monotone" dataKey="luz" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls={false} name="luz" />
           </ComposedChart>

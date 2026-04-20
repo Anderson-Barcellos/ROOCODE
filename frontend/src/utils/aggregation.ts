@@ -218,6 +218,8 @@ export function buildTimelineSeries(
       date: snapshot.date,
       values,
       interpolated: snapshot.interpolated === true,
+      forecasted: snapshot.forecasted === true,
+      forecastConfidence: snapshot.forecastConfidence,
     }
   })
 }

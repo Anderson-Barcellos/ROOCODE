@@ -4,6 +4,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +21,7 @@ interface TimelineChartProps {
   seriesKeys: TimelineSeriesKey[]
   labels: Record<TimelineSeriesKey, string>
   readiness?: DataReadiness
+  forecastStartDate?: string
 }
 
 const seriesPalette: Record<TimelineSeriesKey, string> = {
@@ -48,19 +50,30 @@ function flattenData(data: TimelinePoint[], seriesKeys: TimelineSeriesKey[]) {
       date: point.date,
       label: dayLabel(point.date),
       interpolated: point.interpolated === true,
+      forecasted: point.forecasted === true,
+      forecastConfidence: point.forecastConfidence ?? null,
     }
-    const isInterp = point.interpolated === true
-    const prevInterp = data[idx - 1]?.interpolated === true
-    const nextInterp = data[idx + 1]?.interpolated === true
+    const isForecast = point.forecasted === true
+    const isInterp = !isForecast && point.interpolated === true
+    const prevInterp = !isForecast && data[idx - 1]?.interpolated === true
+    const nextInterp = !isForecast && data[idx + 1]?.interpolated === true
+    const prevForecast = data[idx - 1]?.forecasted === true
+    const nextForecast = data[idx + 1]?.forecasted === true
 
     for (const key of seriesKeys) {
       const v = point.values[key] ?? null
-      if (isInterp) {
+      if (isForecast) {
+        row[`${key}_real`] = null
+        row[`${key}_interp`] = null
+        row[`${key}_forecast`] = v
+      } else if (isInterp) {
         row[`${key}_real`] = null
         row[`${key}_interp`] = v
+        row[`${key}_forecast`] = null
       } else {
         row[`${key}_real`] = v
         row[`${key}_interp`] = prevInterp || nextInterp ? v : null
+        row[`${key}_forecast`] = prevForecast || nextForecast ? v : null
       }
     }
     return row
@@ -86,6 +99,7 @@ function flattenData(data: TimelinePoint[], seriesKeys: TimelineSeriesKey[]) {
       for (const key of seriesKeys) {
         gapRow[`${key}_real`] = null
         gapRow[`${key}_interp`] = null
+        gapRow[`${key}_forecast`] = null
       }
       flattened.push(gapRow)
     }
@@ -104,12 +118,12 @@ interface TooltipRow {
 function TimelineTooltip({ active, payload, label, labels }: any) {
   if (!active || !payload?.length) return null
   const rows = payload as TooltipRow[]
-  const isInterp = rows[0]?.value != null && rows.some((r) => r.dataKey.endsWith('_interp'))
-  // Consolida: para cada série base mostra um único valor (real ou interp)
+  const isInterp = rows.some((r) => r.dataKey.endsWith('_interp') && r.value != null)
+  const isForecast = rows.some((r) => r.dataKey.endsWith('_forecast') && r.value != null)
   const shown = new Map<string, TooltipRow>()
   for (const r of rows) {
     if (r.value == null) continue
-    const base = r.dataKey.replace(/_real$|_interp$/, '')
+    const base = r.dataKey.replace(/_real$|_interp$|_forecast$/, '')
     if (!shown.has(base)) shown.set(base, { ...r, dataKey: base })
   }
   if (shown.size === 0) return null
@@ -124,7 +138,13 @@ function TimelineTooltip({ active, payload, label, labels }: any) {
           <span className="font-semibold text-slate-900">{typeof r.value === 'number' ? r.value.toFixed(1) : r.value}</span>
         </div>
       ))}
-      {isInterp && (
+      {isForecast && (
+        <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">
+          <span>🔮</span>
+          <span>projetado</span>
+        </div>
+      )}
+      {isInterp && !isForecast && (
         <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">
           <span>⚠</span>
           <span>estimado</span>
@@ -134,7 +154,7 @@ function TimelineTooltip({ active, payload, label, labels }: any) {
   )
 }
 
-export function TimelineChart({ data, seriesKeys, labels, readiness }: TimelineChartProps) {
+export function TimelineChart({ data, seriesKeys, labels, readiness, forecastStartDate }: TimelineChartProps) {
   const chartData = flattenData(data, seriesKeys)
 
   const chartBody = (
@@ -166,6 +186,15 @@ export function TimelineChart({ data, seriesKeys, labels, readiness }: TimelineC
             />
             <Tooltip content={<TimelineTooltip labels={labels} />} />
             <Legend />
+            {forecastStartDate && (
+              <ReferenceLine
+                x={dayLabel(forecastStartDate)}
+                stroke="#7c3aed"
+                strokeDasharray="4 3"
+                strokeWidth={1.5}
+                label={{ value: 'hoje', position: 'top', fill: '#7c3aed', fontSize: 10 }}
+              />
+            )}
 
             {seriesKeys.map((key, index) => (
               <Fragment key={key}>
@@ -193,6 +222,21 @@ export function TimelineChart({ data, seriesKeys, labels, readiness }: TimelineC
                   dot={{ r: 3, fill: seriesPalette[key], stroke: '#fff', strokeWidth: 1 }}
                   activeDot={{ r: 5 }}
                   name={`${labels[key]} (estimado)`}
+                  connectNulls
+                  legendType="none"
+                />
+                <Line
+                  key={`${key}-forecast`}
+                  type="monotone"
+                  dataKey={`${key}_forecast`}
+                  yAxisId={index === 0 ? 'left' : 'right'}
+                  stroke={seriesPalette[key]}
+                  strokeWidth={1.6}
+                  strokeDasharray="2 3"
+                  strokeOpacity={0.55}
+                  dot={{ r: 3, fill: seriesPalette[key], stroke: '#fff', strokeWidth: 1, opacity: 0.55 }}
+                  activeDot={{ r: 5 }}
+                  name={`${labels[key]} (projeção)`}
                   connectNulls
                   legendType="none"
                 />

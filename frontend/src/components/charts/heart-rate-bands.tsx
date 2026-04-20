@@ -19,11 +19,12 @@ import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { sma, trendDirection, METRIC_POLARITY } from '@/utils/statistics'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface HeartRateBandsProps {
   snapshots: DailySnapshot[]
   overtraining?: OvertrainingStatus
+  forecastStartDate?: string
 }
 
 const TOOLTIP_STYLE = {
@@ -38,7 +39,7 @@ const TREND_ICON = {
   worsening: { Icon: TrendingUp, color: 'text-rose-600', label: 'Piorando' },
 }
 
-export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps) {
+export function HeartRateBands({ snapshots, overtraining, forecastStartDate }: HeartRateBandsProps) {
   const { data, trend } = useMemo(() => {
     const filtered = snapshots.filter((s) => s.health?.restingHeartRate != null)
     const rhrValues = filtered.map((s) => s.health?.restingHeartRate ?? null)
@@ -47,15 +48,21 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
 
     const data = filtered.map((s, i) => {
       const v = s.health?.restingHeartRate ?? null
-      const isInterp = s.interpolated === true
-      const prevInterp = filtered[i - 1]?.interpolated === true
-      const nextInterp = filtered[i + 1]?.interpolated === true
+      const isForecast = s.forecasted === true
+      const isInterp = !isForecast && s.interpolated === true
+      const prevInterp = !isForecast && filtered[i - 1]?.interpolated === true
+      const nextInterp = !isForecast && filtered[i + 1]?.interpolated === true
+      const prevForecast = filtered[i - 1]?.forecasted === true
+      const nextForecast = filtered[i + 1]?.forecasted === true
       return {
         label: dayLabel(s.date),
         rhr: v,
-        rhr_real: isInterp ? null : v,
-        rhr_interp: isInterp ? v : prevInterp || nextInterp ? v : null,
+        rhr_real: isForecast || isInterp ? null : v,
+        rhr_interp: isInterp ? v : (prevInterp || nextInterp) ? v : null,
+        rhr_forecast: isForecast ? v : (!isForecast && !isInterp && (prevForecast || nextForecast)) ? v : null,
         interpolated: isInterp,
+        forecasted: isForecast,
+        forecastConfidence: s.forecastConfidence ?? null,
         sma7: smaValues[i],
       }
     })
@@ -119,8 +126,8 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
-                if (name === 'rhr_real' || name === 'rhr_interp') return [null, null]
-                const suffix = getInterpolationSuffix(item)
+                if (name === 'rhr_real' || name === 'rhr_interp' || name === 'rhr_forecast') return [null, null]
+                const suffix = getDataSuffix(item)
                 if (typeof v !== 'number') return ['—', name]
                 if (name === 'rhr') return [`${v.toFixed(0)} bpm${suffix}`, 'FC repouso']
                 if (name === 'sma7') return [`${v.toFixed(0)} bpm`, 'SMA 7d']
@@ -133,7 +140,9 @@ export function HeartRateBands({ snapshots, overtraining }: HeartRateBandsProps)
             ) : null}
             <Line type="monotone" dataKey="rhr_real" stroke="#be123c" strokeWidth={1.5} dot={false} opacity={0.5} connectNulls={false} name="rhr" legendType="none" />
             <Line type="monotone" dataKey="rhr_interp" stroke="#be123c" strokeWidth={1.5} strokeDasharray="5 4" strokeOpacity={0.55} dot={{ r: 3, fill: '#be123c', stroke: '#fff', strokeWidth: 1 }} connectNulls legendType="none" name="rhr (estim.)" />
+            <Line type="monotone" dataKey="rhr_forecast" stroke="#be123c" strokeWidth={1.6} strokeDasharray="2 3" strokeOpacity={0.55} dot={{ r: 3, fill: '#be123c', stroke: '#fff', strokeWidth: 1, opacity: 0.55 }} connectNulls legendType="none" name="rhr (projeção)" />
             <Line type="monotone" dataKey="sma7" stroke="#be123c" strokeWidth={2.8} dot={false} connectNulls={false} name="sma7" />
+            {forecastStartDate && <ReferenceLine x={dayLabel(forecastStartDate)} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

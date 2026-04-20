@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Compass, BrainCircuit, MoonStar, Orbit, FlaskConical } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
+import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 import { SurfaceFrame, MetricGrid, EmptyAnalyticsState } from '@/components/analytics/shared'
 import type { AnalyticsMetric, AnalyticsTone } from '@/components/analytics/types'
@@ -31,6 +32,7 @@ import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { OverviewMetrics, TimelineSeriesKey } from '@/types/apple-health'
+import { ForecastSignalsPanel } from '@/components/charts/ForecastSignalsPanel'
 import { buildTimelineSeries, selectSnapshotRange } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 
@@ -160,6 +162,30 @@ function InterpolationBanner({ mode, loading, error, filledCount }: Interpolatio
   )
 }
 
+interface ForecastBannerProps {
+  mode: ForecastMode
+  loading: boolean
+  error: boolean
+  forecastedCount: number
+}
+
+function ForecastBanner({ mode, loading, error, forecastedCount }: ForecastBannerProps) {
+  if (mode === 'off') return null
+  const status = loading
+    ? ' — Gemini gerando previsão…'
+    : error
+    ? ' — Erro na chamada IA. Tente novamente.'
+    : forecastedCount > 0
+    ? ` — ${forecastedCount} dias projetados. Pontos pontilhados indicam estimativas futuras.`
+    : ' — Aguardando dados suficientes (≥7 dias reais).'
+  return (
+    <div className="mb-4 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm text-violet-900">
+      <span className="font-semibold">🔮 Projeção Gemini</span>
+      <span className="text-violet-700/80">{status}</span>
+    </div>
+  )
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('executive')
   const [range, setRange] = useState<RangeOption>('30d')
@@ -173,8 +199,24 @@ export default function App() {
     setInterpolationState(mode)
     localStorage.setItem('roocode-interpolation', mode)
   }
-  const data = useRooCodeData(interpolation)
+  const [forecast, setForecastState] = useState<ForecastMode>(() => {
+    const saved = localStorage.getItem('roocode-forecast')
+    return saved === 'on' ? 'on' : 'off'
+  })
+  const setForecast = (mode: ForecastMode) => {
+    setForecastState(mode)
+    localStorage.setItem('roocode-forecast', mode)
+  }
+  const data = useRooCodeData(interpolation, forecast)
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
+  const todayIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const rangedWithForecast = useMemo(
+    () =>
+      forecast === 'on' && data.forecastedSnapshots.length > 0
+        ? [...ranged, ...data.forecastedSnapshots]
+        : ranged,
+    [ranged, data.forecastedSnapshots, forecast],
+  )
   const cardio = useCardioAnalysis(ranged)
   const executiveMetrics = useMemo(
     () =>
@@ -184,7 +226,7 @@ export default function App() {
       }),
     [data.overview, data.validRealDays, data.validMoodDays],
   )
-  const timelineData = useMemo(() => buildTimelineSeries(ranged, EXEC_SERIES), [ranged])
+  const timelineData = useMemo(() => buildTimelineSeries(rangedWithForecast, EXEC_SERIES), [rangedWithForecast])
   const timelineReadiness = useMemo(
     () => evaluateReadiness(ranged, CHART_REQUIREMENTS.timelineChart, 'Timeline'),
     [ranged],
@@ -210,6 +252,9 @@ export default function App() {
         interpolation={interpolation}
         onInterpolationChange={setInterpolation}
         interpolationLoading={data.interpolationLoading}
+        forecast={forecast}
+        onForecastChange={setForecast}
+        forecastLoading={data.forecastLoading}
       />
 
       <main className="app-shell">
@@ -233,6 +278,12 @@ export default function App() {
             error={data.interpolationError}
             filledCount={data.interpolationFilledCount}
           />
+          <ForecastBanner
+            mode={data.forecastMode}
+            loading={data.forecastLoading}
+            error={data.forecastError}
+            forecastedCount={data.forecastedCount}
+          />
 
           {activeTab === 'executive' && (
             <SurfaceFrame
@@ -251,20 +302,30 @@ export default function App() {
 
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="lg:col-span-2">
-                      <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} />
+                      <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     </div>
                     <div>
-                      <HrvAnalysis snapshots={ranged} baselineBands={cardio.hrvBaselineBands} />
+                      <HrvAnalysis snapshots={rangedWithForecast} baselineBands={cardio.hrvBaselineBands} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     </div>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <ActivityBars snapshots={ranged} />
+                    <ActivityBars snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <HeartRateBands
-                      snapshots={ranged}
+                      snapshots={rangedWithForecast}
                       overtraining={cardio.overtrainingStatus ?? undefined}
+                      forecastStartDate={forecast === 'on' ? todayIso : undefined}
                     />
                   </div>
+
+                  {forecast === 'on' && (
+                    <ForecastSignalsPanel
+                      signals={data.forecastSignals}
+                      loading={data.forecastLoading}
+                      error={data.forecastError}
+                      maxConfidence={data.forecastMaxConfidence}
+                    />
+                  )}
                 </div>
               )}
             </SurfaceFrame>
@@ -294,7 +355,7 @@ export default function App() {
 
                 <div className="grid min-w-0 gap-4 lg:grid-cols-3">
                   <div className="min-w-0 lg:col-span-2">
-                    <MoodTimeline snapshots={ranged} />
+                    <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                   </div>
                   <div className="min-w-0">
                     <MoodDonut snapshots={ranged} />
@@ -331,15 +392,16 @@ export default function App() {
                   <SleepStagesChart snapshots={ranged} />
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <HrvAnalysis snapshots={ranged} baselineBands={cardio.hrvBaselineBands} />
+                    <HrvAnalysis snapshots={rangedWithForecast} baselineBands={cardio.hrvBaselineBands} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <HeartRateBands
-                      snapshots={ranged}
+                      snapshots={rangedWithForecast}
                       overtraining={cardio.overtrainingStatus ?? undefined}
+                      forecastStartDate={forecast === 'on' ? todayIso : undefined}
                     />
                   </div>
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <Spo2Chart snapshots={ranged} />
+                    <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                   </div>
                 </div>

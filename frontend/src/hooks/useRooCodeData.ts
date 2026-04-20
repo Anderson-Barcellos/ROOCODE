@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { useDoses, useMetrics, useMood, useRegimen, useSleep, type DoseRecord } from '@/lib/api'
 import { MOCK_DOSES, MOCK_DATES, MOCK_MED_ROWS, MOCK_REGIMEN } from '@/mocks/doseMock'
 import { MOCK_SNAPSHOTS } from '@/mocks/snapshotMock'
-import type { DailySnapshot, MedicationRow, OverviewMetrics } from '@/types/apple-health'
+import type { DailySnapshot, ForecastSignal, MedicationRow, OverviewMetrics } from '@/types/apple-health'
 import type { MedicationRegimenEntry } from '@/types/pharmacology'
 import { buildOverviewMetrics } from '@/utils/aggregation'
 import { buildMedGroups, type MedGroup } from '@/utils/medication-bridge'
@@ -12,6 +12,7 @@ import {
   detectMoodDataQuality,
   type MoodDataQuality,
 } from '@/utils/roocode-adapter'
+import { useForecast, type ForecastMode } from './useForecast'
 import { useInterpolation, type InterpolationMode } from './useInterpolation'
 import type { WeeklyDayStats } from './useActivityAnalysis'
 
@@ -36,6 +37,14 @@ export interface RooCodeData {
   // Progressive Unlock (Fase 5d)
   validRealDays: number
   validMoodDays: number
+  // Forecast (Fase 7)
+  forecastMode: ForecastMode
+  forecastLoading: boolean
+  forecastError: boolean
+  forecastedCount: number
+  forecastedSnapshots: DailySnapshot[]
+  forecastSignals: ForecastSignal[]
+  forecastMaxConfidence: number
 }
 
 const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -79,7 +88,7 @@ function buildLast14Days(): string[] {
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
-export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCodeData {
+export function useRooCodeData(interpolation: InterpolationMode = 'off', forecast: ForecastMode = 'off'): RooCodeData {
   const sleepQuery = useSleep()
   const metricsQuery = useMetrics()
   const moodQuery = useMood()
@@ -150,6 +159,9 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
     return { validRealDays: real, validMoodDays: mood }
   }, [effectiveSnapshots])
 
+  // ─── Forecast (Fase 7) ──────────────────────────────────────────────────────
+  const fc = useForecast(effectiveSnapshots, forecast, validRealDays)
+
   // ─── dates: fix do gotcha Fase 4 ───────────────────────────────────────────
   // Antes (Fase 4): dates era wall-clock 14d, independente de snapshots.
   // Agora: quando interpolado, usa as datas dos snapshots (garante alinhamento).
@@ -179,5 +191,12 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off'): RooCod
     interpolationFilledCount: interp.filledCount,
     validRealDays,
     validMoodDays,
+    forecastMode: forecast,
+    forecastLoading: fc.loading,
+    forecastError: fc.error,
+    forecastedCount: fc.forecastedCount,
+    forecastedSnapshots: fc.forecastedSnapshots,
+    forecastSignals: fc.signals,
+    forecastMaxConfidence: fc.maxConfidence,
   }
 }

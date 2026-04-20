@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { BrainCircuit, LayoutDashboard, MoonStar, Orbit, Sparkles } from 'lucide-react'
+import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
 export type TabKey = 'executive' | 'moodMedication' | 'sleepPhysiology' | 'patterns'
@@ -14,6 +15,11 @@ const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = [
   { key: 'claude', label: 'Claude' },
 ]
 
+const forecastOptions: Array<{ key: ForecastMode; label: string }> = [
+  { key: 'off', label: 'Off' },
+  { key: 'on', label: '🔮 Projetar 5d' },
+]
+
 interface TabNavProps {
   activeTab: TabKey
   onTabChange: (tab: TabKey) => void
@@ -22,6 +28,9 @@ interface TabNavProps {
   interpolation: InterpolationMode
   onInterpolationChange: (mode: InterpolationMode) => void
   interpolationLoading?: boolean
+  forecast: ForecastMode
+  onForecastChange: (mode: ForecastMode) => void
+  forecastLoading?: boolean
 }
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -39,6 +48,9 @@ export function TabNav({
   interpolation,
   onInterpolationChange,
   interpolationLoading = false,
+  forecast,
+  onForecastChange,
+  forecastLoading = false,
 }: TabNavProps) {
   return (
     <nav className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-900/10 shadow-sm">
@@ -103,6 +115,36 @@ export function TabNav({
                       ? 'bg-teal-700 text-white'
                       : key === 'linear'
                       ? 'bg-amber-600 text-white'
+                      : 'bg-slate-950 text-white'
+                    : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {label}
+                {showSpinner && (
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" aria-label="loading" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1 inline-flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            Projeção
+          </span>
+          {forecastOptions.map(({ key, label }) => {
+            const active = forecast === key
+            const showSpinner = active && key === 'on' && forecastLoading
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onForecastChange(key)}
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+                  active
+                    ? key === 'on'
+                      ? 'bg-violet-700 text-white'
                       : 'bg-slate-950 text-white'
                     : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
                 }`}

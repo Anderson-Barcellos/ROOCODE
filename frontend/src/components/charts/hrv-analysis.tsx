@@ -5,6 +5,7 @@ import {
   ComposedChart,
   Legend,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,11 +19,12 @@ import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { sma, trendDirection, METRIC_POLARITY } from '@/utils/statistics'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface HrvAnalysisProps {
   snapshots: DailySnapshot[]
   baselineBands?: HrvBaselineBand[]
+  forecastStartDate?: string
 }
 
 const TOOLTIP_STYLE = {
@@ -37,7 +39,7 @@ const TREND_ICON = {
   worsening: { Icon: TrendingDown, color: 'text-rose-600', label: 'Piorando' },
 }
 
-export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
+export function HrvAnalysis({ snapshots, baselineBands, forecastStartDate }: HrvAnalysisProps) {
   const { data, trend } = useMemo(() => {
     const filtered = snapshots.filter((s) => s.health?.hrvSdnn != null)
     const values = filtered.map((s) => s.health?.hrvSdnn ?? null)
@@ -49,15 +51,21 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
     const data = filtered.map((s, i) => {
       const band = bandsByDate.get(s.date)
       const v = s.health?.hrvSdnn ?? null
-      const isInterp = s.interpolated === true
-      const prevInterp = filtered[i - 1]?.interpolated === true
-      const nextInterp = filtered[i + 1]?.interpolated === true
+      const isForecast = s.forecasted === true
+      const isInterp = !isForecast && s.interpolated === true
+      const prevInterp = !isForecast && filtered[i - 1]?.interpolated === true
+      const nextInterp = !isForecast && filtered[i + 1]?.interpolated === true
+      const prevForecast = filtered[i - 1]?.forecasted === true
+      const nextForecast = filtered[i + 1]?.forecasted === true
       return {
         label: dayLabel(s.date),
         hrv: v,
-        hrv_real: isInterp ? null : v,
+        hrv_real: isForecast || isInterp ? null : v,
         hrv_interp: isInterp ? v : (prevInterp || nextInterp) ? v : null,
+        hrv_forecast: isForecast ? v : (!isForecast && !isInterp && (prevForecast || nextForecast)) ? v : null,
         interpolated: isInterp,
+        forecasted: isForecast,
+        forecastConfidence: s.forecastConfidence ?? null,
         sma7: smaValues[i],
         bandUpper: band?.upper ?? null,
         bandLower: band?.lower ?? null,
@@ -120,8 +128,8 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 if (name === 'bandUpper' || name === 'bandLower' || name === 'bandMean') return [null, null]
-                if (name === 'hrv_real' || name === 'hrv_interp') return [null, null]
-                const suffix = getInterpolationSuffix(item)
+                if (name === 'hrv_real' || name === 'hrv_interp' || name === 'hrv_forecast') return [null, null]
+                const suffix = getDataSuffix(item)
                 if (name === 'hrv') {
                   const text = typeof v === 'number' ? `${v.toFixed(1)} ms${suffix}` : '—'
                   return [text, 'HRV']
@@ -151,7 +159,9 @@ export function HrvAnalysis({ snapshots, baselineBands }: HrvAnalysisProps) {
             ) : null}
             <Area type="monotone" dataKey="hrv_real" stroke="#0f766e" fill="#0f766e" fillOpacity={0.12} strokeWidth={1.5} dot={false} connectNulls={false} name="hrv" legendType="none" />
             <Line type="monotone" dataKey="hrv_interp" stroke="#0f766e" strokeWidth={1.8} strokeDasharray="5 4" strokeOpacity={0.7} dot={{ r: 3, fill: '#0f766e', stroke: '#fff', strokeWidth: 1 }} connectNulls name="hrv (estim.)" legendType="none" />
+            <Line type="monotone" dataKey="hrv_forecast" stroke="#0f766e" strokeWidth={1.6} strokeDasharray="2 3" strokeOpacity={0.55} dot={{ r: 3, fill: '#0f766e', stroke: '#fff', strokeWidth: 1, opacity: 0.55 }} connectNulls name="hrv (projeção)" legendType="none" />
             <Line type="monotone" dataKey="sma7" stroke="#0f766e" strokeWidth={2.8} dot={false} connectNulls={false} name="sma7" />
+            {forecastStartDate && <ReferenceLine x={dayLabel(forecastStartDate)} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

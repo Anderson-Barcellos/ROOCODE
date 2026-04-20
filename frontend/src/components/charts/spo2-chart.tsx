@@ -15,10 +15,11 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface Spo2ChartProps {
   snapshots: DailySnapshot[]
+  forecastStartDate?: string
 }
 
 const TOOLTIP_STYLE = {
@@ -27,20 +28,26 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-export function Spo2Chart({ snapshots }: Spo2ChartProps) {
+export function Spo2Chart({ snapshots, forecastStartDate }: Spo2ChartProps) {
   const { data, hasAlert } = useMemo(() => {
     const filtered = snapshots.filter((s) => s.health?.spo2 != null)
     const data = filtered.map((s, i) => {
       const v = s.health?.spo2 ?? null
-      const isInterp = s.interpolated === true
-      const prevInterp = filtered[i - 1]?.interpolated === true
-      const nextInterp = filtered[i + 1]?.interpolated === true
+      const isForecast = s.forecasted === true
+      const isInterp = !isForecast && s.interpolated === true
+      const prevInterp = !isForecast && filtered[i - 1]?.interpolated === true
+      const nextInterp = !isForecast && filtered[i + 1]?.interpolated === true
+      const prevForecast = filtered[i - 1]?.forecasted === true
+      const nextForecast = filtered[i + 1]?.forecasted === true
       return {
         label: dayLabel(s.date),
         spo2: v,
-        spo2_real: isInterp ? null : v,
-        spo2_interp: isInterp ? v : prevInterp || nextInterp ? v : null,
+        spo2_real: isForecast || isInterp ? null : v,
+        spo2_interp: isInterp ? v : (prevInterp || nextInterp) ? v : null,
+        spo2_forecast: isForecast ? v : (!isForecast && !isInterp && (prevForecast || nextForecast)) ? v : null,
         interpolated: isInterp,
+        forecasted: isForecast,
+        forecastConfidence: s.forecastConfidence ?? null,
       }
     })
     const hasAlert = data.some((d) => d.spo2 != null && d.spo2 < 94)
@@ -99,8 +106,8 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
-                if (name === 'spo2_real' || name === 'spo2_interp') return [null, null]
-                const suffix = getInterpolationSuffix(item)
+                if (name === 'spo2_real' || name === 'spo2_interp' || name === 'spo2_forecast') return [null, null]
+                const suffix = getDataSuffix(item)
                 const text = typeof v === 'number' ? `${v.toFixed(1)}%${suffix}` : '—'
                 return [text, 'SpO2']
               }}
@@ -109,6 +116,8 @@ export function Spo2Chart({ snapshots }: Spo2ChartProps) {
             <ReferenceLine y={94} stroke="#dc2626" strokeWidth={1.5} label={{ value: '94% ⚠', position: 'right', fill: '#dc2626', fontSize: 11 }} />
             <Line type="monotone" dataKey="spo2_real" stroke="#7c3aed" strokeWidth={2} dot={false} connectNulls={false} name="SpO2" legendType="none" />
             <Line type="monotone" dataKey="spo2_interp" stroke="#7c3aed" strokeWidth={1.8} strokeDasharray="5 4" strokeOpacity={0.7} dot={{ r: 3, fill: '#7c3aed', stroke: '#fff', strokeWidth: 1 }} connectNulls legendType="none" name="SpO2 (estim.)" />
+            <Line type="monotone" dataKey="spo2_forecast" stroke="#7c3aed" strokeWidth={1.6} strokeDasharray="2 3" strokeOpacity={0.55} dot={{ r: 3, fill: '#7c3aed', stroke: '#fff', strokeWidth: 1, opacity: 0.55 }} connectNulls legendType="none" name="SpO2 (projeção)" />
+            {forecastStartDate && <ReferenceLine x={dayLabel(forecastStartDate)} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

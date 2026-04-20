@@ -21,6 +21,7 @@ import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 
 interface MoodTimelineProps {
   snapshots: DailySnapshot[]
+  forecastStartDate?: string
 }
 
 const interpolateMood = interpolateRgbBasis(['#b91c1c', '#fbbf24', '#15803d'])
@@ -37,6 +38,8 @@ interface MoodDataPoint {
   valenceClass: string | null
   color: string
   interpolated: boolean
+  forecasted: boolean
+  forecastConfidence: number | null
 }
 
 const TOOLTIP_STYLE = {
@@ -58,8 +61,21 @@ function ValenceDot(props: {
 }) {
   const { cx, cy, payload } = props
   if (cx == null || cy == null || !payload || payload.valence == null) return null
+  if (payload.forecasted) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill="white"
+        stroke={payload.color}
+        strokeWidth={1.5}
+        strokeDasharray="1.5 1"
+        opacity={0.55}
+      />
+    )
+  }
   if (payload.interpolated) {
-    // Hollow circle com stroke tracejada pra indicar valor estimado
     return (
       <circle
         cx={cx}
@@ -84,7 +100,7 @@ function ValenceDot(props: {
   )
 }
 
-export function MoodTimeline({ snapshots }: MoodTimelineProps) {
+export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps) {
   const [smaWindow, setSmaWindow] = useState(7)
 
   const { data, hasData, totalDays, daysWithMood, coveragePct } = useMemo(() => {
@@ -98,7 +114,9 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
       trend: smoothed[i],
       valenceClass: s.mood?.valenceClass ?? null,
       color: s.mood?.valence != null ? moodColor(s.mood.valence) : '#94a3b8',
-      interpolated: s.interpolated === true || s.mood?.interpolated === true,
+      interpolated: !s.forecasted && (s.interpolated === true || s.mood?.interpolated === true),
+      forecasted: s.forecasted === true,
+      forecastConfidence: s.forecastConfidence ?? null,
     }))
 
     const totalDays = data.length
@@ -221,7 +239,10 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
                     <p className="font-semibold text-slate-800">{p.label}</p>
                     <p className="text-slate-600">{p.valenceClass ?? '—'}</p>
                     <p className="font-mono text-slate-500">V = {p.valence.toFixed(3)}</p>
-                    {p.interpolated && (
+                    {p.forecasted && (
+                      <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{p.forecastConfidence != null ? ` · conf ${p.forecastConfidence.toFixed(2)}` : ''}</p>
+                    )}
+                    {p.interpolated && !p.forecasted && (
                       <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">⚠ estimado</p>
                     )}
                   </div>
@@ -229,6 +250,9 @@ export function MoodTimeline({ snapshots }: MoodTimelineProps) {
               }}
             />
             <ReferenceLine y={0} stroke="rgba(100,116,139,0.4)" strokeDasharray="4 3" />
+            {forecastStartDate && (
+              <ReferenceLine x={forecastStartDate} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />
+            )}
             <Line
               dataKey="trend"
               type="monotone"

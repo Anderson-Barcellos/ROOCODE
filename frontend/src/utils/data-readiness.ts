@@ -31,7 +31,7 @@ export type ReadinessRequirement =
 
 function countValidHealthDays(snapshots: DailySnapshot[], field?: HealthField): number {
   return snapshots.filter((s) => {
-    if (s.interpolated) return false
+    if (s.interpolated || s.forecasted) return false
     if (!s.health) return false
     if (field) return s.health[field] != null
     return true
@@ -39,7 +39,7 @@ function countValidHealthDays(snapshots: DailySnapshot[], field?: HealthField): 
 }
 
 function countValidMoodDays(snapshots: DailySnapshot[]): number {
-  return snapshots.filter((s) => !s.interpolated && s.mood?.valence != null).length
+  return snapshots.filter((s) => !s.interpolated && !s.forecasted && s.mood?.valence != null).length
 }
 
 function countDowCoverage(
@@ -48,7 +48,7 @@ function countDowCoverage(
 ): { coveredDows: number; totalDays: number } {
   const bucket: Record<number, number> = {}
   for (const s of snapshots) {
-    if (s.interpolated || !s.health) continue
+    if (s.interpolated || s.forecasted || !s.health) continue
     const dow = new Date(s.date).getDay()
     bucket[dow] = (bucket[dow] ?? 0) + 1
   }

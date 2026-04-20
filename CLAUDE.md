@@ -47,6 +47,7 @@ Todos sob `/health/api/*` via Apache (ou `:8011/*` direto):
 | `/farma/regimen` | GET/PUT | Config persistida (sem consumer UI desde Fase 6a — dormindo) |
 | `/farma/curve` | GET | ⚠️ Legado sem consumer (substituído por PK frontend na Fase 6c) |
 | `/farma/now` | GET | ⚠️ Legado sem consumer (idem) |
+| `/forecast` | POST | Forecasting 5 dias via Gemini (cache md5, confidence cap por densidade) |
 
 ---
 
@@ -140,7 +141,15 @@ Serviços antigos por-módulo (`sleep-api.service`, `metrics-api.service`, `mood
   - Layout final da aba Humor + Medicação: botão Catálogo → MoodTimeline + MoodDonut → PKMedicationGrid → DoseLogger + DoseHistoryView
   - Órfãos dormindo: `PKConcentrationChart`, `medication-bridge.ts::buildPKTimelinePayload`, `usePKCurve`, `usePKNow`, `MedicationRegimenEditor`, `math.py` — sem consumer, avaliar remoção na Fase 8
   - Dep nova: `@radix-ui/react-dialog@1.1.15` (bundle +9 kB gzip)
-- [ ] **Fase 7:** projeção futura (forecasting 5 dias pra frente) — ver KICKOFF abaixo
+- [x] **Fase 7:** Forecasting 5 dias com Gemini (concluída 2026-04-20)
+  - Backend: `Forecast/router.py` com `POST /health/api/forecast`, cache md5, prompt clínico PT-BR com contexto PK, confidence cap modulado por densidade (14d→0.40, 30d→0.70, 60d→0.82, ≥60→0.90)
+  - Frontend: `useForecast` hook (TanStack Query, staleTime Infinity), `useRooCodeData` ganha 2º param forecast
+  - TabNav: segmented control violet (Off / 🔮 Projetar 5d) com spinner
+  - `ForecastBanner` (paleta violet) + `ForecastSignalsPanel` (sinais descritivos na Executive)
+  - 6 charts com visual forecast: timeline/HRV/HR/SpO2 (3-way split `_real/_interp/_forecast`, `strokeDasharray="2 3"`, opacity 0.55), ActivityBars (`Cell` opacity 0.35), MoodTimeline (`ValenceDot` dotted)
+  - `ReferenceLine` vertical "hoje" em violet em todos os charts; tooltip unificado via `getDataSuffix` (`🔮 projetado · conf X.XX`)
+  - `data-readiness` exclui forecasted dos counts de validação
+  - Gotcha: `selectSnapshotRange` clipa futuro → `forecastedSnapshots` em array separado, merge em App.tsx após `ranged`
 - [ ] **Fase 8:** polish final com mais variáveis do `/metrics` (steps, VO2 Max, Cardio Recovery, Respiratory Rate, Pulse Temp) + cleanup dos órfãos da Fase 6
 
 ---

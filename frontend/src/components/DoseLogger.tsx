@@ -104,7 +104,7 @@ export default function DoseLogger() {
             type="datetime-local"
             value={takenAt}
             onChange={e => setTakenAt(e.target.value)}
-            style={{ ...inputStyle, colorScheme: 'dark' }}
+            style={inputStyle}
             required
           />
         </div>

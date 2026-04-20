@@ -206,7 +206,7 @@ export default function DoseHistoryView() {
                     type="datetime-local"
                     value={draft.taken_at}
                     onChange={(e) => setDraft({ ...draft, taken_at: e.target.value })}
-                    style={{ ...inputStyle, flex: 1, colorScheme: 'dark' }}
+                    style={{ ...inputStyle, flex: 1 }}
                   />
                 </div>
                 <textarea

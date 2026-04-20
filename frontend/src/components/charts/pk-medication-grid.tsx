@@ -38,6 +38,7 @@ type GridPoint = {
 type CardStatus = 'sub' | 'within' | 'supra'
 
 function toPKMedication(sub: Substance): PKMedication | null {
+  // Requisitos mínimos de PK: sem isso não há como calcular concentração.
   if (sub.half_life_hours == null || sub.ka_per_hour == null || sub.bioavailability == null) {
     return null
   }
@@ -49,6 +50,9 @@ function toPKMedication(sub: Substance): PKMedication | null {
         : null
   if (vdPerKg == null) return null
 
+  // Fase 8A.1 — therapeutic range é opcional.
+  // Suplementos (Bacopa, Magnésio, Vit D3, Omega-3, Piracetam) têm PK completo
+  // mas não têm faixa clínica estabelecida → renderizam em modo "concentração bruta".
   const therapeuticRange =
     sub.therapeutic_range_min != null && sub.therapeutic_range_max != null
       ? {
@@ -83,6 +87,12 @@ const COLORS_BY_ID: Record<string, string> = {
   venvanse: '#8b5cf6',
   lamictal: '#3b82f6',
   clonazepam: '#f59e0b',
+  // Suplementos (Fase 8A.1)
+  bacopa_monnieri: '#84cc16',
+  magnesio_treonato: '#0891b2',
+  vitamina_d3_10000_ui: '#eab308',
+  omega_3: '#06b6d4',
+  piracetam: '#a855f7',
 }
 
 function statusOf(currentPct: number, rangeMinPct: number): CardStatus {
@@ -104,7 +114,7 @@ type TooltipShape = {
   payload?: ReadonlyArray<{ payload?: GridPoint }>
 }
 
-function CardTooltip({ active, payload }: TooltipShape) {
+function CardTooltip({ active, payload, hasRange }: TooltipShape & { hasRange?: boolean }) {
   if (!active || !payload?.length) return null
   const point = payload[0]?.payload
   if (!point) return null
@@ -120,7 +130,13 @@ function CardTooltip({ active, payload }: TooltipShape) {
       boxShadow: '0 18px 42px rgba(17, 35, 30, 0.12)',
     }}>
       <div style={{ color: 'var(--muted)', marginBottom: 3 }}>{point.label}</div>
-      <div>{point.pct != null ? `${point.pct.toFixed(1)}% · ${(point.conc_ng_ml ?? 0).toFixed(1)} ng/mL` : '—'}</div>
+      <div>
+        {hasRange && point.pct != null
+          ? `${point.pct.toFixed(1)}% · ${(point.conc_ng_ml ?? 0).toFixed(1)} ng/mL`
+          : point.conc_ng_ml != null
+            ? `${point.conc_ng_ml.toFixed(2)} ng/mL`
+            : '—'}
+      </div>
     </div>
   )
 }
@@ -135,17 +151,20 @@ type CardProps = {
 }
 
 function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weightKg }: CardProps) {
-  const { data, currentPct, rangeMinPct } = useMemo(() => {
-    const range = med.therapeuticRange
-    if (!range) return { data: [] as GridPoint[], currentPct: 0, rangeMinPct: 0 }
+  const range = med.therapeuticRange
+  const hasRange = range != null
+
+  const { data, currentPct, currentConc, rangeMinPct, maxConc } = useMemo(() => {
     const stepMinutes = 30
     const stepMs = stepMinutes * 60 * 1000
     const n = Math.max(1, Math.floor((windowEnd - windowStart) / stepMs))
     const series: GridPoint[] = []
+    let maxConc = 0
     for (let i = 0; i <= n; i++) {
       const t = windowStart + i * stepMs
       const conc = calculateConcentration(med, doses, t, weightKg)
-      const pct = (conc / range.max) * 100
+      if (conc > maxConc) maxConc = conc
+      const pct = range ? (conc / range.max) * 100 : null
       series.push({
         timestamp: t,
         conc_ng_ml: conc,
@@ -154,17 +173,29 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
       })
     }
     const nowConc = calculateConcentration(med, doses, Date.now(), weightKg)
-    const currentPct = (nowConc / range.max) * 100
+    const currentPct = range ? (nowConc / range.max) * 100 : 0
     return {
       data: series,
       currentPct,
-      rangeMinPct: (range.min / range.max) * 100,
+      currentConc: nowConc,
+      rangeMinPct: range ? (range.min / range.max) * 100 : 0,
+      maxConc,
     }
-  }, [med, doses, windowStart, windowEnd, weightKg])
+  }, [med, doses, range, windowStart, windowEnd, weightKg])
 
   const color = COLORS_BY_ID[med.id] ?? '#8b5cf6'
-  const status = statusOf(currentPct, rangeMinPct)
-  const hasData = data.some((p) => (p.pct ?? 0) > 0.1)
+  const status = hasRange ? statusOf(currentPct, rangeMinPct) : null
+  const hasData = hasRange
+    ? data.some((p) => (p.pct ?? 0) > 0.1)
+    : data.some((p) => (p.conc_ng_ml ?? 0) > 0.001)
+
+  // Key da série e domínio do Y axis dependem do modo.
+  const seriesKey = hasRange ? 'pct' : 'conc_ng_ml'
+  const yDomain: [number, number] = hasRange ? [0, 150] : [0, Math.max(maxConc * 1.2, 1)]
+  const yTicks = hasRange ? [0, 50, 100, 150] : undefined
+  const yTickFormatter = hasRange
+    ? (v: number) => `${v}%`
+    : (v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(2))
 
   return (
     <div style={{
@@ -190,16 +221,35 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
         </div>
         {hasData && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: statusColor(status),
-              padding: '1px 6px', borderRadius: 3,
-              background: `${statusColor(status)}15`,
-              border: `1px solid ${statusColor(status)}33`,
-            }}>{statusLabel(status)}</span>
-            <span style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-              color: 'var(--text-muted)',
-            }}>{currentPct.toFixed(0)}%</span>
+            {hasRange && status ? (
+              <>
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: statusColor(status),
+                  padding: '1px 6px', borderRadius: 3,
+                  background: `${statusColor(status)}15`,
+                  border: `1px solid ${statusColor(status)}33`,
+                }}>{statusLabel(status)}</span>
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                  color: 'var(--text-muted)',
+                }}>{currentPct.toFixed(0)}%</span>
+              </>
+            ) : (
+              <>
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                  padding: '1px 6px', borderRadius: 3,
+                  background: 'rgba(139,92,246,0.12)',
+                  color: 'var(--accent-violet)',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  letterSpacing: '0.04em',
+                }}>experimental</span>
+                <span style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                  color: 'var(--text-muted)',
+                }}>{currentConc >= 10 ? currentConc.toFixed(0) : currentConc.toFixed(2)} ng/mL</span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -221,29 +271,31 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
               minTickGap={30}
             />
             <YAxis
-              domain={[0, 150]}
-              ticks={[0, 50, 100, 150]}
+              domain={yDomain}
+              ticks={yTicks}
               tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => `${v}%`}
+              tickFormatter={yTickFormatter}
             />
-            <Tooltip content={CardTooltip} />
-            {med.therapeuticRange && (
-              <ReferenceArea
-                y1={rangeMinPct}
-                y2={100}
-                fill="#22c55e"
-                fillOpacity={0.08}
-                stroke="#22c55e"
-                strokeOpacity={0.2}
-                strokeDasharray="2 2"
-              />
+            <Tooltip content={<CardTooltip hasRange={hasRange} />} />
+            {hasRange && range && (
+              <>
+                <ReferenceArea
+                  y1={rangeMinPct}
+                  y2={100}
+                  fill="#22c55e"
+                  fillOpacity={0.08}
+                  stroke="#22c55e"
+                  strokeOpacity={0.2}
+                  strokeDasharray="2 2"
+                />
+                <ReferenceLine y={100} stroke="#22c55e" strokeOpacity={0.4} strokeDasharray="3 3" />
+              </>
             )}
-            <ReferenceLine y={100} stroke="#22c55e" strokeOpacity={0.4} strokeDasharray="3 3" />
             <Area
               type="monotone"
-              dataKey="pct"
+              dataKey={seriesKey}
               stroke={color}
               strokeWidth={1.8}
               fill={color}
@@ -270,15 +322,15 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
         </ResponsiveContainer>
       </div>
 
-      {/* Footer — therapeutic range info */}
-      {med.therapeuticRange && (
-        <div style={{
-          marginTop: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-          color: 'var(--text-muted)', letterSpacing: '0.04em',
-        }}>
-          faixa {med.therapeuticRange.min}–{med.therapeuticRange.max} {med.therapeuticRange.unit}
-        </div>
-      )}
+      {/* Footer */}
+      <div style={{
+        marginTop: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+        color: 'var(--text-muted)', letterSpacing: '0.04em',
+      }}>
+        {hasRange && range
+          ? `faixa ${range.min}–${range.max} ${range.unit}`
+          : 'sem faixa terapêutica · concentração bruta pra correlação futura'}
+      </div>
     </div>
   )
 }
@@ -299,13 +351,12 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
     for (const dose of allDoses) {
       const med = medsById.get(dose.substance)
       if (!med) {
+        // Substância desconhecida (não tem PK completo no catálogo) → orphan.
         orphans.push(dose.substance)
         continue
       }
-      if (!med.therapeuticRange) {
-        orphans.push(med.name)
-        continue
-      }
+      // Fase 8A.1 — substâncias sem therapeutic_range agora são renderizadas em
+      // modo "concentração bruta". PK ok + range undefined = card experimental.
       const arr = dosesByMed.get(dose.substance) ?? []
       arr.push(dose)
       dosesByMed.set(dose.substance, arr)
@@ -356,14 +407,14 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
         <span style={{
           fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)',
         }}>
-          sem doses logadas nos últimos {Math.round(hoursWindow / 24)} dias para substâncias com faixa terapêutica
+          sem doses logadas nos últimos {Math.round(hoursWindow / 24)} dias
         </span>
         {orphanNames.length > 0 && (
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
             color: 'var(--text-muted)', opacity: 0.7,
           }}>
-            logadas sem faixa: {orphanNames.join(', ')} · configure em "Catálogo de substâncias"
+            desconhecidas no catálogo: {orphanNames.join(', ')} · adicione em "Catálogo de substâncias"
           </span>
         )}
       </div>
@@ -397,7 +448,7 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
           color: 'var(--text-muted)', opacity: 0.7,
           padding: '4px 0',
         }}>
-          sem faixa terapêutica: {orphanNames.join(', ')} · edite no catálogo para aparecer no grid
+          desconhecidas no catálogo: {orphanNames.join(', ')} · adicione PK completo em "Catálogo de substâncias"
         </div>
       )}
     </div>

@@ -34,6 +34,17 @@ export interface HealthAutoExportRow {
   standingMinutes: number | null
   daylightMinutes: number | null
   hrvSdnn: number | null
+  // Fase 8A — novos campos Activity/Physiology (2026-04-20)
+  steps: number | null
+  distanceKm: number | null
+  physicalEffort: number | null
+  walkingHeartRateAvg: number | null
+  walkingAsymmetryPct: number | null
+  walkingSpeedKmh: number | null
+  runningSpeedKmh: number | null
+  vo2Max: number | null
+  sixMinuteWalkMeters: number | null
+  cardioRecoveryBpm: number | null
   isPlaceholderRestingEnergy: boolean
 }
 
@@ -87,6 +98,17 @@ export interface DailyHealthMetrics {
   standingMinutes: number | null
   daylightMinutes: number | null
   hrvSdnn: number | null
+  // Fase 8A — novos campos Activity/Physiology (2026-04-20)
+  steps: number | null
+  distanceKm: number | null
+  physicalEffort: number | null
+  walkingHeartRateAvg: number | null
+  walkingAsymmetryPct: number | null
+  walkingSpeedKmh: number | null
+  runningSpeedKmh: number | null
+  vo2Max: number | null
+  sixMinuteWalkMeters: number | null
+  cardioRecoveryBpm: number | null
   recordCount: number
   placeholderRestingEnergyRows: number
 }
@@ -136,6 +158,13 @@ export type TimelineSeriesKey =
   | 'standingMinutes'
   | 'daylightMinutes'
   | 'valence'
+  // Fase 8A — novos campos plotáveis
+  | 'steps'
+  | 'vo2Max'
+  | 'walkingSpeedKmh'
+  | 'walkingHeartRateAvg'
+  | 'respiratoryRate'
+  | 'pulseTemperatureC'
 
 export interface TimelinePoint {
   date: string

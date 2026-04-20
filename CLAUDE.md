@@ -150,7 +150,19 @@ Serviços antigos por-módulo (`sleep-api.service`, `metrics-api.service`, `mood
   - `ReferenceLine` vertical "hoje" em violet em todos os charts; tooltip unificado via `getDataSuffix` (`🔮 projetado · conf X.XX`)
   - `data-readiness` exclui forecasted dos counts de validação
   - Gotcha: `selectSnapshotRange` clipa futuro → `forecastedSnapshots` em array separado, merge em App.tsx após `ranged`
-- [ ] **Fase 8:** polish final com mais variáveis do `/metrics` (steps, VO2 Max, Cardio Recovery, Respiratory Rate, Pulse Temp) + cleanup dos órfãos da Fase 6
+- [x] **Fase 8A:** Expansão Activity/Physiology (concluída 2026-04-20)
+  - 10 campos novos mapeados em `HealthAutoExportRow` + `DailyHealthMetrics` + `metricsRecordToHealthRow`: `steps`, `distanceKm`, `physicalEffort`, `walkingHeartRateAvg`, `walkingAsymmetryPct`, `walkingSpeedKmh`, `runningSpeedKmh`, `vo2Max`, `sixMinuteWalkMeters`, `cardioRecoveryBpm`
+  - Débito colateral pago: `heartRateMin/Max/Mean`, `restingEnergyKcal`, `exerciseMinutes`, `standingMinutes`, `daylightMinutes`, `respiratoryDisturbances` (todos já no tipo mas nunca lidos do `/metrics`) — agora populados
+  - Novo módulo `utils/health-policies.ts` com `VO2_BANDS_MALE_35_44` + `getVo2Category()` + thresholds de steps/marcha/assimetria (editar cutoffs é one-stop shop)
+  - Charts novos: `Vo2MaxChart` (linha + SMA + 5 `ReferenceArea` coloridos por categoria clínica), `WalkingVitalityChart` (speed + walking HR dual-axis + badges tone de speed/asymmetry), `StepsChart` (bar + SMA + ReferenceLine meta 10k)
+  - `TimelineSeriesKey` ganhou: `steps`, `vo2Max`, `walkingSpeedKmh`, `walkingHeartRateAvg`, `respiratoryRate`, `pulseTemperatureC` (agora plotáveis em TimelineChart via prop)
+  - 3 novos KPIs Executive: Passos 7d (Tudor-Locke tone), VO2 Máx 7d (bands Cooper), Vel. marcha 7d (slowing ≥ 4.5 km/h)
+  - Interpolation policies: `steps`/`distanceKm`/`physicalEffort`/`walkingHeartRateAvg`/`cardioRecoveryBpm` → `interpolate`; `vo2Max`/`walkingSpeedKmh` → `linear_bounded` (±1 e ±0.3/dia); `walkingAsymmetryPct`/`runningSpeedKmh`/`sixMinuteWalkMeters` → `skip` (não inventar sinais raros)
+  - Readiness: `vo2MaxChart` ready ≥14d partial ≥7d (baseline crônico), `walkingVitalityChart` ready ≥7d partial ≥3d, `stepsTimelineChart` ready ≥3d partial ≥1d
+  - Layout: Executive ganhou `StepsChart` após ActivityBars+HeartRateBands; sleepPhysiology ganhou `Vo2MaxChart`+`WalkingVitalityChart` em lg:grid-cols-2 após SpO2+WeeklyPattern
+  - Bundle delta: +957KB total / 272KB gzip (warning chunks >500KB pré-existente, não regressão; avaliar code-splitting depois)
+  - `TimelineChart.labels` relaxado pra `Partial<Record<...>>` — consumidor só fornece labels das keys que usa
+- [ ] **Fase 8B:** housekeeping dos órfãos Fase 6 + CSS vars fantasma — detalhes abaixo em "KICKOFF — Fase 8B"
 
 ---
 

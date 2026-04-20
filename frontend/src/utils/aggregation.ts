@@ -58,6 +58,17 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
     standingMinutes: sumFields(rows, 'standingMinutes'),
     daylightMinutes: sumFields(rows, 'daylightMinutes'),
     hrvSdnn: meanFields(rows, 'hrvSdnn'),
+    // Fase 8A — Activity/Physiology
+    steps: sumFields(rows, 'steps'),
+    distanceKm: sumFields(rows, 'distanceKm'),
+    physicalEffort: meanFields(rows, 'physicalEffort'),
+    walkingHeartRateAvg: meanFields(rows, 'walkingHeartRateAvg'),
+    walkingAsymmetryPct: meanFields(rows, 'walkingAsymmetryPct'),
+    walkingSpeedKmh: meanFields(rows, 'walkingSpeedKmh'),
+    runningSpeedKmh: meanFields(rows, 'runningSpeedKmh'),
+    vo2Max: meanFields(rows, 'vo2Max'),
+    sixMinuteWalkMeters: meanFields(rows, 'sixMinuteWalkMeters'),
+    cardioRecoveryBpm: meanFields(rows, 'cardioRecoveryBpm'),
     recordCount: rows.length,
     placeholderRestingEnergyRows: rows.filter((row) => row.isPlaceholderRestingEnergy).length,
   }
@@ -250,6 +261,19 @@ function getSeriesValue(snapshot: DailySnapshot, key: TimelineSeriesKey): number
       return health?.daylightMinutes ?? null
     case 'valence':
       return mood?.valence ?? null
+    // Fase 8A — novos plotáveis
+    case 'steps':
+      return health?.steps ?? null
+    case 'vo2Max':
+      return health?.vo2Max ?? null
+    case 'walkingSpeedKmh':
+      return health?.walkingSpeedKmh ?? null
+    case 'walkingHeartRateAvg':
+      return health?.walkingHeartRateAvg ?? null
+    case 'respiratoryRate':
+      return health?.respiratoryRate ?? null
+    case 'pulseTemperatureC':
+      return health?.pulseTemperatureC ?? null
     default:
       return null
   }

@@ -25,7 +25,10 @@ import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
+import { StepsChart } from '@/components/charts/steps-chart'
 import { TimelineChart } from '@/components/charts/timeline-chart'
+import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
+import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
 import { WeeklyPatternChart } from '@/components/charts/weekly-pattern-chart'
 import { ChartsDemo } from '@/pages/ChartsDemo'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
@@ -48,6 +51,13 @@ const TIMELINE_LABELS: Record<TimelineSeriesKey, string> = {
   standingMinutes: 'Em pé (min)',
   daylightMinutes: 'Luz do dia (min)',
   valence: 'Humor',
+  // Fase 8A
+  steps: 'Passos',
+  vo2Max: 'VO2 Máx',
+  walkingSpeedKmh: 'Velocidade de marcha (km/h)',
+  walkingHeartRateAvg: 'FC caminhada (bpm)',
+  respiratoryRate: 'Resp. (rpm)',
+  pulseTemperatureC: 'Temp. pulso (°C)',
 }
 
 const EXEC_SERIES: TimelineSeriesKey[] = ['sleepTotalHours', 'hrvSdnn', 'restingHeartRate']
@@ -67,6 +77,7 @@ function toneFor(value: number | null, positive: number, watch: number, lowerIsB
 function buildExecutiveMetrics(
   ov: OverviewMetrics,
   days: { validRealDays: number; validMoodDays: number },
+  activity: { steps7d: number | null; vo2Max7d: number | null; walkingSpeed7d: number | null },
 ): AnalyticsMetric[] {
   // Fase 5d: KPIs de média-7d só fazem sentido com 7+ dias reais.
   // Abaixo disso, value vira null → MetricGrid mostra "Sem dados".
@@ -79,6 +90,10 @@ function buildExecutiveMetrics(
   const moodPct = mood != null ? Math.round(mood * 100) : null
   const kcal = enoughReal ? ov.activeEnergy7dKcal : null
   const exMin = enoughReal ? ov.exercise7dMinutes : null
+  // Fase 8A — novos KPIs Activity/Physiology
+  const steps = enoughReal ? activity.steps7d : null
+  const vo2 = enoughReal ? activity.vo2Max7d : null
+  const walkingSpeed = enoughReal ? activity.walkingSpeed7d : null
   return [
     { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
     { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
@@ -99,6 +114,24 @@ function buildExecutiveMetrics(
         : mood >= -0.1
         ? 'watch'
         : 'negative',
+    },
+    {
+      label: 'Passos 7d',
+      value: steps != null ? Math.round(steps) : null,
+      unit: '',
+      tone: toneFor(steps, 10000, 7500),
+    },
+    {
+      label: 'VO2 Máx 7d',
+      value: vo2,
+      unit: '',
+      tone: toneFor(vo2, 45, 37),
+    },
+    {
+      label: 'Vel. marcha 7d',
+      value: walkingSpeed,
+      unit: 'km/h',
+      tone: toneFor(walkingSpeed, 5.5, 4.5),
     },
     {
       label: 'Energia ativa 7d',
@@ -218,13 +251,30 @@ export default function App() {
     [ranged, data.forecastedSnapshots, forecast],
   )
   const cardio = useCardioAnalysis(ranged)
+  // Fase 8A — agregações 7d pros novos KPIs Activity/Physiology
+  const activitySummary = useMemo(() => {
+    const last7 = selectSnapshotRange(data.snapshots, '7d').filter((s) => !s.interpolated)
+    const avg = (values: Array<number | null | undefined>): number | null => {
+      const numeric = values.filter((v): v is number => typeof v === 'number')
+      return numeric.length ? numeric.reduce((a, b) => a + b, 0) / numeric.length : null
+    }
+    return {
+      steps7d: avg(last7.map((s) => s.health?.steps)),
+      vo2Max7d: avg(last7.map((s) => s.health?.vo2Max)),
+      walkingSpeed7d: avg(last7.map((s) => s.health?.walkingSpeedKmh)),
+    }
+  }, [data.snapshots])
   const executiveMetrics = useMemo(
     () =>
-      buildExecutiveMetrics(data.overview, {
-        validRealDays: data.validRealDays,
-        validMoodDays: data.validMoodDays,
-      }),
-    [data.overview, data.validRealDays, data.validMoodDays],
+      buildExecutiveMetrics(
+        data.overview,
+        {
+          validRealDays: data.validRealDays,
+          validMoodDays: data.validMoodDays,
+        },
+        activitySummary,
+      ),
+    [data.overview, data.validRealDays, data.validMoodDays, activitySummary],
   )
   const timelineData = useMemo(() => buildTimelineSeries(rangedWithForecast, EXEC_SERIES), [rangedWithForecast])
   const timelineReadiness = useMemo(
@@ -318,6 +368,9 @@ export default function App() {
                     />
                   </div>
 
+                  {/* Fase 8A — Passos & distância (atividade psicomotora) */}
+                  <StepsChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+
                   {forecast === 'on' && (
                     <ForecastSignalsPanel
                       signals={data.forecastSignals}
@@ -403,6 +456,12 @@ export default function App() {
                   <div className="grid gap-4 lg:grid-cols-2">
                     <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
+                  </div>
+
+                  {/* Fase 8A — VO2 Máx + Vitalidade de marcha */}
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                    <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                   </div>
                 </div>
               )}

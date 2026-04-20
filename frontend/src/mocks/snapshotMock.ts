@@ -63,6 +63,17 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
     const standingMin = 10 + rand() * 4              // 10-14 horas (standing hours)
     const daylightMin = 30 + rand() * 60             // 30-90 min
 
+    // Fase 8A — Activity/Physiology (homem 39a, boa forma)
+    const steps = 6000 + Math.floor(rand() * 6000)   // 6k-12k passos
+    const distanceKm = steps * 0.00075               // stride ~75cm
+    const physicalEffort = 2 + rand() * 2            // 2-4 kcal/hr·kg
+    const walkingHr = 95 + rand() * 20               // 95-115 bpm caminhando
+    const walkingAsym = 1 + rand() * 2               // 1-3% (normal <3%)
+    const walkingSpeed = 4.5 + rand() * 1.5          // 4.5-6 km/h
+    const runningSpeed = rand() > 0.7 ? 8 + rand() * 2 : 0  // corrida em ~30% dos dias
+    const vo2 = 38 + rand() * 6                      // 38-44 ml/(kg·min)
+    const cardioRecovery = 25 + rand() * 15          // 25-40 bpm recovery
+
     // Mood (correlacionado com HRV + fim de semana)
     const noise = (rand() - 0.5) * 2
     const valence = synthValence(hrv, dow, noise)
@@ -95,6 +106,17 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
         standingMinutes: +standingMin.toFixed(0),
         daylightMinutes: +daylightMin.toFixed(0),
         hrvSdnn: +hrv.toFixed(1),
+        // Fase 8A — Activity/Physiology
+        steps,
+        distanceKm: +distanceKm.toFixed(2),
+        physicalEffort: +physicalEffort.toFixed(2),
+        walkingHeartRateAvg: +walkingHr.toFixed(1),
+        walkingAsymmetryPct: +walkingAsym.toFixed(1),
+        walkingSpeedKmh: +walkingSpeed.toFixed(2),
+        runningSpeedKmh: runningSpeed > 0 ? +runningSpeed.toFixed(2) : null,
+        vo2Max: +vo2.toFixed(1),
+        sixMinuteWalkMeters: null, // teste clínico raro
+        cardioRecoveryBpm: +cardioRecovery.toFixed(0),
         recordCount: 1,
         placeholderRestingEnergyRows: 0,
       },

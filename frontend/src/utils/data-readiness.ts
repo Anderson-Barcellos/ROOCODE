@@ -161,4 +161,11 @@ export const CHART_REQUIREMENTS = {
   },
   correlationHeatmap: { type: 'pairs', readyMin: 20, partialMin: 10 },
   scatterCorrelation: { type: 'pairs', readyMin: 20, partialMin: 10 },
+  // Fase 8A — Activity/Physiology
+  // VO2 Máx é baseline crônico (atualiza com 48-72h de dados acumulados). Usamos threshold mais alto.
+  vo2MaxChart: { type: 'days', readyMin: 14, partialMin: 7, field: 'vo2Max' },
+  // Walking vitality combina speed + asymmetry. Velocidade muda dia a dia, mas é marcador estável.
+  walkingVitalityChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'walkingSpeedKmh' },
+  // Steps é o sinal mais denso — quase sempre presente se o watch foi usado.
+  stepsTimelineChart: { type: 'days', readyMin: 3, partialMin: 1, field: 'steps' },
 } as const satisfies Record<string, ReadinessRequirement>

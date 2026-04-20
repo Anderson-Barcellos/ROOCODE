@@ -96,13 +96,28 @@ export interface MoodRecord {
 export interface MetricsRecord {
   'Data/Hora': string
   'Contador de Passos (passos)'?: number
+  'Distância de Caminhada + Corrida (km)'?: number
+  'Distúrbios Respiratórios (contagem)'?: number
+  'Energia Ativa (kcal)'?: number
+  'Energia em repouso (kcal)'?: number
+  'Esforço Físico (kcal/hr·kg)'?: number
+  'Frequência Cardíaca [Mínimo] (bpm)'?: number
+  'Frequência Cardíaca [Máx] (bpm)'?: number
+  'Frequência Cardíaca [Média] (bpm)'?: number
   'Frequência Cardíaca em Repouso (bpm)'?: number
-  'Variabilidade da Frequência Cardíaca (ms)'?: number
-  'VO2 Máx (ml/(kg·min))'?: number
+  'Média de Frequência Cardíaca ao Caminhar (bpm)'?: number
+  'Porcentagem de Assimetria ao Andar (%)'?: number
   'Saturação de Oxigênio no Sangue (%)'?: number
   'Taxa Respiratória (contagem/min)'?: number
-  'Energia Ativa (kcal)'?: number
   'Temperatura do Pulso ao Dormir Apple (ºC)'?: number
+  'Tempo de Exercício da Apple (min)'?: number
+  'Tempo em Pé do Apple (min)'?: number
+  'Tempo à Luz do Dia (min)'?: number
+  'Teste de Caminhada de Seis Minutos - Distância (m)'?: number
+  'VO2 Máx (ml/(kg·min))'?: number
+  'Variabilidade da Frequência Cardíaca (ms)'?: number
+  'Velocidade de Caminhada (km/hr)'?: number
+  'Velocidade de Corrida (km/hr)'?: number
   'Peso (kg)'?: number
   'Recuperação Cardio (contagem/min)'?: number
 }

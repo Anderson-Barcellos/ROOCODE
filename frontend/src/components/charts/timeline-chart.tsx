@@ -19,7 +19,8 @@ import { DataReadinessGate } from './shared/DataReadinessGate'
 interface TimelineChartProps {
   data: TimelinePoint[]
   seriesKeys: TimelineSeriesKey[]
-  labels: Record<TimelineSeriesKey, string>
+  // Partial: consumidor só precisa fornecer labels pras keys que usa em seriesKeys.
+  labels: Partial<Record<TimelineSeriesKey, string>>
   readiness?: DataReadiness
   forecastStartDate?: string
 }
@@ -36,6 +37,13 @@ const seriesPalette: Record<TimelineSeriesKey, string> = {
   standingMinutes: '#fb7185',
   daylightMinutes: '#f59e0b',
   valence: '#15803d',
+  // Fase 8A
+  steps: '#0ea5e9',
+  vo2Max: '#10b981',
+  walkingSpeedKmh: '#0f766e',
+  walkingHeartRateAvg: '#dc2626',
+  respiratoryRate: '#8b5cf6',
+  pulseTemperatureC: '#f97316',
 }
 
 /**

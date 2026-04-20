@@ -23,6 +23,8 @@ type FieldPolicy = 'interpolate' | 'linear_bounded' | 'skip'
 // Deltas máximos toleráveis em 24h para campos com policy 'linear_bounded'.
 const BOUNDED_DELTAS: Partial<Record<keyof DailyHealthMetrics, number>> = {
   pulseTemperatureC: 0.3, // ±0.3°C/dia na ausência de febre
+  vo2Max: 1.0, // ±1 ml/(kg·min)/dia — VO2 é baseline crônico, varia pouco
+  walkingSpeedKmh: 0.3, // ±0.3 km/h/dia — marcha é estável dia-a-dia
 }
 
 const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
@@ -51,6 +53,17 @@ const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   movementMinutes: 'interpolate',
   standingMinutes: 'interpolate',
   daylightMinutes: 'interpolate',
+  // Fase 8A — novos campos
+  steps: 'interpolate',
+  distanceKm: 'interpolate',
+  physicalEffort: 'interpolate',
+  walkingHeartRateAvg: 'interpolate',
+  walkingAsymmetryPct: 'skip', // sinal neurológico raro — não inventar
+  walkingSpeedKmh: 'linear_bounded',
+  runningSpeedKmh: 'skip', // esporádico: zero → valor → zero pode ser válido
+  vo2Max: 'linear_bounded', // crônico, varia pouco dia-a-dia
+  sixMinuteWalkMeters: 'skip', // teste clínico, raramente medido
+  cardioRecoveryBpm: 'interpolate',
   recordCount: 'skip',
   placeholderRestingEnergyRows: 'skip',
 }
@@ -223,6 +236,17 @@ function interpolateHealth(
     movementMinutes: null,
     standingMinutes: null,
     daylightMinutes: null,
+    // Fase 8A — Activity/Physiology
+    steps: null,
+    distanceKm: null,
+    physicalEffort: null,
+    walkingHeartRateAvg: null,
+    walkingAsymmetryPct: null,
+    walkingSpeedKmh: null,
+    runningSpeedKmh: null,
+    vo2Max: null,
+    sixMinuteWalkMeters: null,
+    cardioRecoveryBpm: null,
     // Metadata: sempre 0 em dia sintético
     recordCount: 0,
     placeholderRestingEnergyRows: 0,

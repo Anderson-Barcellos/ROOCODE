@@ -89,10 +89,10 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
 ### Peso Anders
 91 kg — default PK único em util/hook frontend (`DEFAULT_PK_BODY_WEIGHT_KG`). Usado nas curvas por convolução e nos hooks PK legados. Ainda **não** inferir peso automaticamente a partir de métricas.
 
-### Status systemd (2026-04-22 confirmado)
-- `roocode.service` **existe e está `enabled`** em `/etc/systemd/system/`. `ExecStart` aponta pro venv local do projeto (`/root/RooCode/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8011 --app-dir /root/RooCode`).
-- Estado atual: **`activating`** — serviço tentando subir mas provavelmente travado por conflito na porta 8011 (algum `main.py` manual ainda vivo segurando o socket). Diagnóstico: `systemctl status roocode.service --no-pager -l` + `pgrep -af "uvicorn main:app"`. Se houver processo manual: `kill` dele, depois `systemctl restart roocode.service`. **Fase 9B.**
-- `sleep-api.service`, `metrics-api.service`, `mood-api.service` estão `disabled` (não mais ativos) mas os `.service` files continuam em `/etc/systemd/system/`. Remover em limpeza opcional da **Fase 9B**.
+### Status systemd (2026-04-23 — Fase 9B concluída)
+- `roocode.service` **`active (running)`** em `/etc/systemd/system/`, enabled, fonte única da verdade na porta 8011. `ExecStart`: `/root/RooCode/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8011`. Reboot resilience validada (stop → 000 → start → 200 em 3s).
+- Resolução Fase 9B: processo manual órfão rodando desde 2026-04-20 (PID 3090260, PPID 1) segurava a porta 8011, causando loop `activating (auto-restart)` com counter em 546+. Após `systemctl stop` + `kill` do manual + `systemctl start`, serviço subiu limpo.
+- `sleep-api.service`, `metrics-api.service`, `mood-api.service` **removidos** de `/etc/systemd/system/` — eram redundantes com `main.py` unificado.
 
 ---
 
@@ -182,6 +182,9 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
   - Banner honesto: "análise exploratória, não conclusiva · n pequeno = r ruidoso · emoções momentâneas têm sampling bias · precisa ~60 dias".
   - Bundle: +977KB / +277KB gzip. Delta sobre 8A.1: +20KB / +5KB gzip.
 - [ ] **Fase 9:** housekeeping residual + consolidação operacional — detalhes abaixo em "KICKOFF — Fase 9"
+  - **9.0 ✅** (2026-04-23) — commit working tree pendente (`234a70f`): doc Fase 8B→9, refactor `UploadFile→Request` em Metrics/Mood, remoção de `_organizeMetrics`
+  - **9B ✅** (2026-04-23) — roocode.service `active (running)`, uvicorn manual (órfão desde 2026-04-20) morto, sleep-api/metrics-api/mood-api services removidos, reboot resilience validada
+  - 9A/9C/9D/9E pendentes
 
 ---
 
@@ -205,8 +208,9 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 **Estado pós Fase 8B (concluída 2026-04-20):**
 - Fase 8 inteira (A, A.1, B) fechada e em `main`. Dashboard rodando em dados reais com: expansão Activity/Physiology (steps, VO2Máx, walking vitality, cardio recovery); catálogo + PK grid tolerantes a suplementos sem faixa terapêutica; aba "Descritivo e Insights" com intraday PK×humor (PKMoodScatter, LagCorrelation, MedicationAdherence); shim CSS cobrindo vars fantasma dos herdados mood-pharma-tracker.
 - Bug `Mood/mood.py::_format_mood_date` fixado — Emoções Momentâneas agora preservam HH:MM:SS na ingestão.
-- `roocode.service` existe e é `enabled`, mas em estado `activating` — precisa diagnóstico.
-- Plano de atualização da doc em `/root/.claude/plans/e-ai-meu-guri-async-mountain.md`. Plano da Fase 8B em `/root/.claude/plans/bora-fechar-as-pontas-fuzzy-knuth.md`.
+- `roocode.service` `active (running)` após Fase 9B — uvicorn manual órfão morto, services antigos removidos, reboot resilience validada.
+- Working tree limpo após Fase 9.0 (commit `234a70f` com CLAUDE.md + refactors Metrics/Mood).
+- Plano de atualização da doc em `/root/.claude/plans/e-ai-meu-guri-async-mountain.md`. Plano da Fase 8B em `/root/.claude/plans/bora-fechar-as-pontas-fuzzy-knuth.md`. Plano da Fase 9 em `/root/.claude/plans/que-nao-sei-federated-feigenbaum.md`.
 
 **Objetivo Fase 9:** pagar dívida operacional e de código acumulada pra entregar o dashboard em estado "posso esquecer e continua funcionando". **Cinco frentes independentes** — cada uma pode ser uma sub-sprint separada.
 

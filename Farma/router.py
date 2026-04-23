@@ -437,18 +437,6 @@ async def getRegimen():
     return JSONResponse(content=regimen)
 
 
-@router.put("/regimen")
-async def saveRegimen(entries: list[MedicationRegimenEntry]):
-    """Substitui o regime editavel validado."""
-    try:
-        regimen = [_normalize_regimen_entry(entry) for entry in entries]
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    _save_regimen(regimen)
-    return JSONResponse(content=regimen)
-
-
 @router.post("/doses")
 async def logDose(entry: DoseEntry):
     """Registra uma dose manual com timestamp. Valida contra catálogo merged (built-in + custom)."""

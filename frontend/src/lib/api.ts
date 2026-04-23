@@ -246,19 +246,3 @@ export const useDeleteSubstance = () => {
   })
 }
 
-export const useSaveRegimen = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: MedicationRegimenEntry[]) =>
-      fetch(`${BASE}/farma/regimen`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).then((response) => readJson<MedicationRegimenEntry[]>(response)),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['regimen'] })
-      qc.invalidateQueries({ queryKey: ['pk-curve'] })
-      qc.invalidateQueries({ queryKey: ['pk-now'] })
-    },
-  })
-}

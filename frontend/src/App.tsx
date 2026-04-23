@@ -10,9 +10,6 @@ import type { AnalyticsMetric, AnalyticsTone } from '@/components/analytics/type
 import DoseLogger from '@/components/DoseLogger'
 import DoseHistoryView from '@/components/DoseHistoryView'
 import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
-// NOTE: MedicationRegimenEditor removido da UI (Fase 6a, 2026-04-20). Backend /farma/regimen
-// e o arquivo MedicationRegimenEditor.tsx ficam preservados dormindo — reintroduzir quando
-// virar útil (autofill do DoseLogger ou dashboard de aderência na Fase 7+).
 import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
 import { HeartRateBands } from '@/components/charts/heart-rate-bands'

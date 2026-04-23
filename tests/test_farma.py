@@ -55,48 +55,6 @@ class RegimenEndpointTests(unittest.TestCase):
         self.assertEqual([item["substance"] for item in payload], ["lexapro", "venvanse", "lamictal"])
         self.assertEqual(payload[1]["days_of_week"], [1, 2, 3, 4, 5])
 
-    def test_put_regimen_persists_valid_entries(self) -> None:
-        payload = [
-            {
-                "id": "lexapro-test",
-                "substance": "escitalopram",
-                "dose_mg": 20,
-                "times": ["08:30"],
-                "days_of_week": [1, 3, 5],
-                "active": True,
-                "start_date": "2026-04-01",
-                "end_date": None,
-                "color": "#123456",
-            }
-        ]
-
-        response = self.client.put("/regimen", json=payload)
-
-        self.assertEqual(response.status_code, 200)
-        saved = response.json()
-        self.assertEqual(saved[0]["substance"], "lexapro")
-        self.assertEqual(saved[0]["times"], ["08:30"])
-        self.assertEqual(self.client.get("/regimen").json(), saved)
-
-    def test_put_regimen_rejects_invalid_values(self) -> None:
-        payload = [
-            {
-                "id": "bad",
-                "substance": "lexapro",
-                "dose_mg": 0,
-                "times": ["28:99"],
-                "days_of_week": [9],
-                "active": True,
-                "start_date": None,
-                "end_date": None,
-                "color": None,
-            }
-        ]
-
-        response = self.client.put("/regimen", json=payload)
-
-        self.assertEqual(response.status_code, 422)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -44,9 +44,7 @@ Todos sob `/health/api/*` via Apache (ou `:8011/*` direto):
 | `/farma/substances/{key}` | POST/PUT/DELETE | CRUD de custom (built-ins imutáveis → 409) |
 | `/farma/doses` | GET/POST | Log de doses |
 | `/farma/doses/{id}` | PUT/DELETE | Edita/remove dose individual (PATCH semântico via `exclude_unset`) |
-| `/farma/regimen` | GET/PUT | Config persistida (sem consumer UI desde Fase 6a — dormindo) |
-| `/farma/curve` | GET | ⚠️ Legado sem consumer (substituído por PK frontend na Fase 6c) |
-| `/farma/now` | GET | ⚠️ Legado sem consumer (idem) |
+| `/farma/regimen` | GET | Config read-only dos defaults (Lexapro/Venvanse/Lamictal). PUT removido na Fase 9A.3 — edite `Farma/regimen_config.json` a mão se precisar mudar. |
 | `/forecast` | POST | Forecasting 5 dias via Gemini (cache md5, confidence cap por densidade) |
 
 ---
@@ -140,7 +138,7 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
   - **6b:** Catálogo de substâncias mutável — `SubstanceEntry`/`SubstanceUpdate` models, `Farma/substances_custom.json` (dict merge com `medDataBase.json`), `POST/PUT/DELETE /farma/substances/{key}` com built-ins imutáveis; frontend `MedicationCatalogEditor` (Radix Dialog, 2 modos list/form + "Copiar de preset"); `useSubstances` faz `?full=true`; `logDose` aceita aliases/custom via `_resolve_substance_any`
   - **6c:** Swap do `PKConcentrationChart` pelo `PKMedicationGrid` — cartões compactos auto-fit 260px, eixo Y **0-150% da faixa terapêutica** (resolve o bug do Venvanse a 800%), banda verde shaded entre `100 * min/max` e 100%, `ReferenceLine` em cada dose real, status badge (sub/within/supra); `therapeutic_range_min/max` seedados em `medDataBase.json` pra Lexapro (15-80), Venvanse (10-30), Lamictal (2000-10000) — todos em ng/mL canônico
   - Layout final da aba Humor + Medicação: botão Catálogo → MoodTimeline + MoodDonut → PKMedicationGrid → DoseLogger + DoseHistoryView
-  - Órfãos dormindo: `PKConcentrationChart`, `medication-bridge.ts::buildPKTimelinePayload`, `usePKCurve`, `usePKNow`, `MedicationRegimenEditor`, `concentration_for_substance` de `math.py` — sem consumer, avaliar remoção na **Fase 9A** (cadeia com `load_medication_database` que **segue essencial**)
+  - Órfãos removidos na **Fase 9A** (2026-04-23): `ChartsDemo`, `PKConcentrationChart`, `buildPKTimelinePayload`/`expandRegimenDoses` (medication-bridge → 626→126 linhas), `usePKCurve`/`usePKNow`, endpoints `/farma/curve` + `/farma/now`, `concentration_for_substance`, `MedicationRegimenEditor` + `PUT /farma/regimen`. Delta: **−1.661 linhas**. `load_medication_database` preservado (essencial pra `/farma/substances`).
   - Dep nova: `@radix-ui/react-dialog@1.1.15` (bundle +9 kB gzip)
 - [x] **Fase 7:** Forecasting 5 dias com Gemini (concluída 2026-04-20)
   - Backend: `Forecast/router.py` com `POST /health/api/forecast`, cache md5, prompt clínico PT-BR com contexto PK, confidence cap modulado por densidade (14d→0.40, 30d→0.70, 60d→0.82, ≥60→0.90)
@@ -181,12 +179,13 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
   - `MoodRecord.Fim` adicionado (distingue Humor Diário vs Emoção Momentânea); `buildMoodRows` propaga `row.Fim` pro field `type`.
   - Banner honesto: "análise exploratória, não conclusiva · n pequeno = r ruidoso · emoções momentâneas têm sampling bias · precisa ~60 dias".
   - Bundle: +977KB / +277KB gzip. Delta sobre 8A.1: +20KB / +5KB gzip.
-- [ ] **Fase 9:** housekeeping residual + consolidação operacional — detalhes abaixo em "KICKOFF — Fase 9"
-  - **9.0 ✅** (2026-04-23) — commit working tree pendente (`234a70f`): doc Fase 8B→9, refactor `UploadFile→Request` em Metrics/Mood, remoção de `_organizeMetrics`
-  - **9B ✅** (2026-04-23) — roocode.service `active (running)`, uvicorn manual (órfão desde 2026-04-20) morto, sleep-api/metrics-api/mood-api services removidos, reboot resilience validada
-  - **9A ✅** (2026-04-23) — deletada cadeia órfã da Fase 6 em 3 commits: 9A.1 frontend (ChartsDemo + pk-concentration-chart + 500 linhas de medication-bridge), 9A.2 backend (/farma/curve, /farma/now, concentration_for_substance), 9A.3 (MedicationRegimenEditor + PUT /farma/regimen). Delta: **−1661 linhas**
-  - **9D ✅** (2026-04-23) — `respiratoryRate` e `pulseTemperatureC` viraram KPI cards na Executive (opção a do menu). 7d avg com tone clínico: resp >20rpm=negative, 16-20=watch, 12-16=positive, <12=watch; temp ≥37°C=negative, 36.8-37°C=watch, 35.5-36.8=positive, <35.5=watch
-  - 9C/9E pendentes
+- [ ] **Fase 9:** housekeeping residual + consolidação operacional — 4 de 5 sub-sprints concluídas na sessão 2026-04-23; detalhes no "KICKOFF — Fase 9 Restante"
+  - **9.0 ✅** commit working tree pendente (`234a70f`): doc Fase 8B→9, refactor `UploadFile→Request` em Metrics/Mood, remoção de `_organizeMetrics`
+  - **9B ✅** roocode.service `active (running)`, uvicorn manual (órfão desde 2026-04-20) morto, sleep-api/metrics-api/mood-api services removidos de `/etc/systemd/system/`, reboot resilience validada (`f5aba02`)
+  - **9A ✅** cadeia órfã da Fase 6 removida em 3 commits atômicos: 9A.1 frontend (`4fe9682`), 9A.2 backend (`894d9e5`), 9A.3 MedicationRegimenEditor (`7253705`). Delta: **−1.661 linhas**
+  - **9D ✅** KPI cards clínicos de `respiratoryRate` (rpm, bandas 12-16-20) + `pulseTemperatureC` (°C, bandas 35.5-36.8-37) na Executive (`5b2b491`)
+  - **9C ⏳** shim CSS — migração dos 4 componentes mood-pharma-tracker pros tokens warm editorial nativos (opcional, baixa urgência)
+  - **9E ⏳** re-upload CSV mood histórico pelo AutoExport (ação Anders, sem código)
 
 ---
 
@@ -203,130 +202,72 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Fase 9: Housekeeping residual + consolidação operacional
+## KICKOFF — Fase 9 Restante: 9C (opcional) + 9E (ação Anders)
 
-> Texto pra colar em sessão fresh. Claude lê, entrevista o Anders se tiver dúvida sobre prioridade das sub-sprints, e executa uma por vez.
+> Texto pra colar em sessão fresh. Claude lê, executa sanity inicial, pergunta ao Anders se precisar.
 
-**Estado pós Fase 8B (concluída 2026-04-20):**
-- Fase 8 inteira (A, A.1, B) fechada e em `main`. Dashboard rodando em dados reais com: expansão Activity/Physiology (steps, VO2Máx, walking vitality, cardio recovery); catálogo + PK grid tolerantes a suplementos sem faixa terapêutica; aba "Descritivo e Insights" com intraday PK×humor (PKMoodScatter, LagCorrelation, MedicationAdherence); shim CSS cobrindo vars fantasma dos herdados mood-pharma-tracker.
-- Bug `Mood/mood.py::_format_mood_date` fixado — Emoções Momentâneas agora preservam HH:MM:SS na ingestão.
-- `roocode.service` `active (running)` após Fase 9B — uvicorn manual órfão morto, services antigos removidos, reboot resilience validada.
-- Working tree limpo após Fase 9.0 (commit `234a70f` com CLAUDE.md + refactors Metrics/Mood).
-- Plano de atualização da doc em `/root/.claude/plans/e-ai-meu-guri-async-mountain.md`. Plano da Fase 8B em `/root/.claude/plans/bora-fechar-as-pontas-fuzzy-knuth.md`. Plano da Fase 9 em `/root/.claude/plans/que-nao-sei-federated-feigenbaum.md`.
+**Estado pós sessão 2026-04-23:**
+- Fase 9 teve 4 de 5 sub-sprints concluídas: 9.0 (working tree limpo), 9B (systemd estável), 9A (cadeia órfã Fase 6 removida em 3 commits, **−1.661 linhas**), 9D (KPIs vitals clínicos na Executive).
+- `roocode.service` `active (running)`, reboot resilience validada, 3 services antigos (`sleep-api`, `metrics-api`, `mood-api`) removidos de `/etc/systemd/system/`.
+- Backend agora tem **4 endpoints `/farma/*`** (era 7 na Fase 6c): `substances` (GET + POST/PUT/DELETE), `doses` (GET + POST + PUT/DELETE por id), `regimen` (GET only). `Forecast` (POST) e AutoExport (`sleep`/`metrics`/`mood` GET+POST) permanecem.
+- `medication-bridge.ts` foi de 626 → 126 linhas (só `MedGroup`, `buildMedGroups`, `buildDailyConcentrations` seguem vivos).
+- Bundle frontend: 938 KB / 267 KB gzip.
+- **~17 commits locais ahead do origin/main**. Push ainda não feito — decisão do Anders no começo da sessão.
+- Plano da sessão anterior em `/root/.claude/plans/que-nao-sei-federated-feigenbaum.md`.
 
-**Objetivo Fase 9:** pagar dívida operacional e de código acumulada pra entregar o dashboard em estado "posso esquecer e continua funcionando". **Cinco frentes independentes** — cada uma pode ser uma sub-sprint separada.
+**Objetivo desta sessão:** fechar as 2 sprints restantes (uma de código opcional, uma ação do Anders). Depois, decidir sobre push.
 
-### 9A — Deleção de órfãos da Fase 6 (ordem importa — cadeia de dependências)
+### Passo 0: Sanity inicial (obrigatório antes de qualquer coisa)
 
-**Cadeia descoberta no audit de 2026-04-22:**
-
-```
-ChartsDemo.tsx (rota #charts-demo, museu pedagógico)
-    └─> pk-concentration-chart.tsx  ─┐
-            └─> medication-bridge::  │  ← cadeia frontend
-                  buildPKTimelinePayload,
-                  expandRegimenDoses
-
-usePKCurve, usePKNow (lib/api.ts)  ─┐
-    └─> /farma/curve, /farma/now    │  ← cadeia backend
-            └─> concentration_for_substance (Farma/math.py)
-
-load_medication_database (Farma/math.py) ← ESSENCIAL, NÃO DELETAR
-    └─> /farma/substances (ativo)
-    └─> cache_clear() após CRUD de catálogo
-```
-
-**Primeiro passo: decisão com Anders.** ChartsDemo (rota `#charts-demo`) é um museu com 14 charts em mock data. Ainda útil pra debug/showcase ou candidato a deletar?
-
-**Se deletar ChartsDemo:**
-1. Deletar `frontend/src/pages/ChartsDemo.tsx`
-2. Remover `if (hash === '#charts-demo')` de `App.tsx:293`
-3. Deletar `frontend/src/components/charts/pk-concentration-chart.tsx`
-4. Deletar em `frontend/src/utils/medication-bridge.ts`: `buildPKTimelinePayload`, `expandRegimenDoses` e helpers privados exclusivos delas (confirmar com `grep`)
-5. Deletar em `frontend/src/lib/api.ts`: `usePKCurve`, `usePKNow`
-6. Em `Farma/router.py`: deletar endpoints `/farma/curve` e `/farma/now`
-7. Em `Farma/math.py`: deletar `concentration_for_substance` (agora órfão)
-8. **NÃO DELETAR** `load_medication_database` nem o `@lru_cache` — segue essencial pra `/farma/substances` e `cache_clear()` do CRUD
-
-**Se manter ChartsDemo:** só a cadeia backend sai (usePKCurve/usePKNow + endpoints + `concentration_for_substance`). Frontend (ChartsDemo + pk-concentration-chart + medication-bridge) permanece como museu.
-
-**Componente independente (sem cadeia):** `frontend/src/components/MedicationRegimenEditor.tsx` + hooks `useRegimen`/`useSaveRegimen` + backend `/farma/regimen`. Todos dormindo. Candidato a deleção conjunta se Anders confirmar.
-
-**Protocolo:** commit atômico 1 por cadeia (frontend / backend / MedicationRegimenEditor). Validar com `tsc --noEmit && npm run build` após cada. `git grep` exaustivo antes de cada `rm`.
-
-### 9B — Estabilização do systemd roocode.service
-
-**Diagnóstico primeiro:**
 ```bash
-systemctl status roocode.service --no-pager -l
-journalctl -u roocode.service -n 50 --no-pager
-ss -tlnp | grep 8011          # quem está segurando a porta
-pgrep -af "uvicorn main:app"  # processos manuais vivos
+systemctl is-active roocode.service            # deve ser "active"
+ss -tlnp | grep 8011                           # 1 único python do systemd
+curl -s -o /dev/null -w "metrics=%{http_code} · substances=" http://localhost:8011/metrics
+curl -s -o /dev/null -w "%{http_code} · regimen=" http://localhost:8011/farma/substances
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8011/farma/regimen
+git log --oneline origin/main..main | wc -l | xargs echo "commits ahead:"
 ```
 
-Se processo manual segura a porta: `kill` dele + `systemctl restart roocode.service`. Se bug no `.service` em si: revisar ExecStart, WorkingDirectory, permissões do venv.
+Se algum teste não passar, diagnosticar antes de continuar.
 
-**Limpeza dos services antigos:**
-```bash
-sudo systemctl mask sleep-api.service metrics-api.service mood-api.service
-# Quando confirmado que não quebra nada:
-sudo rm /etc/systemd/system/{sleep-api,metrics-api,mood-api}.service
-sudo systemctl daemon-reload
-```
+### 9C — Eliminação do shim CSS (opcional, ~45-60 min)
 
-Validação final: `systemctl restart roocode.service` → `curl http://localhost:8011/metrics` → `curl https://ultrassom.ai/health/api/metrics`.
+**Contexto:** na Fase 8A.1 aplicamos um shim em `frontend/src/index.css` mapeando 10 CSS vars fantasma dos 4 componentes herdados do mood-pharma-tracker (`MedicationCatalogEditor`, `DoseLogger`, `DoseHistoryView`, `pk-medication-grid`) pros tokens warm editorial. Funciona 100%. Migração elimina indireção e melhora legibilidade. **Não urgente.**
 
-### 9C — Eliminação gradual do shim CSS (opcional)
-
-Shim da 8A.1 resolveu breakage visual. Migrar os 4 componentes pra usar tokens nativos torna código legível e elimina indireção. Não urgente.
-
-Passos:
-1. `grep -rn 'var(--' frontend/src/components/{MedicationCatalogEditor,DoseLogger,DoseHistoryView}.tsx frontend/src/components/charts/pk-medication-grid.tsx`
-2. Substituir em bulk:
+**Protocolo:**
+1. Inventário exato:
+   ```bash
+   grep -rn 'var(--' /root/RooCode/frontend/src/components/{MedicationCatalogEditor,DoseLogger,DoseHistoryView}.tsx /root/RooCode/frontend/src/components/charts/pk-medication-grid.tsx
+   ```
+2. Mapeamento (bulk replace em cada componente):
    - `var(--text-primary)` → `var(--foreground)`
    - `var(--text-muted)` → `var(--muted)`
-   - `var(--bg-base)` → `var(--card)` (ou gradiente)
+   - `var(--bg-base)` → `var(--card)` (ou gradiente editorial, avaliar caso a caso)
    - `var(--bg-raised)` → `var(--card)`
-   - `var(--accent-violet)`, `--accent-emerald`, `--accent-amber` → decidir se mantém (cores semânticas de medicação) ou migra pro tema
-3. Remover entradas do shim em `index.css` + o TODO inline
-4. Screenshot A/B da aba Humor + Medicação
+   - `var(--accent-violet)`, `--accent-emerald`, `--accent-amber` → **decisão com Anders**: cores semânticas de medicação (manter como tokens próprios no `index.css`?) ou migrar pros accents do warm editorial?
+3. Remover 10 linhas do shim em `index.css` (bloco `/* CSS vars shim (Fase 8A.1) */` ou equivalente).
+4. **Screenshot A/B obrigatório antes do commit** da aba Humor + Medicação + modal Catálogo no browser em `https://ultrassom.ai/health/#mood`.
+5. Validar: `npm run build`.
 
-### 9D — Decisão: `respiratoryRate` e `pulseTemperatureC` (sem chart dedicado)
+**Guardrail:** o shim funciona 100% hoje. Risco visual > risco de código duplicado. Só commitar se Anders aprovar os screenshots.
 
-Campos agregados em `DailyHealthMetrics`, com cores em `timeline-chart.tsx:45-46`, incluídos em `correlation-heatmap.tsx:30` — **mas sem viz própria**.
+**Commit:** `refactor(roocode): fase 9C — migrar mood-pharma-tracker pros tokens warm editorial + remover shim`
 
-Opções:
-- **a)** Cards KPI na Executive (7d avg com tone clínico)
-- **b)** Linhas opcionais no `TimelineChart` via prop
-- **c)** Charts próprios (`RespiratoryRateChart`, `PulseTemperatureChart`) na aba Sleep + Physiology — padrão do `Vo2MaxChart` da 8A
-- **d)** Deixar como está (agregado + correlação, sem viz dedicada)
+### 9E — Re-upload CSV mood histórico (ação Anders, sem código)
 
-Contexto clínico:
-- `respiratoryRate` — tônus autonômico / sono, pareado com HRV
-- `pulseTemperatureC` — ciclo circadiano / metabólico; relevante pra monitorar lítio/valproato (termorregulação)
+**Contexto:** o fix do `_format_mood_date` na Fase 8B preserva HH:MM:SS de Emoções Momentâneas, mas o CSV antigo já tinha perdido essas horas antes do fix. Charts intraday (`PKMoodScatter`, `LagCorrelation`) só veem emoções após 2026-04-20. Re-upload recupera retroativamente.
 
-### 9E — Re-upload do CSV mood histórico (ação Anders, sem código)
+**Passos do Anders:**
+1. iPhone → AutoExport → export State of Mind CSV completo (tudo o histórico).
+2. Upload via `POST /health/api/mood` (use o fluxo da UI se já existe, ou `curl` com multipart).
+3. Verificar:
+   ```bash
+   curl -s http://localhost:8011/mood | jq '.[] | select(.Fim == "Emoção Momentânea") | .Iniciar' | head -5
+   # deve mostrar timestamps com hora (DD/MM/YYYY HH:MM:SS), não só DD/MM/YYYY
+   ```
 
-Pra recuperar timestamps de Emoções Momentâneas anteriores ao fix do `strftime` na Fase 8B. Anders re-envia pelo AutoExport do iPhone → endpoint `/mood`.
+Após 9E, os charts intraday ganham dados históricos e o banner "precisa ~60 dias" fica mais realista.
 
----
+### Decisão pós-sprints: push dos commits
 
-**Comando de boot pra Fase 9:**
-
-```bash
-# Sanity dos serviços
-systemctl status roocode.service --no-pager -l | head -20
-ss -tlnp | grep -E "8011|3031"
-pgrep -af "uvicorn main:app|RooCode/frontend.*vite"
-
-# Sanity dos endpoints
-curl -s -o /dev/null -w "metrics=%{http_code}\n"    http://localhost:8011/metrics
-curl -s -o /dev/null -w "substances=%{http_code}\n" http://localhost:8011/farma/substances
-curl -s -o /dev/null -w "doses=%{http_code}\n"      http://localhost:8011/farma/doses
-
-# Inventário de órfãos (confirmar cadeia antes de deletar)
-grep -rn "ChartsDemo\|pk-concentration-chart\|PKConcentrationChart" /root/RooCode/frontend/src/ | grep -v node_modules
-grep -rn "buildPKTimelinePayload\|expandRegimenDoses" /root/RooCode/frontend/src/
-grep -rn "usePKCurve\|usePKNow" /root/RooCode/frontend/src/
-grep -rn "concentration_for_substance\|farma/curve\|farma/now" /root/RooCode/
-```
+Após 9C (ou se decidir skipar), revisar os ~18 commits locais e decidir `git push origin main`. Não há CI configurado que possa quebrar — é decisão puramente de "quero meu backup remoto atualizado".

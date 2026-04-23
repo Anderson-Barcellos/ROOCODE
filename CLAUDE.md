@@ -184,7 +184,9 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
 - [ ] **Fase 9:** housekeeping residual + consolidação operacional — detalhes abaixo em "KICKOFF — Fase 9"
   - **9.0 ✅** (2026-04-23) — commit working tree pendente (`234a70f`): doc Fase 8B→9, refactor `UploadFile→Request` em Metrics/Mood, remoção de `_organizeMetrics`
   - **9B ✅** (2026-04-23) — roocode.service `active (running)`, uvicorn manual (órfão desde 2026-04-20) morto, sleep-api/metrics-api/mood-api services removidos, reboot resilience validada
-  - 9A/9C/9D/9E pendentes
+  - **9A ✅** (2026-04-23) — deletada cadeia órfã da Fase 6 em 3 commits: 9A.1 frontend (ChartsDemo + pk-concentration-chart + 500 linhas de medication-bridge), 9A.2 backend (/farma/curve, /farma/now, concentration_for_substance), 9A.3 (MedicationRegimenEditor + PUT /farma/regimen). Delta: **−1661 linhas**
+  - **9D ✅** (2026-04-23) — `respiratoryRate` e `pulseTemperatureC` viraram KPI cards na Executive (opção a do menu). 7d avg com tone clínico: resp >20rpm=negative, 16-20=watch, 12-16=positive, <12=watch; temp ≥37°C=negative, 36.8-37°C=watch, 35.5-36.8=positive, <35.5=watch
+  - 9C/9E pendentes
 
 ---
 

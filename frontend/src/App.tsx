@@ -75,6 +75,7 @@ function buildExecutiveMetrics(
   ov: OverviewMetrics,
   days: { validRealDays: number; validMoodDays: number },
   activity: { steps7d: number | null; vo2Max7d: number | null; walkingSpeed7d: number | null },
+  physiology: { respiratoryRate7d: number | null; pulseTemperatureC7d: number | null },
 ): AnalyticsMetric[] {
   // Fase 5d: KPIs de média-7d só fazem sentido com 7+ dias reais.
   // Abaixo disso, value vira null → MetricGrid mostra "Sem dados".
@@ -91,6 +92,9 @@ function buildExecutiveMetrics(
   const steps = enoughReal ? activity.steps7d : null
   const vo2 = enoughReal ? activity.vo2Max7d : null
   const walkingSpeed = enoughReal ? activity.walkingSpeed7d : null
+  // Fase 9D — vitals sem viz dedicada, exibidos como KPIs clínicos
+  const rpm = enoughReal ? physiology.respiratoryRate7d : null
+  const wristTemp = enoughReal ? physiology.pulseTemperatureC7d : null
   return [
     { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
     { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
@@ -143,6 +147,39 @@ function buildExecutiveMetrics(
       tone: exMin == null
         ? 'neutral'
         : exMin >= 30
+        ? 'positive'
+        : 'watch',
+    },
+    {
+      // Freq. respiratória em repouso adulto: 12-20 rpm normal; acima = taquipneia.
+      // Bradipneia <12 raro neste perfil farmacológico, mas tratado como 'watch'.
+      label: 'Freq. resp. 7d',
+      value: rpm,
+      unit: 'rpm',
+      tone: rpm == null
+        ? 'neutral'
+        : rpm > 20
+        ? 'negative'
+        : rpm >= 16
+        ? 'watch'
+        : rpm >= 12
+        ? 'positive'
+        : 'watch',
+    },
+    {
+      // Temperatura de pulso noturna (wrist temp absoluto °C) — faixa estável
+      // 35.5-36.8 em repouso. >37.0 sinaliza possível febre incipiente; <35.5
+      // merece atenção ('watch') mas pode ser variação normal de periferia.
+      label: 'Temp. pulso 7d',
+      value: wristTemp,
+      unit: '°C',
+      tone: wristTemp == null
+        ? 'neutral'
+        : wristTemp >= 37.0
+        ? 'negative'
+        : wristTemp >= 36.8
+        ? 'watch'
+        : wristTemp >= 35.5
         ? 'positive'
         : 'watch',
     },
@@ -249,16 +286,23 @@ export default function App() {
   )
   const cardio = useCardioAnalysis(ranged)
   // Fase 8A — agregações 7d pros novos KPIs Activity/Physiology
-  const activitySummary = useMemo(() => {
+  // Fase 9D — adicionada physiology (vitals sem chart dedicado)
+  const { activitySummary, physiologySummary } = useMemo(() => {
     const last7 = selectSnapshotRange(data.snapshots, '7d').filter((s) => !s.interpolated)
     const avg = (values: Array<number | null | undefined>): number | null => {
       const numeric = values.filter((v): v is number => typeof v === 'number')
       return numeric.length ? numeric.reduce((a, b) => a + b, 0) / numeric.length : null
     }
     return {
-      steps7d: avg(last7.map((s) => s.health?.steps)),
-      vo2Max7d: avg(last7.map((s) => s.health?.vo2Max)),
-      walkingSpeed7d: avg(last7.map((s) => s.health?.walkingSpeedKmh)),
+      activitySummary: {
+        steps7d: avg(last7.map((s) => s.health?.steps)),
+        vo2Max7d: avg(last7.map((s) => s.health?.vo2Max)),
+        walkingSpeed7d: avg(last7.map((s) => s.health?.walkingSpeedKmh)),
+      },
+      physiologySummary: {
+        respiratoryRate7d: avg(last7.map((s) => s.health?.respiratoryRate)),
+        pulseTemperatureC7d: avg(last7.map((s) => s.health?.pulseTemperatureC)),
+      },
     }
   }, [data.snapshots])
   const executiveMetrics = useMemo(
@@ -270,8 +314,9 @@ export default function App() {
           validMoodDays: data.validMoodDays,
         },
         activitySummary,
+        physiologySummary,
       ),
-    [data.overview, data.validRealDays, data.validMoodDays, activitySummary],
+    [data.overview, data.validRealDays, data.validMoodDays, activitySummary, physiologySummary],
   )
   const timelineData = useMemo(() => buildTimelineSeries(rangedWithForecast, EXEC_SERIES), [rangedWithForecast])
   const timelineReadiness = useMemo(

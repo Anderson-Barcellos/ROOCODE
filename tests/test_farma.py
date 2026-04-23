@@ -7,8 +7,6 @@ from fastapi.testclient import TestClient
 
 from Farma import (
     available_substances,
-    concentration_at_time,
-    concentration_for_substance,
     get_substance_profile,
     load_medication_database,
 )
@@ -33,24 +31,6 @@ class FarmaTests(unittest.TestCase):
         self.assertEqual(get_substance_profile("vyvanse")["id"], "venvanse")
         self.assertEqual(get_substance_profile("a 3")["id"], "omega_3")
         self.assertIn("lexapro", available_substances())
-
-    def test_concentration_for_substance_uses_profile_parameters(self) -> None:
-        profile = get_substance_profile("lexapro")
-        expected = concentration_at_time(
-            dose=10.0,
-            ka=profile["ka_per_hour"],
-            ke=profile["ke_per_hour"],
-            vd=profile["vd_l_per_kg"] * 70.0,
-            t=6.0,
-            bioavailability=profile["bioavailability"],
-        )
-        actual = concentration_for_substance("lexapro", dose=10.0, t=6.0)
-
-        self.assertAlmostEqual(actual, expected, places=12)
-
-    def test_multiple_doses_require_tau(self) -> None:
-        with self.assertRaises(ValueError):
-            concentration_for_substance("piracetam", dose=800.0, t=12.0, n_doses=3)
 
 
 class RegimenEndpointTests(unittest.TestCase):

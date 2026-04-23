@@ -64,17 +64,6 @@ export interface DoseRecord {
   logged_at: string
 }
 
-export interface PKCurveData {
-  timeline: string[]
-  curves: Record<string, { display_name: string; points: number[] }>
-  doses: Array<{ substance: string; dose_mg: number; taken_at: string; note: string }>
-}
-
-export interface PKNowData {
-  timestamp: string
-  levels: Record<string, { display_name: string; pct_cmax: number }>
-}
-
 export type { MedicationRegimenEntry }
 
 export interface SleepRecord {
@@ -152,20 +141,6 @@ export const useRegimen = (enabled = true) =>
     queryFn: () => get<MedicationRegimenEntry[]>('/farma/regimen'),
     staleTime: 5 * 60 * 1000,
     enabled,
-  })
-
-export const usePKCurve = (weightKg = 91) =>
-  useQuery<PKCurveData>({
-    queryKey: ['pk-curve', weightKg],
-    queryFn: () => get<PKCurveData>(`/farma/curve?hours_back=24&hours_forward=12&weight_kg=${weightKg}&resolution_minutes=30`),
-    refetchInterval: 5 * 60 * 1000,
-  })
-
-export const usePKNow = (weightKg = 91) =>
-  useQuery<PKNowData>({
-    queryKey: ['pk-now', weightKg],
-    queryFn: () => get<PKNowData>(`/farma/now?weight_kg=${weightKg}`),
-    refetchInterval: 60 * 1000,
   })
 
 export const useSleep = () =>

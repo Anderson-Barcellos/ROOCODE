@@ -19,8 +19,6 @@ import { HeartRateBands } from '@/components/charts/heart-rate-bands'
 import { HrvAnalysis } from '@/components/charts/hrv-analysis'
 import { MoodDonut } from '@/components/charts/mood-donut'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
-// NOTE: pk-concentration-chart.tsx substituído por PKMedicationGrid em 2026-04-20.
-// O componente antigo fica no disco sem consumer — avaliar remoção na Fase 7.
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
@@ -33,7 +31,6 @@ import { TimelineChart } from '@/components/charts/timeline-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
 import { WeeklyPatternChart } from '@/components/charts/weekly-pattern-chart'
-import { ChartsDemo } from '@/pages/ChartsDemo'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
@@ -290,7 +287,6 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  if (hash === '#charts-demo') return <ChartsDemo />
   if (hash === '#interpolation-demo') return <InterpolationDemo />
 
   const today = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })

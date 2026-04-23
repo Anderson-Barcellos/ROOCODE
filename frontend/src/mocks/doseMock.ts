@@ -64,7 +64,7 @@ function buildMockDoses(days = 14, startOffsetDays = 1): DoseRecord[] {
 
 /**
  * Mesma ideia, mas já convertido para MedicationRow[] que os charts
- * PK consomem diretamente (pk-concentration-chart, medication-bridge).
+ * PK consomem diretamente via medication-bridge.
  */
 export function buildMockMedicationRows(doses: DoseRecord[]): MedicationRow[] {
   return doses.map((d) => ({
@@ -122,7 +122,7 @@ export const MOCK_REGIMEN: MedicationRegimenEntry[] = [
 
 /**
  * Datas sequenciais (ISO yyyy-MM-dd) que cobrem a janela dos mocks —
- * usado por pk-concentration-chart pra alinhar com snapshots.
+ * usado por useRooCodeData no modo mock pra alinhar com snapshots.
  */
 export const MOCK_DATES: string[] = (() => {
   const out: string[] = []

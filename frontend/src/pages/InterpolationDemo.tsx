@@ -237,8 +237,7 @@ export function InterpolationDemo() {
       </div>
 
       <p className="mt-6 text-xs text-slate-500">
-        Abra <code>#charts-demo</code> pra ver todos os 14 charts alimentados pelo MOCK_SNAPSHOTS,
-        ou volte pro dashboard principal pra ver dados reais.
+        Volte pro dashboard principal pra ver dados reais.
       </p>
     </div>
   )

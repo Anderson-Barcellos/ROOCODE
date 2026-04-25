@@ -8,7 +8,7 @@ import type { InterpolationMode } from '@/hooks/useInterpolation'
 import { SurfaceFrame, MetricGrid, EmptyAnalyticsState } from '@/components/analytics/shared'
 import type { AnalyticsMetric, AnalyticsTone } from '@/components/analytics/types'
 import DoseLogger from '@/components/DoseLogger'
-import DoseHistoryView from '@/components/DoseHistoryView'
+import DoseCalendarView from '@/components/DoseCalendarView'
 import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
 import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
@@ -462,8 +462,8 @@ export default function App() {
                   <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
                     <DoseLogger />
                   </div>
-                  <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur" style={{ minHeight: 320 }}>
-                    <DoseHistoryView />
+                  <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur" style={{ minHeight: 420 }}>
+                    <DoseCalendarView />
                   </div>
                 </div>
               </div>

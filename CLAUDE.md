@@ -179,13 +179,13 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
   - `MoodRecord.Fim` adicionado (distingue Humor Diário vs Emoção Momentânea); `buildMoodRows` propaga `row.Fim` pro field `type`.
   - Banner honesto: "análise exploratória, não conclusiva · n pequeno = r ruidoso · emoções momentâneas têm sampling bias · precisa ~60 dias".
   - Bundle: +977KB / +277KB gzip. Delta sobre 8A.1: +20KB / +5KB gzip.
-- [ ] **Fase 9:** housekeeping residual + consolidação operacional — 4 de 5 sub-sprints concluídas na sessão 2026-04-23; detalhes no "KICKOFF — Fase 9 Restante"
+- [x] **Fase 9:** housekeeping residual + consolidação operacional — todas as sub-sprints de código concluídas (9.0, 9A, 9B, 9C, 9D). Apenas 9E permanece aberta como ação Anders (re-upload CSV mood no iPhone).
   - **9.0 ✅** commit working tree pendente (`234a70f`): doc Fase 8B→9, refactor `UploadFile→Request` em Metrics/Mood, remoção de `_organizeMetrics`
   - **9B ✅** roocode.service `active (running)`, uvicorn manual (órfão desde 2026-04-20) morto, sleep-api/metrics-api/mood-api services removidos de `/etc/systemd/system/`, reboot resilience validada (`f5aba02`)
   - **9A ✅** cadeia órfã da Fase 6 removida em 3 commits atômicos: 9A.1 frontend (`4fe9682`), 9A.2 backend (`894d9e5`), 9A.3 MedicationRegimenEditor (`7253705`). Delta: **−1.661 linhas**
   - **9D ✅** KPI cards clínicos de `respiratoryRate` (rpm, bandas 12-16-20) + `pulseTemperatureC` (°C, bandas 35.5-36.8-37) na Executive (`5b2b491`)
-  - **9C ⏳** shim CSS — migração dos 4 componentes mood-pharma-tracker pros tokens warm editorial nativos (opcional, baixa urgência)
-  - **9E ⏳** re-upload CSV mood histórico pelo AutoExport (ação Anders, sem código)
+  - **9C ✅** (2026-04-24, `c9b517b`) shim CSS eliminado: 70 ocorrências de vars fantasma migradas pros tokens warm editorial em 4 componentes; `--accent-violet` promovido a token oficial (identidade medicação); `--accent-emerald*` migrado pro `--accent` teal (botões de confirmação). Aprovado visualmente por Anders.
+  - **9E ⏳** re-upload CSV mood histórico pelo AutoExport (ação Anders, sem código) — continua aberta, não bloqueia Fase 10
 
 ---
 
@@ -202,72 +202,115 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Fase 9 Restante: 9C (opcional) + 9E (ação Anders)
+## KICKOFF — Fase 10: UX Medicação + Revisão de Seções
 
-> Texto pra colar em sessão fresh. Claude lê, executa sanity inicial, pergunta ao Anders se precisar.
+> Texto pra colar em sessão fresh. Claude lê, executa sanity, brainstorma com Anders antes de codar.
 
-**Estado pós sessão 2026-04-23:**
-- Fase 9 teve 4 de 5 sub-sprints concluídas: 9.0 (working tree limpo), 9B (systemd estável), 9A (cadeia órfã Fase 6 removida em 3 commits, **−1.661 linhas**), 9D (KPIs vitals clínicos na Executive).
-- `roocode.service` `active (running)`, reboot resilience validada, 3 services antigos (`sleep-api`, `metrics-api`, `mood-api`) removidos de `/etc/systemd/system/`.
-- Backend agora tem **4 endpoints `/farma/*`** (era 7 na Fase 6c): `substances` (GET + POST/PUT/DELETE), `doses` (GET + POST + PUT/DELETE por id), `regimen` (GET only). `Forecast` (POST) e AutoExport (`sleep`/`metrics`/`mood` GET+POST) permanecem.
-- `medication-bridge.ts` foi de 626 → 126 linhas (só `MedGroup`, `buildMedGroups`, `buildDailyConcentrations` seguem vivos).
-- Bundle frontend: 938 KB / 267 KB gzip.
-- **~17 commits locais ahead do origin/main**. Push ainda não feito — decisão do Anders no começo da sessão.
-- Plano da sessão anterior em `/root/.claude/plans/que-nao-sei-federated-feigenbaum.md`.
+**Estado pós sessão 2026-04-24:**
+- **Fase 9 concluída** em todas as sub-sprints de código (9.0, 9A, 9B, 9C, 9D). Detalhes em `/root/.claude/plans/opa-bora-apertei-abstract-cosmos.md` (9C) e `/root/.claude/plans/que-nao-sei-federated-feigenbaum.md` (9A+9B+9D).
+- 9C commitada como `c9b517b`: shim CSS de 10 vars fantasma eliminado, 4 componentes migrados pros tokens warm editorial, `--accent-violet` promovido a token oficial, `--accent-emerald*` migrado pro `--accent` teal. Build 938 KB / 267 KB gzip, zero regressão visual aprovada por Anders.
+- `roocode.service` `active (running)`, backend 4 endpoints `/farma/*` (substances/doses/regimen/forecast) + AutoExport.
+- **~18 commits locais ahead do origin/main** — Anders ainda não pediu push.
+- **9E segue aberta** (ação Anders, sem código): re-upload do CSV mood histórico no iPhone pra charts intraday ganharem dados retroativos. Não bloqueia Fase 10.
 
-**Objetivo desta sessão:** fechar as 2 sprints restantes (uma de código opcional, uma ação do Anders). Depois, decidir sobre push.
+**Objetivo da Fase 10:** melhorar UX da aba Humor+Medicação (adição + histórico de doses) e revisar estrutura de conteúdo das 4 abas pra eliminar redundâncias e aproveitar dados subutilizados. Dividida em 3 sub-sprints independentes.
 
 ### Passo 0: Sanity inicial (obrigatório antes de qualquer coisa)
 
 ```bash
 systemctl is-active roocode.service            # deve ser "active"
 ss -tlnp | grep 8011                           # 1 único python do systemd
-curl -s -o /dev/null -w "metrics=%{http_code} · substances=" http://localhost:8011/metrics
-curl -s -o /dev/null -w "%{http_code} · regimen=" http://localhost:8011/farma/substances
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8011/farma/regimen
+curl -s -o /dev/null -w "regimen=%{http_code} · doses=" http://localhost:8011/farma/regimen
+curl -s -o /dev/null -w "%{http_code} · substances=" http://localhost:8011/farma/doses?hours=168
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8011/farma/substances
 git log --oneline origin/main..main | wc -l | xargs echo "commits ahead:"
 ```
 
 Se algum teste não passar, diagnosticar antes de continuar.
 
-### 9C — Eliminação do shim CSS (opcional, ~45-60 min)
+### 10A — DoseLogger com presets (escopo fechado, começar por aqui)
 
-**Contexto:** na Fase 8A.1 aplicamos um shim em `frontend/src/index.css` mapeando 10 CSS vars fantasma dos 4 componentes herdados do mood-pharma-tracker (`MedicationCatalogEditor`, `DoseLogger`, `DoseHistoryView`, `pk-medication-grid`) pros tokens warm editorial. Funciona 100%. Migração elimina indireção e melhora legibilidade. **Não urgente.**
+**Problema:** o `DoseLogger.tsx` atual é form livre (select + input dose + datetime + note). Anders toma as mesmas doses todo dia, então o form livre é atrito. Quer botões de ação rápida por medicação do regime, com dose pré-preenchida, editável antes do submit.
+
+**Regime atual (fonte de verdade: `Farma/regimen_config.json`, endpoint `GET /farma/regimen`):**
+- Lexapro 40mg 07:00 daily
+- Venvanse 200mg 07:00 weekdays
+- Lamictal 200mg 22:00 daily
+
+**Fora do regime (considerar tratamento):** Clonazepam (PRN, sem horário fixo), suplementos (Bacopa, Magnésio, Vit D3, Omega-3, Piracetam — sem regime, mas usados).
+
+**Inputs disponíveis:**
+- `useRegimen()` hook em `frontend/src/lib/api.ts` (puxa o endpoint, já existe)
+- `useLogDose()` mutation existente
+- `useSubstances({ full: true })` — catálogo completo
+- `MedicationRegimenEditor` foi removido da UI na 9A.3 mas ainda tem backend vivo
+
+**Discutir com Anders antes de codar:**
+- Modelo 1: **botões grid** (3 botões do regime + botão "outro" pros suplementos/PRN). Click → logga dose `now()` com preset; long-press/shift-click → modal pra editar dose/hora
+- Modelo 2: **cards horizontais** (um card por medicação com dose default sempre visível + botão "log now") — mais visual mas maior
+- Modelo 3: **híbrido** — botões primários pro regime fixo + combo antigo escondido em "outro/suplementos"
+
+Usar `AskUserQuestion` com preview ASCII dos 3 modelos.
+
+**Risco:** não perder a capacidade de logar dose retroativa (ex: "tomei meu Lamictal ontem às 23h, esqueci de registrar"). Garantir que cada preset permita editar `taken_at`.
+
+### 10B — DoseHistoryView reorganizado
+
+**Problema:** `DoseHistoryView.tsx` é lista vertical ordenada por data. Funcional mas não aproveita o tempo como dimensão visual. Anders quer "organizar melhor".
+
+**Inputs disponíveis:**
+- `/farma/doses?hours=168` (já usado, ranges 24h/7d/30d) — retorna array `{id, substance, dose_mg, taken_at, note}`
+- Catálogo em `useSubstances()` pra pintar cada substância com cor própria (ver `COLORS_BY_ID` em `pk-medication-grid.tsx:85-96`)
+
+**Discutir com Anders antes de codar (via `AskUserQuestion` com preview ASCII):**
+- Modelo A: **calendário heatmap** — 30 dias de colunas × substâncias de linhas, célula colorida por adesão (presente/ausente/múltipla). Melhor pra detectar padrões de esquecimento.
+- Modelo B: **timeline horizontal semanal** — eixo X = hora do dia, eixo Y = dias da semana, pílulas coloridas nos horários de cada dose. Melhor pra ver consistência intraday.
+- Modelo C: **lista agrupada por dia colapsável** — 1 linha por dia com total de doses + badges coloridos; click expande detalhes. Evolução natural do atual.
+
+**Escolha depende da pergunta que Anders mais faz dos dados:** "esqueci alguma?" (→ A) ou "horários tão variando?" (→ B) ou "só quero ver rápido o dia" (→ C). Perguntar.
+
+### 10C — Revisão de seções (scan + brainstorming, código em sprint separada)
+
+**Problema (reportado pelo Anders):** "algumas seções repetem informações contidas nas outras e não usam dados que podiam ser importantes pra aquela seção".
+
+**Esta sub-sprint é diagnóstico — NÃO código.** Output esperado: tabela de findings + mini-plano consolidado pra aprovar.
 
 **Protocolo:**
-1. Inventário exato:
-   ```bash
-   grep -rn 'var(--' /root/RooCode/frontend/src/components/{MedicationCatalogEditor,DoseLogger,DoseHistoryView}.tsx /root/RooCode/frontend/src/components/charts/pk-medication-grid.tsx
-   ```
-2. Mapeamento (bulk replace em cada componente):
-   - `var(--text-primary)` → `var(--foreground)`
-   - `var(--text-muted)` → `var(--muted)`
-   - `var(--bg-base)` → `var(--card)` (ou gradiente editorial, avaliar caso a caso)
-   - `var(--bg-raised)` → `var(--card)`
-   - `var(--accent-violet)`, `--accent-emerald`, `--accent-amber` → **decisão com Anders**: cores semânticas de medicação (manter como tokens próprios no `index.css`?) ou migrar pros accents do warm editorial?
-3. Remover 10 linhas do shim em `index.css` (bloco `/* CSS vars shim (Fase 8A.1) */` ou equivalente).
-4. **Screenshot A/B obrigatório antes do commit** da aba Humor + Medicação + modal Catálogo no browser em `https://ultrassom.ai/health/#mood`.
-5. Validar: `npm run build`.
+1. Inventariar charts por aba a partir de `frontend/src/App.tsx` + `useRooCodeData`:
+   - Executive: KPI cards + ActivityBars + HeartRateBands + StepsChart + ScatterCorrelation + CorrelationHeatmap + Vo2Max + WalkingVitality
+   - Sleep+Physiology: TimelineChart + HRVAnalysis + SleepStages + SpO2 + WeeklyPattern
+   - Mood+Medicação: MoodTimeline + MoodDonut + PKMedicationGrid + DoseLogger + DoseHistoryView (+ botão Catálogo)
+   - Insights: PKMoodScatter + LagCorrelation + MedicationAdherence
+2. Pra cada chart, mapear:
+   - Campos do `DailyHealthMetrics` que consome
+   - Dados que são subset de outro chart (redundância)
+   - Dados disponíveis no tipo mas não plotados (gap)
+3. Montar tabela markdown → mostrar pro Anders → discutir cada finding via `AskUserQuestion`.
+4. Consolidar decisões num mini-plano (remove/move/merge charts) — **commitar só o plano**. Execução vira Fase 10D+.
 
-**Guardrail:** o shim funciona 100% hoje. Risco visual > risco de código duplicado. Só commitar se Anders aprovar os screenshots.
+**Hipóteses iniciais pra validar (minhas suspeitas, não são fato):**
+- Atividade física pode aparecer 2x: `ActivityBars` (Executive) + algum campo em `TimelineChart` (Sleep+Physiology)
+- `MoodTimeline` e `MoodDonut` podem estar mostrando o mesmo dado com lentes diferentes (valência) na mesma aba — talvez 1 dos 2 seja redundante
+- `StepsChart` separado de `ActivityBars` na Executive — são a mesma série em visuais diferentes?
+- Campos novos da Fase 8A (walkingAsymmetryPct, runningSpeedKmh, sixMinuteWalkMeters) foram adicionados ao tipo mas apenas walkingVitality/vo2Max ganharam chart — alguns podem ter merecido mais visibilidade
+- Vitais (`respiratoryRate`, `pulseTemperatureC`) ganharam KPI na Fase 9D mas não têm timeline dedicada — vale?
 
-**Commit:** `refactor(roocode): fase 9C — migrar mood-pharma-tracker pros tokens warm editorial + remover shim`
+**Não assumir nada.** A decisão é do Anders — ele vê o dashboard todo dia e sabe o que ele consulta vs. ignora.
 
-### 9E — Re-upload CSV mood histórico (ação Anders, sem código)
+### 9E — Re-upload CSV mood histórico (ação Anders, paralela)
 
-**Contexto:** o fix do `_format_mood_date` na Fase 8B preserva HH:MM:SS de Emoções Momentâneas, mas o CSV antigo já tinha perdido essas horas antes do fix. Charts intraday (`PKMoodScatter`, `LagCorrelation`) só veem emoções após 2026-04-20. Re-upload recupera retroativamente.
+**Contexto:** o fix do `_format_mood_date` na Fase 8B preserva HH:MM:SS de Emoções Momentâneas, mas o CSV antigo já tinha perdido essas horas antes do fix. Charts intraday (`PKMoodScatter`, `LagCorrelation` na aba Insights) só veem emoções após 2026-04-20. Re-upload recupera retroativamente.
 
 **Passos do Anders:**
-1. iPhone → AutoExport → export State of Mind CSV completo (tudo o histórico).
-2. Upload via `POST /health/api/mood` (use o fluxo da UI se já existe, ou `curl` com multipart).
+1. iPhone → AutoExport → export State of Mind CSV completo.
+2. Upload via `POST /health/api/mood`.
 3. Verificar:
    ```bash
    curl -s http://localhost:8011/mood | jq '.[] | select(.Fim == "Emoção Momentânea") | .Iniciar' | head -5
-   # deve mostrar timestamps com hora (DD/MM/YYYY HH:MM:SS), não só DD/MM/YYYY
    ```
 
-Após 9E, os charts intraday ganham dados históricos e o banner "precisa ~60 dias" fica mais realista.
+Após 9E, os charts intraday ganham dados históricos. Não bloqueia Fase 10.
 
 ### Decisão pós-sprints: push dos commits
 
-Após 9C (ou se decidir skipar), revisar os ~18 commits locais e decidir `git push origin main`. Não há CI configurado que possa quebrar — é decisão puramente de "quero meu backup remoto atualizado".
+Após 10A/B/C (ou em qualquer ponto intermediário), revisar os ~18+ commits locais e decidir `git push origin main`. Não há CI configurado que possa quebrar — é decisão puramente de backup remoto.

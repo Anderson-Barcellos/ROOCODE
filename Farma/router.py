@@ -463,8 +463,8 @@ async def logDose(entry: DoseEntry):
 
 
 @router.get("/doses")
-async def getDoses(hours: int = Query(default=72, ge=1, le=720)):
-    """Retorna doses registradas nas últimas N horas (default: 72h)."""
+async def getDoses(hours: int = Query(default=72, ge=1, le=8760)):
+    """Retorna doses registradas nas últimas N horas (default: 72h, máx: 8760h = 1 ano)."""
     doses = _load_doses()
     if not doses:
         return JSONResponse(content=[])

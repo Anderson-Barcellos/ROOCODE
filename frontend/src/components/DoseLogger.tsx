@@ -43,13 +43,13 @@ export default function DoseLogger() {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)',
-    borderRadius: 5, padding: '7px 10px', color: 'var(--text-primary)',
+    width: '100%', background: 'var(--card)', border: '1px solid var(--border)',
+    borderRadius: 5, padding: '7px 10px', color: 'var(--foreground)',
     fontFamily: 'JetBrains Mono, monospace', fontSize: 12, outline: 'none',
   }
 
   const labelStyle: React.CSSProperties = {
-    fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--text-muted)',
+    fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--muted)',
     letterSpacing: '0.08em', display: 'block', marginBottom: 5,
   }
 
@@ -127,13 +127,13 @@ export default function DoseLogger() {
           style={{
             padding: '8px 14px', borderRadius: 6, cursor: 'pointer',
             background: feedback === 'ok'
-              ? 'var(--accent-emerald-dim)'
+              ? 'rgba(15, 118, 110, 0.12)'
               : 'var(--accent-violet-dim)',
-            color: feedback === 'ok' ? 'var(--accent-emerald)' : 'var(--accent-violet)',
+            color: feedback === 'ok' ? 'var(--accent)' : 'var(--accent-violet)',
             fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 500,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             transition: 'all 0.2s',
-            border: `1px solid ${feedback === 'ok' ? 'rgba(52,211,153,0.3)' : 'rgba(139,92,246,0.3)'}`,
+            border: `1px solid ${feedback === 'ok' ? 'rgba(15, 118, 110, 0.3)' : 'rgba(139,92,246,0.3)'}`,
           } as React.CSSProperties}
         >
           {feedback === 'ok'

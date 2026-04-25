@@ -31,22 +31,9 @@
   --rose: #b45309;
   --shadow: 0 24px 60px rgba(27, 45, 39, 0.12);
 
-  /* Shim Fase 8A.1 — componentes herdados do mood-pharma-tracker (DoseLogger,
-   * DoseHistoryView, MedicationCatalogEditor, PKMedicationGrid) foram escritos
-   * com vars de um dark theme. Em vez de refatorar cada var(--*) individualmente,
-   * aqui mapeamos as vars fantasma pros tokens warm editorial existentes.
-   * Custo: zero — só aliasing. Benefício: fix visual imediato em 4 componentes.
-   * TODO Fase 8B: migrar cada componente pra usar os tokens nativos direto. */
-  --bg-base: rgba(255, 252, 246, 0.85);
-  --bg-raised: #fefaf0;
-  --text-primary: var(--foreground);
-  --text-muted: var(--muted);
+  /* Medicação — identidade visual de domínio (promovido na Fase 9C) */
   --accent-violet: #7c3aed;
   --accent-violet-dim: rgba(124, 58, 237, 0.12);
-  --accent-emerald: #047857;
-  --accent-emerald-dim: rgba(4, 120, 87, 0.12);
-  --accent-amber: var(--warm);
-  --accent-amber-dim: rgba(217, 119, 6, 0.12);
 }
 
 * { box-sizing: border-box; }

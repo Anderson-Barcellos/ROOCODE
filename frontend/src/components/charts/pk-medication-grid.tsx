@@ -199,7 +199,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
 
   return (
     <div style={{
-      background: 'var(--bg-base)',
+      background: 'var(--card)',
       border: '1px solid var(--border)',
       borderRadius: 8,
       padding: 12,
@@ -212,11 +212,11 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
-            color: 'var(--text-primary)', fontWeight: 600,
+            color: 'var(--foreground)', fontWeight: 600,
           }}>{med.name}</span>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-            color: 'var(--text-muted)',
+            color: 'var(--muted)',
           }}>{doseRecords.length} dose{doseRecords.length === 1 ? '' : 's'}</span>
         </div>
         {hasData && (
@@ -231,7 +231,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
                 }}>{statusLabel(status)}</span>
                 <span style={{
                   fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                  color: 'var(--text-muted)',
+                  color: 'var(--muted)',
                 }}>{currentPct.toFixed(0)}%</span>
               </>
             ) : (
@@ -246,7 +246,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
                 }}>experimental</span>
                 <span style={{
                   fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                  color: 'var(--text-muted)',
+                  color: 'var(--muted)',
                 }}>{currentConc >= 10 ? currentConc.toFixed(0) : currentConc.toFixed(2)} ng/mL</span>
               </>
             )}
@@ -265,7 +265,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
               domain={[windowStart, windowEnd]}
               scale="time"
               tickFormatter={(t) => format(t, 'd/M', { locale: ptBR })}
-              tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
+              tick={{ fontSize: 9, fill: 'var(--muted)' }}
               axisLine={false}
               tickLine={false}
               minTickGap={30}
@@ -273,7 +273,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
             <YAxis
               domain={yDomain}
               ticks={yTicks}
-              tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
+              tick={{ fontSize: 9, fill: 'var(--muted)' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={yTickFormatter}
@@ -305,7 +305,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
             />
             <ReferenceLine
               x={Date.now()}
-              stroke="var(--text-muted)"
+              stroke="var(--muted)"
               strokeDasharray="2 2"
               strokeOpacity={0.6}
             />
@@ -325,7 +325,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
       {/* Footer */}
       <div style={{
         marginTop: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-        color: 'var(--text-muted)', letterSpacing: '0.04em',
+        color: 'var(--muted)', letterSpacing: '0.04em',
       }}>
         {hasRange && range
           ? `faixa ${range.min}–${range.max} ${range.unit}`
@@ -385,7 +385,7 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
     return (
       <div style={{
         padding: '24px 12px', textAlign: 'center',
-        fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)',
+        fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--muted)',
       }}>carregando…</div>
     )
   }
@@ -394,7 +394,7 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
     return (
       <div style={{
         padding: '24px 16px',
-        background: 'var(--bg-base)',
+        background: 'var(--card)',
         border: '1px dashed var(--border)',
         borderRadius: 8,
         textAlign: 'center',
@@ -403,16 +403,16 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
         alignItems: 'center',
         gap: 8,
       }}>
-        <Activity size={16} color="var(--text-muted)" />
+        <Activity size={16} color="var(--muted)" />
         <span style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)',
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--muted)',
         }}>
           sem doses logadas nos últimos {Math.round(hoursWindow / 24)} dias
         </span>
         {orphanNames.length > 0 && (
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-            color: 'var(--text-muted)', opacity: 0.7,
+            color: 'var(--muted)', opacity: 0.7,
           }}>
             desconhecidas no catálogo: {orphanNames.join(', ')} · adicione em "Catálogo de substâncias"
           </span>
@@ -445,7 +445,7 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
       {orphanNames.length > 0 && (
         <div style={{
           fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-          color: 'var(--text-muted)', opacity: 0.7,
+          color: 'var(--muted)', opacity: 0.7,
           padding: '4px 0',
         }}>
           desconhecidas no catálogo: {orphanNames.join(', ')} · adicione PK completo em "Catálogo de substâncias"

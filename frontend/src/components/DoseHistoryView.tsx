@@ -90,11 +90,11 @@ export default function DoseHistoryView() {
   }
 
   const inputStyle: React.CSSProperties = {
-    background: 'var(--bg-base)',
+    background: 'var(--card)',
     border: '1px solid var(--border)',
     borderRadius: 5,
     padding: '5px 8px',
-    color: 'var(--text-primary)',
+    color: 'var(--foreground)',
     fontFamily: 'JetBrains Mono, monospace',
     fontSize: 11,
     outline: 'none',
@@ -104,8 +104,8 @@ export default function DoseHistoryView() {
     const colorMap = {
       violet: ['var(--accent-violet)', 'var(--accent-violet-dim)', 'rgba(139,92,246,0.3)'],
       rose: ['#fb7185', 'rgba(251,113,133,0.1)', 'rgba(251,113,133,0.3)'],
-      emerald: ['var(--accent-emerald)', 'var(--accent-emerald-dim)', 'rgba(52,211,153,0.3)'],
-      muted: ['var(--text-muted)', 'transparent', 'var(--border)'],
+      emerald: ['var(--accent)', 'rgba(15, 118, 110, 0.12)', 'rgba(15, 118, 110, 0.3)'],
+      muted: ['var(--muted)', 'transparent', 'var(--border)'],
     }[tint]
     return {
       background: colorMap[1],
@@ -133,7 +133,7 @@ export default function DoseHistoryView() {
           </span>
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-            color: 'var(--text-muted)', marginLeft: 4,
+            color: 'var(--muted)', marginLeft: 4,
           }}>
             {sortedDoses.length} {sortedDoses.length === 1 ? 'dose' : 'doses'}
           </span>
@@ -152,13 +152,13 @@ export default function DoseHistoryView() {
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {isLoading && (
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--muted)' }}>
             carregando…
           </div>
         )}
         {!isLoading && sortedDoses.length === 0 && (
           <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--muted)',
             padding: '12px 0', textAlign: 'center',
           }}>
             nenhuma dose registrada neste intervalo
@@ -175,7 +175,7 @@ export default function DoseHistoryView() {
               <div
                 key={record.id}
                 style={{
-                  background: 'var(--bg-base)',
+                  background: 'var(--card)',
                   border: '1px solid var(--accent-violet-dim)',
                   borderRadius: 6,
                   padding: 10,
@@ -187,7 +187,7 @@ export default function DoseHistoryView() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-                    color: 'var(--text-primary)', fontWeight: 600,
+                    color: 'var(--foreground)', fontWeight: 600,
                     minWidth: 70,
                   }}>{label}</span>
                   <input
@@ -200,7 +200,7 @@ export default function DoseHistoryView() {
                   />
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                    color: 'var(--text-muted)',
+                    color: 'var(--muted)',
                   }}>{unit}</span>
                   <input
                     type="datetime-local"
@@ -242,7 +242,7 @@ export default function DoseHistoryView() {
             <div
               key={record.id}
               style={{
-                background: 'var(--bg-base)',
+                background: 'var(--card)',
                 border: '1px solid var(--border)',
                 borderRadius: 6,
                 padding: '8px 10px',
@@ -255,7 +255,7 @@ export default function DoseHistoryView() {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
-                    color: 'var(--text-primary)', fontWeight: 600,
+                    color: 'var(--foreground)', fontWeight: 600,
                   }}>{label}</span>
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
@@ -263,13 +263,13 @@ export default function DoseHistoryView() {
                   }}>{record.dose_mg} {unit}</span>
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                    color: 'var(--text-muted)', marginLeft: 'auto',
+                    color: 'var(--muted)', marginLeft: 'auto',
                   }}>{toHuman(record.taken_at)}</span>
                 </div>
                 {record.note && (
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                    color: 'var(--text-muted)', fontStyle: 'italic',
+                    color: 'var(--muted)', fontStyle: 'italic',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>{record.note}</span>
                 )}

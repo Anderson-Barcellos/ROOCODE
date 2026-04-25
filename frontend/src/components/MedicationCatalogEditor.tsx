@@ -219,12 +219,12 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)',
-    borderRadius: 5, padding: '6px 9px', color: 'var(--text-primary)',
+    width: '100%', background: 'var(--card)', border: '1px solid var(--border)',
+    borderRadius: 5, padding: '6px 9px', color: 'var(--foreground)',
     fontFamily: 'JetBrains Mono, monospace', fontSize: 11, outline: 'none',
   }
   const labelStyle: React.CSSProperties = {
-    fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--text-muted)',
+    fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--muted)',
     letterSpacing: '0.08em', display: 'block', marginBottom: 4,
   }
 
@@ -239,10 +239,10 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
           aria-describedby={undefined}
           style={{
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            zIndex: 81, background: 'var(--bg-raised, #111622)',
+            zIndex: 81, background: 'var(--card-strong)',
             border: '1px solid var(--border)', borderRadius: 12,
             width: 'min(760px, 92vw)', maxHeight: '88vh', overflowY: 'auto',
-            padding: 20, color: 'var(--text-primary)',
+            padding: 20, color: 'var(--foreground)',
             boxShadow: '0 32px 64px rgba(0,0,0,0.5)',
           }}
         >
@@ -253,7 +253,7 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                 <button
                   onClick={backToList}
                   style={{
-                    background: 'transparent', border: 'none', color: 'var(--text-muted)',
+                    background: 'transparent', border: 'none', color: 'var(--muted)',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
                   }}
@@ -275,7 +275,7 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
             </div>
             <Dialog.Close asChild>
               <button style={{
-                background: 'transparent', border: 'none', color: 'var(--text-muted)',
+                background: 'transparent', border: 'none', color: 'var(--muted)',
                 cursor: 'pointer', padding: 4,
               }} aria-label="fechar" type="button">
                 <X size={16} />
@@ -286,9 +286,9 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
           {feedback && (
             <div style={{
               marginBottom: 10, padding: '6px 10px', borderRadius: 5,
-              background: 'var(--accent-amber-dim, rgba(245,158,11,0.1))',
+              background: 'rgba(217, 119, 6, 0.12)',
               border: '1px solid rgba(245,158,11,0.3)',
-              color: 'var(--accent-amber, #f59e0b)',
+              color: 'var(--warm)',
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
             }}>{feedback}</div>
           )}
@@ -308,30 +308,30 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
               >
                 <Plus size={12} /> Adicionar substância
               </button>
-              {isLoading && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>carregando…</div>}
+              {isLoading && <div style={{ fontSize: 11, color: 'var(--muted)' }}>carregando…</div>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {sorted.map((sub) => (
                   <div key={sub.id} style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '8px 10px', borderRadius: 5,
-                    background: 'var(--bg-base)', border: '1px solid var(--border)',
+                    background: 'var(--card)', border: '1px solid var(--border)',
                   }}>
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
                         <span style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
-                          color: 'var(--text-primary)', fontWeight: 600,
+                          color: 'var(--foreground)', fontWeight: 600,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{sub.display_name}</span>
                         <span style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
                           padding: '1px 5px', borderRadius: 3,
-                          background: sub.is_custom ? 'rgba(52,211,153,0.15)' : 'rgba(139,92,246,0.15)',
-                          color: sub.is_custom ? 'var(--accent-emerald, #34d399)' : 'var(--accent-violet)',
+                          background: sub.is_custom ? 'rgba(15, 118, 110, 0.15)' : 'rgba(139,92,246,0.15)',
+                          color: sub.is_custom ? 'var(--accent)' : 'var(--accent-violet)',
                           letterSpacing: '0.08em', textTransform: 'uppercase',
                         }}>{sub.is_custom ? 'custom' : 'built-in'}</span>
                       </div>
-                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--text-muted)' }}>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--muted)' }}>
                         {sub.id} · t½ {sub.half_life_hours ?? '—'}h · F {sub.bioavailability ?? '—'}
                       </span>
                     </div>
@@ -342,7 +342,7 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                       style={{
                         background: sub.is_custom ? 'var(--accent-violet-dim)' : 'transparent',
                         border: `1px solid ${sub.is_custom ? 'rgba(139,92,246,0.3)' : 'var(--border)'}`,
-                        color: sub.is_custom ? 'var(--accent-violet)' : 'var(--text-muted)',
+                        color: sub.is_custom ? 'var(--accent-violet)' : 'var(--muted)',
                         borderRadius: 4, padding: '3px 7px', cursor: sub.is_custom ? 'pointer' : 'not-allowed',
                         opacity: sub.is_custom ? 1 : 0.4,
                       }} type="button">
@@ -355,7 +355,7 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                       style={{
                         background: sub.is_custom ? 'rgba(251,113,133,0.1)' : 'transparent',
                         border: `1px solid ${sub.is_custom ? 'rgba(251,113,133,0.3)' : 'var(--border)'}`,
-                        color: sub.is_custom ? '#fb7185' : 'var(--text-muted)',
+                        color: sub.is_custom ? '#fb7185' : 'var(--muted)',
                         borderRadius: 4, padding: '3px 7px', cursor: sub.is_custom ? 'pointer' : 'not-allowed',
                         opacity: sub.is_custom ? 1 : 0.4,
                       }} type="button">
@@ -380,8 +380,8 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                     placeholder="ex: vitamina_c"
                     style={{
                       ...inputStyle,
-                      background: mode.editingKey != null ? 'transparent' : 'var(--bg-base)',
-                      color: mode.editingKey != null ? 'var(--text-muted)' : 'var(--text-primary)',
+                      background: mode.editingKey != null ? 'transparent' : 'var(--card)',
+                      color: mode.editingKey != null ? 'var(--muted)' : 'var(--foreground)',
                     }}
                   />
                 </div>
@@ -478,7 +478,7 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                     placeholder="ex: 0.2" style={inputStyle} />
                 </div>
               </div>
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: -4 }}>
+              <div style={{ fontSize: 9, color: 'var(--muted)', marginTop: -4 }}>
                 † informar pelo menos um dos dois Vd
               </div>
 
@@ -522,7 +522,7 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                   disabled={createSub.isPending || updateSub.isPending}
                   style={{
                     background: 'transparent', border: '1px solid var(--border)',
-                    color: 'var(--text-muted)', borderRadius: 5, padding: '6px 12px',
+                    color: 'var(--muted)', borderRadius: 5, padding: '6px 12px',
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 11, cursor: 'pointer',
                   }}
                   type="button"
@@ -531,9 +531,9 @@ export default function MedicationCatalogEditor({ open, onOpenChange }: Props) {
                   onClick={handleSave}
                   disabled={createSub.isPending || updateSub.isPending}
                   style={{
-                    background: 'var(--accent-emerald-dim, rgba(52,211,153,0.1))',
-                    border: '1px solid rgba(52,211,153,0.3)',
-                    color: 'var(--accent-emerald, #34d399)', borderRadius: 5, padding: '6px 12px',
+                    background: 'rgba(15, 118, 110, 0.12)',
+                    border: '1px solid rgba(15, 118, 110, 0.3)',
+                    color: 'var(--accent)', borderRadius: 5, padding: '6px 12px',
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 11, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                   }}

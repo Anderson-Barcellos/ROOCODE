@@ -123,3 +123,45 @@ export function getRespiratoryDisturbancesCategory(
   if (value == null) return null
   return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
 }
+
+// ─── Vital Signs — Respiratory Rate & Pulse Temperature ──────────────────────
+// FR: bradipneia <12, normal 12-20, taquipneia >20 rpm.
+// Temperatura de pulso: hipotermia <36, normal 36-37, subfebre 37-38, febre ≥38°C.
+// Ambos são marcadores fisiológicos crônicos — mudam gradualmente.
+
+export interface VitalSignBand {
+  label: string
+  min: number
+  max: number
+  tone: ClinicalTone
+  color: string
+}
+
+export const RESPIRATORY_RATE_BANDS: VitalSignBand[] = [
+  { label: 'Bradipneia', min: 0,  max: 12, tone: 'watch',    color: '#bfdbfe' },
+  { label: 'Normal',     min: 12, max: 20, tone: 'positive', color: '#bbf7d0' },
+  { label: 'Taquipneia', min: 20, max: 40, tone: 'negative', color: '#fca5a5' },
+]
+
+export function getRespiratoryRateCategory(
+  value: number | null,
+  bands = RESPIRATORY_RATE_BANDS,
+): VitalSignBand | null {
+  if (value == null) return null
+  return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
+}
+
+export const PULSE_TEMP_BANDS: VitalSignBand[] = [
+  { label: 'Hipotermia', min: 33.0, max: 36.0, tone: 'watch',    color: '#bfdbfe' },
+  { label: 'Normal',     min: 36.0, max: 37.0, tone: 'positive', color: '#bbf7d0' },
+  { label: 'Subfebre',   min: 37.0, max: 38.0, tone: 'watch',    color: '#fed7aa' },
+  { label: 'Febre',      min: 38.0, max: 42.0, tone: 'negative', color: '#fca5a5' },
+]
+
+export function getPulseTempCategory(
+  value: number | null,
+  bands = PULSE_TEMP_BANDS,
+): VitalSignBand | null {
+  if (value == null) return null
+  return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
+}

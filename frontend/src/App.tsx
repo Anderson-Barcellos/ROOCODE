@@ -23,6 +23,7 @@ import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { MedicationAdherenceChart } from '@/components/charts/medication-adherence-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
+import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { TimelineChart } from '@/components/charts/timeline-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -492,6 +493,9 @@ export default function App() {
                     <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                   </div>
+
+                  {/* Fase 10D — Charts clínicos */}
+                  <RespiratoryDisturbancesChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                 </div>
               )}
             </SurfaceFrame>

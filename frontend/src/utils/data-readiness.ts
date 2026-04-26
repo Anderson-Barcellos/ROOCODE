@@ -175,4 +175,8 @@ export const CHART_REQUIREMENTS = {
   lagCorrelation: { type: 'pairs', readyMin: 25, partialMin: 12 },
   // Adherence: 3 doses por substância é o mínimo pra std dev ter semântica.
   medicationAdherence: { type: 'pairs', readyMin: 3, partialMin: 2 },
+  // Fase 10D — charts clínicos novos
+  respiratoryDisturbancesChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'respiratoryDisturbances' },
+  vitalSignsTimelineChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'respiratoryRate' },
+  cardioRecoveryChart: { type: 'days', readyMin: 14, partialMin: 7, field: 'cardioRecoveryBpm' },
 } as const satisfies Record<string, ReadinessRequirement>

@@ -95,3 +95,31 @@ export function getStepsLabel(steps: number | null): string {
   if (steps >= 5000) return 'Pouco ativo'
   return 'Sedentário'
 }
+
+// ─── Respiratory Disturbances (IAH) ──────────────────────────────────────────
+// Índice Apneia-Hipopneia — eventos obstrutivos/h de sono. AOS não-tratada amplifica
+// depressão e bloqueia resposta a ISRS. GABAérgicos (clonazepam) podem elevar IAH.
+// Referência AASM: <5 normal · 5-15 leve · 15-30 moderada · ≥30 severa.
+
+export interface RespiratoryDisturbancesBand {
+  label: string
+  min: number
+  max: number
+  tone: ClinicalTone
+  color: string
+}
+
+export const RESPIRATORY_DISTURBANCES_BANDS: RespiratoryDisturbancesBand[] = [
+  { label: 'Normal',   min: 0,  max: 5,  tone: 'positive', color: '#bbf7d0' },
+  { label: 'Leve',     min: 5,  max: 15, tone: 'watch',    color: '#fed7aa' },
+  { label: 'Moderada', min: 15, max: 30, tone: 'negative', color: '#fca5a5' },
+  { label: 'Severa',   min: 30, max: 99, tone: 'negative', color: '#ef4444' },
+]
+
+export function getRespiratoryDisturbancesCategory(
+  value: number | null,
+  bands = RESPIRATORY_DISTURBANCES_BANDS,
+): RespiratoryDisturbancesBand | null {
+  if (value == null) return null
+  return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
+}

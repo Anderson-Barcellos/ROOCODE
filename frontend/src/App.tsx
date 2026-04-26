@@ -485,19 +485,7 @@ export default function App() {
                 <div className="space-y-4">
                   <SleepStagesChart snapshots={ranged} />
 
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <HrvAnalysis snapshots={rangedWithForecast} baselineBands={cardio.hrvBaselineBands} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    <HeartRateBands
-                      snapshots={rangedWithForecast}
-                      overtraining={cardio.overtrainingStatus ?? undefined}
-                      forecastStartDate={forecast === 'on' ? todayIso : undefined}
-                    />
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
-                  </div>
+                  <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                   {/* Fase 8A — VO2 Máx + Vitalidade de marcha */}
                   <div className="grid gap-4 lg:grid-cols-2">

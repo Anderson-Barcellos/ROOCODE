@@ -23,6 +23,7 @@ import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { MedicationAdherenceChart } from '@/components/charts/medication-adherence-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
+import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
@@ -500,6 +501,7 @@ export default function App() {
                     <RespiratoryDisturbancesChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <VitalSignsTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                   </div>
+                  <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                 </div>
               )}
             </SurfaceFrame>

@@ -63,7 +63,7 @@ const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   runningSpeedKmh: 'skip', // esporádico: zero → valor → zero pode ser válido
   vo2Max: 'linear_bounded', // crônico, varia pouco dia-a-dia
   sixMinuteWalkMeters: 'skip', // teste clínico, raramente medido
-  cardioRecoveryBpm: 'interpolate',
+  cardioRecoveryBpm: 'skip', // esporádico: só válido quando há sessão de exercício
   recordCount: 'skip',
   placeholderRestingEnergyRows: 'skip',
 }

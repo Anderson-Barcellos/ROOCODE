@@ -165,3 +165,31 @@ export function getPulseTempCategory(
   if (value == null) return null
   return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
 }
+
+// ─── Cardio Recovery (HRR-1) ─────────────────────────────────────────────────
+// Queda da FC no 1º minuto pós-exercício. Maior = melhor (polaridade invertida).
+// Reflete função autonômica parassimpática. GABAérgicos e ISRS modulam levemente.
+// Referência ACSM: >18 excelente · 13-18 boa · 8-12 regular · <8 ruim.
+
+export interface CardioRecoveryBand {
+  label: string
+  min: number
+  max: number
+  tone: ClinicalTone
+  color: string
+}
+
+export const CARDIO_RECOVERY_BANDS: CardioRecoveryBand[] = [
+  { label: 'Ruim',      min: 0,  max: 8,  tone: 'negative', color: '#fca5a5' },
+  { label: 'Regular',   min: 8,  max: 13, tone: 'watch',    color: '#fed7aa' },
+  { label: 'Boa',       min: 13, max: 18, tone: 'positive', color: '#bbf7d0' },
+  { label: 'Excelente', min: 18, max: 60, tone: 'positive', color: '#86efac' },
+]
+
+export function getCardioRecoveryCategory(
+  value: number | null,
+  bands = CARDIO_RECOVERY_BANDS,
+): CardioRecoveryBand | null {
+  if (value == null) return null
+  return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
+}

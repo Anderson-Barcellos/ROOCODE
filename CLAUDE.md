@@ -207,8 +207,16 @@ Estado completo do projeto + sub-sprints futuras: **`/root/RooCode/ROADMAP.md`**
 
 **Auditoria 2026-04-26:** 25 achados em `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` — 13 entram no roadmap, 12 arquivados como overkill pra contexto single-user pessoal (auth API, Vite static, user não-root, code-splitting, Playwright, refactors DRY cosméticos). Ver tabela "Arquivado" no `ROADMAP.md`.
 
-Sprint pendente:
-- **Sprint 11 — Bugs + QoL** (~1.5-2h) — banner global de erro TanStack Query, `Mood/mood.py` NaN→null, lint React 7 erros (bugs latentes reais), `.gitignore *.backup*`, logrotate, `requirements.txt`
+**Inventário 2026-04-27:** 3 agentes Explore mapearam frontend + backend + ops. Achados consolidados no histórico do chat e refletidos no ROADMAP. Achado mais relevante: ~2.035 LOC de dead code que a auditoria não viu (chart órfão de 710 LOC + 3 utils dead) — atacado na Sprint 11A.
+
+**🎯 Sidequest ativa:** revisão de charts em `CHARTENDEAVOR.md` — escopo separado, ritmo exploratório, aguardando sessão fresh.
+
+Sprints concluídas:
+- **Sprint 11A ✅** (2026-04-27, `ff33e70`) — limpeza dead code: 7 arquivos deletados (~2.035 LOC), 4 deps órfãs removidas (`zustand`, `clsx`, `class-variance-authority`, `tailwind-merge`), type `WeeklyDayStats` migrado pra `useRooCodeData.ts`. Build verde. Bundle estável (~960KB) — tree-shaking já eliminava esse código, ganho foi de manutenção/legibilidade.
+
+Sprints pendentes:
+- **Sprint 11B — Bugs + QoL** (~1.5-2h) — banner global de erro TanStack Query, `Mood/mood.py` NaN→null, lint React 7 erros (bugs latentes reais), `.gitignore *.backup*`, logrotate, `requirements.txt`
+- **Sprint 11C — Infra + DRY** (~45min, achado novo do inventário 2026-04-27) — frontend Vite em systemd OU dist estático via Apache (sem service hoje, reboot derruba o frontend), extrair helpers Gemini duplicados pra `Ai/gemini.py`
 - **11C** (light, ~30min) — cadastrar Clonazepam PRN no catálogo via `MedicationCatalogEditor`
 - **11D** (light, ~30min) — resolver 3 TODOs(Anders) em adapter/readiness/health-policies
 - **Cinza** (opcional, ~30min) — validações simétricas Farma, `chmod 600 env.yml`, escrita atômica JSON

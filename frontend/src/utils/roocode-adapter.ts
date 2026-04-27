@@ -110,7 +110,7 @@ function sleepRecordToHealthRow(record: SleepRecord): HealthAutoExportRow | null
  * para HealthAutoExportRow com os campos fisiológicos preenchidos.
  */
 function metricsRecordToHealthRow(record: MetricsRecord): HealthAutoExportRow | null {
-  const raw = (record['Data/Hora'] ?? record['Date/Time']) as string | undefined
+  const raw = record['Data/Hora'] ?? record['Date/Time']
   if (!raw) return null
   const parsed = parseDate(raw, 'dd/MM/yyyy HH:mm:ss', new Date())
   const iso = isValid(parsed) ? formatISO(parsed, { representation: 'date' }) : raw

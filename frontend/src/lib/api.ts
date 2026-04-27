@@ -87,7 +87,8 @@ export interface MoodRecord {
 }
 
 export interface MetricsRecord {
-  'Data/Hora': string
+  'Data/Hora'?: string    // AutoExport v2 (PT-BR)
+  'Date/Time'?: string    // AutoExport v1 (coluna em inglês, resto PT-BR)
   'Contador de Passos (passos)'?: number
   'Distância de Caminhada + Corrida (km)'?: number
   'Distúrbios Respiratórios (contagem)'?: number

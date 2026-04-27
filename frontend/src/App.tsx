@@ -14,7 +14,6 @@ import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
 import { HeartRateBands } from '@/components/charts/heart-rate-bands'
 import { HrvAnalysis } from '@/components/charts/hrv-analysis'
-import { MoodDonut } from '@/components/charts/mood-donut'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
@@ -450,14 +449,7 @@ export default function App() {
                 </div>
                 <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
-                <div className="grid min-w-0 gap-4 lg:grid-cols-3">
-                  <div className="min-w-0 lg:col-span-2">
-                    <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                  </div>
-                  <div className="min-w-0">
-                    <MoodDonut snapshots={ranged} />
-                  </div>
-                </div>
+                <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                 <PKMedicationGrid hoursWindow={168} />
 

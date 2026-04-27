@@ -1,151 +1,229 @@
 # RooCode — Roadmap de Fechamento
 
-> Última atualização: 2026-04-25 · Pós-Fase 10C
-> Estado base: 22 commits ahead de `origin/main`, working tree limpo
+> Última atualização: 2026-04-27 · Pós-Fase 10D + 9E + Auditoria 2026-04-26
+> Estado base: 7 commits ahead de `origin/main` (Fase 10D), trabalho documental desta sessão pendente
+> Fonte primária dos achados pós-auditoria: `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md`
 
 ## Visão geral
 
 | Fase | Escopo | Esforço | Risco | Bloqueia? |
 |------|--------|---------|-------|-----------|
-| **10D-1** | Remover 3 charts duplicados | 15-20min | Baixo | — |
-| **10D-2** | Criar 3 charts clínicos novos | 1-1.5h | Médio | — |
-| **11A** | Code-splitting (warn >500KB) | 1h | Baixo-Médio | — |
-| **11B** | Logger global de erros frontend | 30-45min | Baixo | — |
-| **11C** | Cadastrar Clonazepam + PRN visíveis | 30min | Baixo | Insights ganham PK PRN |
-| **11D** | Resolver TODOs(Anders) pequenos | 30min | Baixo | — |
-| **9E** | Re-upload CSV mood histórico | minutos no iPhone | Nenhum | Charts intraday ganham retroativo |
-| **Doc** | Atualizar CLAUDE.md pós Fase 10 | 5min | Nenhum | — |
+| **10D** ✅ | Charts clínicos (RespDist, VitalSigns, CardioRecov) + adapter dual-format | concluída 2026-04-26 | — | — |
+| **9E** ✅ | Re-upload CSV mood histórico (HH:MM:SS preservado) | concluída 2026-04-27 | — | — |
+| **11-Sec** | Segurança operacional (P0/P1) | 2h | Médio | Recomendado primeiro |
+| **11-Quality** | Restaurar testes/lint + validações Farma | 1.5h | Baixo | Antes de logic refactor |
+| **11-Flow** | Erro global + Gemini common + humor normalize | 2h | Baixo-Médio | Engloba 11B antigo |
+| **11-Perf** | Code-splitting + dead code + Playwright | 1.5h | Baixo | Engloba 11A antigo |
+| **11C** | Cadastrar Clonazepam PRN | 30min | Baixo | Insights ganham PK PRN |
+| **11D** | Resolver TODOs(Anders) | 30min | Baixo | — |
+| **11-Ops** | requirements.txt + atomic write + logrotate + LRU | 1h | Baixo | Blindagem ops |
+| **Doc** | Atualizar CLAUDE.md/ROADMAP.md | 5min | Nenhum | Cada sprint atualiza |
 | **Push** | `git push origin main` | 30s | Nenhum | Backup remoto |
 
-**Total estimado pra zerar pendências de código:** ~4-5h em 1-2 sessões.
+**Total estimado pra zerar tudo:** ~7-9h em 4-5 sessões. Pode parar em qualquer Sprint sem comprometer o que já roda.
 
 ---
 
-## Fase 10D — Implementação dos findings da 10C
+## Fonte primária da reorganização
 
-Detalhes completos em `/root/.claude/plans/fase-10c-findings.md`. Resumo:
+A auditoria de 2026-04-26 (`Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md`) mapeou **25 achados** distribuídos em 4 categorias:
 
-### 10D-1 — Remoções (`refactor`)
-- Apagar 3 instâncias duplicadas em `App.tsx`:
-  - `<HrvAnalysis />` (L489) — duplicata exata da L399 executive
-  - `<HeartRateBands />` (L490) — duplicata exata da L405 executive
-  - `<WeeklyPatternChart />` (L499) — triplicata da L527 patterns
-- Reorganizar grid de sleepPhysiology
-- 1 commit. **Pré-requisito de 10D-2** (libera espaço de layout).
+- **P0/P1 — Segurança operacional** (achados 1-4): API sem auth, Vite dev exposto, credenciais frágeis, service como root
+- **P1 — Correção funcional** (5-9): assimetria validações Farma, custom resolve em update, datas inválidas IA, normalização humor duplicada, NaN em Mood GET
+- **P1 — Frontend/UX** (10-14): erro global não exibido, lint React falhando, testes stale, queries doses divergentes, label Claude→Gemini
+- **P2 — Manutenção** (15-22): helpers Gemini duplicados, falta requirements.txt, escrita não atômica, GET com side effect, cache sem limite, logs sem rotação, doc divergente, gitignore incompleto
+- **P3 — Limpeza** (23-25): dead code data-pipeline, bundle 944KB, falta Playwright
 
-### 10D-2 — Charts clínicos novos (`feat`)
-3 componentes novos em `frontend/src/components/charts/`, todos posicionados em sleepPhysiology:
-
-| Chart | Campo(s) | Visualização |
-|-------|----------|--------------|
-| `RespiratoryDisturbancesChart` | `respiratoryDisturbances` | Bar + SMA-7d, threshold IAH (5/15/30 eventos) |
-| `VitalSignsTimeline` | `respiratoryRate` + `pulseTemperatureC` | Dual-axis line, bandas RR 12-20 / Temp 36-37 |
-| `CardioRecoveryChart` | `cardioRecoveryBpm` | Pontos + SMA-14d, bandas excelente/boa/regular/ruim |
-
-3 commits (1 por chart). Atualizar `health-policies.ts`, `data-readiness.ts`, `interpolate.ts` em cada.
+A reorganização abaixo agrupa esses achados em sprints temáticos coerentes.
 
 ---
 
-## Fase 11 — Polimentos e dívida técnica
+## Sprint 11-Sec — Segurança operacional (~2h, P0/P1)
 
-Cada sub-sprint é independente — pode pegar uma solta sem completar tudo.
+**Objetivo:** cortar exposição real de superfície pública antes de qualquer outro trabalho.
 
-### 11A — Code-splitting do bundle JS
+Achados cobertos: 1, 2, 3, 4, 22.
 
-**Problema:** warning `chunks > 500KB` desde Fase 8A. Bundle atual 944 KB minified, 269 KB gzip. Carrega tudo no first paint, mesmo charts que estão em outras abas.
+### Tarefas
+1. **Auth básica em `/health/api/*`** — token simples ou Basic Auth, header `X-API-Key` aceito tanto pelo Vite frontend quanto manualmente. Bloquear writes (POST/PUT/DELETE) sem auth, manter GETs públicos OK pra leitura local.
+2. **Servir `frontend/dist` estático via Apache** — `npm run build` no deploy + `Alias /health/ /root/RooCode/frontend/dist/` com fallback SPA. Apaga Vite dev da borda pública. Manter `npm run dev` apenas pra desenvolvimento local.
+3. **`env.yml` perm 600** — `chmod 600 /root/GEMINI_API/env.yml`. Confirmar leitura ainda funciona pelo systemd com `User=roocode`.
+4. **Remover token de `.git/config`** — trocar remote pra SSH ou usar credential helper. Rotacionar token se usado.
+5. **Criar usuário não-root** — `useradd --system roocode`, ajustar `User=` em `roocode.service`, `chown -R roocode:roocode /root/RooCode/{Mood,Metrics,Sleep,Farma}` (apenas dirs com escrita).
+6. **`.gitignore` cobrir backups** — adicionar `*.backup*` e `*.csv.backup*` (atualmente só `*.backup` cru).
 
-**Solução proposta:** dynamic import por aba — `React.lazy()` em cada `<TabContent>` + `<Suspense fallback={<SkeletonChart />}>`. Pode reduzir first paint pra ~200-300 KB (só executive). Charts pesados como Recharts seriam tree-shaken por aba.
+### Validação
+```bash
+sudo apache2ctl configtest && sudo systemctl reload apache2
+curl -I https://ultrassom.ai/health/                          # 200 estático
+curl -I https://ultrassom.ai/health/api/farma/regimen         # 200 GET (público)
+curl -X POST https://ultrassom.ai/health/api/farma/doses      # 401 (sem auth)
+ls -la /root/GEMINI_API/env.yml | awk '{print $1}'            # -rw-------
+systemctl status roocode.service | grep User                  # User=roocode
+git config --get remote.origin.url                            # ssh://git@...
+git status --short                                            # sem .backup* untracked
+```
 
-**Esforço:** 1h. **Validação:** comparar bundle antes/depois + Lighthouse score.
+### Riscos
+- Reload Apache pode derrubar tela momentaneamente. Sempre `configtest` antes.
+- Mudar `User=` no service exige `chown` antes do restart, senão escrita JSON quebra.
+- `env.yml` com perm 600 deve ser legível pelo user `roocode` (testar leitura GENAI_KEY antes de fechar).
 
-**Arquivos prováveis:** `frontend/src/App.tsx` (lazy imports), `vite.config.ts` (rolldown options se necessário).
+---
 
-### 11B — Logger global de erros frontend
+## Sprint 11-Quality — Rede de segurança (~1.5h)
 
-**Problema descoberto na Fase 10B:** o helper `get()` em `frontend/src/lib/api.ts:120` lança `Error("HTTP {status}")` em respostas non-OK, mas o erro é **silenciosamente cacheado pelo TanStack Query** sem feedback visual. Calendário ficou vazio por isso na 10B (status 422 do `hours > 720`).
+**Objetivo:** restaurar testes/lint como rede antes de mexer em lógica clínica.
 
-**Solução proposta:** wrapper `<QueryErrorBoundary>` ou `mutationCache.onError` global que mostra toast/banner amber discreto com mensagem `"erro {status} em {endpoint}"`. Não interrompe navegação, mas torna falhas visíveis.
+Achados cobertos: 5, 6, 9, 11, 12.
 
-**Esforço:** 30-45min. Lib opcional: `sonner` ou implementar toast simples.
+### Tarefas
+1. **Atualizar fixtures `frontend/tests/date-range.test.ts`** — adicionar 10 campos novos da Fase 8A (`steps`, `distanceKm`, `physicalEffort`, `walkingHeartRateAvg`, `walkingAsymmetryPct`, `walkingSpeedKmh`, `runningSpeedKmh`, `vo2Max`, `sixMinuteWalkMeters`, `cardioRecoveryBpm`).
+2. **Reescrever ou remover `frontend/tests/pk-convolution.test.ts`** — imports atuais (`buildConcentrationByConvolution`, `buildPKLagCorrelations`, `buildPKTimelinePayload`, `expandRegimenDoses`) foram removidos na Fase 9A. Substituir por testes em `buildMedGroups` e `buildDailyConcentrations`.
+3. **Corrigir 7 erros lint React:**
+   - `DoseLogger.tsx:54` — derivar `setState` de handler em vez de effect
+   - `pk-medication-grid.tsx:165, 297, 370` — capturar `Date.now()` em ref/state, não em render puro
+   - `pk-mood-scatter-chart.tsx:70-82` — estabilizar memoização (depender de `selectedSub.id` não objeto)
+   - `lag-correlation-chart.tsx:78` — mesma estratégia de memoização
+4. **Validações simétricas em `POST /farma/doses`** — aplicar `dose_mg > 0` e `_validate_iso_timestamp(taken_at)` que `PUT` já tem.
+5. **`updateDose` resolver custom** — trocar `get_substance_profile()` por `_resolve_substance_any()` (linha 495-503 de `Farma/router.py`).
+6. **`Mood/mood.py` GET → NaN→null** — trocar `df.to_dict(orient="records")` por `json.loads(df.to_json(orient="records"))` (mesmo padrão que Metrics e Sleep).
 
-**Arquivos prováveis:** `frontend/src/lib/api.ts` (handler centralizado), `frontend/src/main.tsx` ou `App.tsx` (boundary).
+### Validação
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'    # 3 OK + novos
+cd frontend && npm run test:unit                        # passa
+cd frontend && npm run lint                             # 0 erros
+cd frontend && npm run build                            # passa
+# Smoke validações:
+curl -X POST http://localhost:8011/farma/doses -d '{"substance":"lex","dose_mg":-1}'  # 400
+curl -X PUT http://localhost:8011/farma/doses/<id> -d '{"substance":"meu_custom"}'    # 200
+```
 
-### 11C — Cadastrar Clonazepam + PRN visíveis
+### Arquivos
+- `frontend/tests/date-range.test.ts` (fixtures)
+- `frontend/tests/pk-convolution.test.ts` (rewrite)
+- `frontend/src/components/DoseLogger.tsx`, `frontend/src/components/charts/pk-medication-grid.tsx`, `pk-mood-scatter-chart.tsx`, `lag-correlation-chart.tsx`
+- `Farma/router.py:440-462` (logDose validações)
+- `Farma/router.py:495-503` (updateDose custom resolve)
+- `Mood/mood.py:128` (NaN→null)
 
-**Problema documentado na Fase 10A:** Clonazepam tem cor reservada (`#f59e0b` em `substance-colors.ts`) mas **zero entrada no backend** (`medDataBase.json` ou `substances_custom.json`). Atualmente é fantasma — não aparece no `/farma/substances`, não pode ser logado.
+---
 
-**Solução proposta:** entrar Clonazepam via `MedicationCatalogEditor` no UI (`POST /farma/substances/clonazepam`) com PK realista:
-- t½ ~30-40h (faixa benzodiazepínica longa)
-- Vd 3 L/kg
-- F ~90% (oral bem absorvido)
-- ka 1.0/h
-- therapeutic_range: tricky em PRN — talvez deixar `null` e renderizar como concentração bruta no PKMedicationGrid
+## Sprint 11-Flow — Fluidez de lógica (~2h, engloba 11B antigo)
 
-**Esforço:** 30min (preencher catálogo + validar 1 dose teste).
+**Objetivo:** reduzir duplicação, dar feedback visual de erros, e limpar inconsistências de UX.
 
-**Bonus:** uma vez cadastrado, charts da aba Insights (`PKMoodScatter`, `LagCorrelation`) ganham análise PK do Clonazepam quando logado em PRN.
+Achados cobertos: 7, 8, 10, 13, 14, 15.
 
-### 11D — Resolver TODOs(Anders) pequenos no código
+### Tarefas
+1. **Banner global de erro/loading** (= 11B do ROADMAP antigo) — `<QueryErrorBoundary>` ou `mutationCache.onError` global mostrando toast amber discreto: `"erro {status} em {endpoint}"`. Não interrompe nav, mas torna falhas visíveis. Resolve o bug do calendário vazio em 422 (Fase 10B).
+2. **Helper Gemini comum** — extrair `_load_api_key`, `_call_gemini`, `_strip_fences`, `_classify_valence` de `Interpolate/router.py` e `Forecast/router.py` pra `Ai/gemini.py` (módulo novo). Smoke tests em `_strip_fences` e ausência de chave.
+3. **`normalizeMoodValence()` único** — extrair pra `frontend/src/utils/mood.ts`, usar em adapter, `PKMoodScatterChart`, `LagCorrelationChart`. Hoje cada um normaliza diferente (string vírgula/ponto, escala -1/+1 vs 0-100).
+4. **Validação datas dentro do try** — mover `_find_missing_dates()` (Interpolate/router.py:292) e `_build_future_dates()` (Forecast/router.py:316) pra dentro do try do handler. Hoje data ruim escapa o fallback gracioso e retorna 500.
+5. **Política única `useDoses(window)`** — escolher uma janela ampla (90d) com seletores locais OU explicitar window por escopo (`useDoses14d`, `useDoses90d`). Hoje: `useRooCodeData` 14d, `PKMedicationGrid` 168h, `Insights` 30d, `DoseCalendarView` ~720h. Multiplica requests e estado.
+6. **Rename `claude` → `gemini` no UI** — TabNav option `claude` → `ai` ou `gemini`, `App.tsx:215` label "Interpolação IA (Gemini)" — manter compat localStorage com tradução interna se necessário.
 
-3 TODOs marcados explicitamente:
+### Validação
+```bash
+# Banner erro:
+# 1. Forçar 500 num endpoint, ver toast
+curl -X POST http://localhost:8011/farma/doses -d 'malformed'
+# Frontend deve mostrar banner amber discreto
 
+# Helper Gemini:
+python3 -m unittest tests/test_ai_gemini.py    # smoke novo
+grep -c "_call_gemini" Interpolate/router.py Forecast/router.py    # 0 cada (movido)
+
+# normalizeMoodValence:
+grep -rn "normalizeMoodValence" frontend/src/    # ≥3 usos (adapter + 2 charts)
+
+# useDoses harmonizado:
+grep -rn "useDoses(" frontend/src/    # padrão consistente
+
+# rename:
+grep -rn "claude" frontend/src/components/navigation/    # 0 (só interno)
+```
+
+### Arquivos
+- `frontend/src/main.tsx` ou `App.tsx` (boundary), `frontend/src/lib/api.ts` (handler)
+- Novo `Ai/gemini.py` + refactor `Interpolate/router.py`, `Forecast/router.py`
+- Novo `frontend/src/utils/mood.ts` ou expansão do `intraday-correlation.ts`
+- `frontend/src/hooks/useDoses.ts` ou caller adjust
+- `frontend/src/components/navigation/TabNav.tsx`, `App.tsx` (label)
+
+---
+
+## Sprint 11-Perf — Performance + extensibilidade (~1.5h, engloba 11A antigo)
+
+**Objetivo:** reduzir first paint e dead code antes que `App.tsx` cresça mais.
+
+Achados cobertos: 23, 24, 25.
+
+### Tarefas
+1. **Code-splitting `React.lazy` por aba** (= 11A do ROADMAP antigo) — cada `<TabContent>` em lazy + `<Suspense fallback={<SkeletonChart />}>`. Pode reduzir first paint de 944KB pra ~200-300KB (só executive). Charts pesados (Recharts) tree-shaken por aba.
+2. **Purga dead code frontend** — `data-pipeline.ts` referencia arquitetura antiga (`/metrics/overview`, Zustand, `useAppleHealthStore`); confirmar que está totalmente desconectado e remover. Avaliar deps `zustand`, `clsx`, `class-variance-authority`, `tailwind-merge` — remover do `package.json` se não usados.
+3. **Smoke Playwright** — adicionar `frontend/tests/e2e/smoke.spec.ts`:
+   - abre `/health/`
+   - verifica todas 5 tabs renderizando (não tela branca)
+   - captura screenshot baseline opcional
+
+### Validação
+```bash
+cd frontend && npm run build
+# Bundle delta esperado: chunk principal ~200-300KB, demais charts em chunks separados
+
+# Lighthouse manual:
+# First Contentful Paint deve cair noticeably
+
+# Playwright:
+cd frontend && npx playwright test
+```
+
+### Arquivos
+- `frontend/src/App.tsx` (lazy imports)
+- `frontend/vite.config.ts` (rolldown options se necessário)
+- `frontend/src/utils/data-pipeline.ts` (delete ou refactor)
+- `frontend/package.json` (deps cleanup)
+- Novo `frontend/tests/e2e/smoke.spec.ts`
+- Nova dep: `@playwright/test` em devDependencies
+
+---
+
+## Sprints light (~30min-1h cada, paralelos a qualquer um acima)
+
+### 11C — Cadastrar Clonazepam PRN
+**Problema:** Clonazepam tem cor reservada (`#f59e0b` em `substance-colors.ts`) mas zero entrada no backend. É fantasma.
+
+**Solução:** entrar via `MedicationCatalogEditor` com PK realista (t½ ~30-40h, Vd 3 L/kg, F ~90%, ka 1.0/h). Therapeutic_range: deixar `null` em PRN, renderizar como concentração bruta no `PKCompactCard` (modo experimental já existe na Fase 8A.1).
+
+**Bonus:** charts da aba Insights (`PKMoodScatter`, `LagCorrelation`) ganham análise PK do Clonazepam quando logado.
+
+### 11D — Resolver TODOs(Anders)
 | Arquivo:linha | TODO |
 |---------------|------|
 | `frontend/src/utils/roocode-adapter.ts:158, 180` | Heurística de detecção de mock vs real |
 | `frontend/src/utils/data-readiness.ts:61` | Tom/formato das mensagens "faltam N dias" |
 | `frontend/src/utils/health-policies.ts:17` | Bands de VO2 max pra homem 35-44 anos |
 
-**Esforço:** 30min total (são tweaks de tom/heurística, não lógica nova).
+São tweaks de tom/heurística, não lógica nova.
 
----
-
-## Ações Anders (sem código, fora-de-sprint)
-
-### 9E — Re-upload CSV mood histórico
-
-**Por quê:** o fix de `Mood/mood.py::_format_mood_date` na Fase 8B preserva HH:MM:SS de Emoções Momentâneas, mas o CSV antigo já tinha perdido essas horas antes do fix. Charts intraday (`PKMoodScatter`, `LagCorrelation`) só veem emoções após 2026-04-20. Re-upload recupera retroativamente.
-
-**Como:**
-1. iPhone → AutoExport → export State of Mind CSV completo
-2. Upload via `POST /health/api/mood`
-3. Verificar:
-   ```bash
-   curl -s http://localhost:8011/mood | jq '.[] | select(.Fim == "Emoção Momentânea") | .Iniciar' | head -5
-   ```
-   Esperar HH:MM:SS preservado nos timestamps antigos.
-
-### Push 22 commits pra `origin/main`
-
-Atualmente só local. Decisão puramente de **safety** — sem CI configurado que possa quebrar:
-
-```bash
-git push origin main
-```
-
-Recomendado fazer **antes da Fase 10D** pra ter checkpoint estável. Se tu não testou ainda o auto-fill do DoseLogger (10A), faz sentido validar isso também antes do push.
-
-### `/memorypack` ao fim de cada sessão
-
-Skill instalada em `/root/.claude/`. Indexa a conversa atual no banco vetorial pra recuperação cross-session via `/memsearch`. **Recomendado rodar antes de fechar a sessão**, não no meio (JSONL só fica completo quando sessão fecha).
+### 11-Ops — Blindagem operacional
+- `requirements.txt` versionado a partir do venv atual (fastapi, uvicorn, pandas, pydantic, google-genai, PyYAML, python-multipart, scipy)
+- Escrita atômica em `_save_doses`, `_save_custom_substances`, `_save_regimen` — escrever em `.tmp` no mesmo dir + `os.replace()`
+- `/etc/logrotate.d/roocode` com rotation de `/var/log/roocode-api.log` (já 19.6 MB, sem rotation)
+- LRU `maxsize=64` em `Interpolate/router.py:32` `_cache` e `Forecast/router.py:33` `_cache`
+- Considerar: documentar `GET /farma/regimen` side effect ou mover criação do default pro startup
 
 ---
 
 ## Documentação
 
-### Atualizar CLAUDE.md pós Fase 10
-
-Adicionar checklist da Fase 10 na seção `## Status` (após linha 182) e atualizar/limpar o KICKOFF da Fase 10 (linhas 205-307) que ficou desatualizado:
-
-```markdown
-- [x] **Fase 10:** UX Medicação + Revisão de Seções (concluída 2026-04-25)
-  - **10A ✅** DoseLogger com auto-fill do regime (`a71843e`)
-  - **10B ✅** DoseCalendarView dual-pane (`375186c`)
-  - **Fix lateral ✅** cap hours 8760 em /farma/doses (`5b8e28c`)
-  - **10C ✅** Diagnóstico de redundâncias documentado em `/root/.claude/plans/fase-10c-findings.md`
-  - **10D ⏳** Implementação dos findings (escopo em ROADMAP.md)
-```
-
-E criar novo KICKOFF pra Fase 10D substituindo o antigo. **Esforço: 5min.**
+### Atualizar CLAUDE.md/ROADMAP.md a cada Sprint
+A auditoria flagou (achado 21) que doc operacional já desviou da realidade — "22 commits ahead" estava errado, KICKOFF estava com 28+. Cada Sprint deve fechar com:
+- bump na seção `## Status` do CLAUDE.md (linha ~189+)
+- atualizar este ROADMAP.md (linha ~3 e tabela visão geral)
+- novo KICKOFF curto pra próxima fase
 
 ---
 
@@ -157,6 +235,7 @@ Vazia por design. Abre quando surgir necessidade real. Hipóteses (sem urgência
 - Comparação mês-a-mês (overlay `mês anterior` em charts de tendência)
 - Integração direta iPhone Shortcuts → backend (sem AutoExport intermediário)
 - Modo de leitura "consulta médica" (versão impressível ou tela cheia clean)
+- Sistema formal de plugins/registro de charts por aba (após code-splitting funcionar)
 
 Nada disso entra em planejamento até ser pedido.
 
@@ -164,19 +243,30 @@ Nada disso entra em planejamento até ser pedido.
 
 ## Sequenciamento sugerido
 
-**Próxima sessão (1.5-2h):**
-1. Push origin/main (30s, antes de codar)
-2. 10D-1 remoções (15-20min)
-3. 10D-2 charts novos (1-1.5h)
-4. Atualizar CLAUDE.md (5min)
-5. /memorypack antes de fechar
+**Próxima sessão (Sprint 11-Sec, ~2-2.5h):**
+1. Push origin/main pré-Sprint (30s, backup)
+2. Auth API + Vite static via Apache (1h)
+3. env perms + .git/config + user não-root (45min)
+4. .gitignore + smoke validation (15min)
+5. Atualizar CLAUDE.md/ROADMAP.md + commit (5min)
 
-**Sessão seguinte (1-2h, opcional):**
-1. 11A code-splitting **OU** 11B logger erros (escolher um)
-2. 11C Clonazepam (rápido, ganho clínico imediato)
-3. 11D TODOs
+**Sessão seguinte (Sprint 11-Quality, ~1.5h):**
+1. Fixtures + pk-convolution rewrite (30min)
+2. Lint React 7 erros (30min)
+3. Validações Farma simétricas + Mood NaN (30min)
 
-**Quando puder (sem sprint):**
-- 9E re-upload CSV no iPhone
+**Sessão 3 (Sprint 11-Flow, ~2h):**
+1. Banner erro global + helper Gemini comum (1h)
+2. normalize humor + useDoses + rename (1h)
+
+**Sessão 4 (Sprint 11-Perf, ~1.5h):**
+1. Code-splitting (1h)
+2. Dead code purge (15min)
+3. Smoke Playwright (15min)
+
+**Quando der vontade (light, paralelo):**
+- 11C Clonazepam (30min — ganho clínico imediato)
+- 11D TODOs(Anders) (30min — polish)
+- 11-Ops blindagem (1h — antes de qualquer escala)
 
 Após tudo: projeto entra em **modo manutenção** — só novas features se pedido específico.

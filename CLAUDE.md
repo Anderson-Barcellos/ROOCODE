@@ -185,7 +185,7 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
   - **9A ✅** cadeia órfã da Fase 6 removida em 3 commits atômicos: 9A.1 frontend (`4fe9682`), 9A.2 backend (`894d9e5`), 9A.3 MedicationRegimenEditor (`7253705`). Delta: **−1.661 linhas**
   - **9D ✅** KPI cards clínicos de `respiratoryRate` (rpm, bandas 12-16-20) + `pulseTemperatureC` (°C, bandas 35.5-36.8-37) na Executive (`5b2b491`)
   - **9C ✅** (2026-04-24, `c9b517b`) shim CSS eliminado: 70 ocorrências de vars fantasma migradas pros tokens warm editorial em 4 componentes; `--accent-violet` promovido a token oficial (identidade medicação); `--accent-emerald*` migrado pro `--accent` teal (botões de confirmação). Aprovado visualmente por Anders.
-  - **9E ⏳** re-upload CSV mood histórico pelo AutoExport (ação Anders, sem código) — continua aberta, não bloqueia Fase 10
+  - **9E ✅** (2026-04-27) re-upload CSV mood histórico concluído por Anders — `Mood/mood.csv` agora preserva HH:MM:SS nas Emoções Momentâneas (verificado: 3/3 com hora). Charts intraday `PKMoodScatter` e `LagCorrelation` ganham análise retroativa.
 - [x] **Fase 10:** UX Medicação + Revisão de Seções (concluída 2026-04-25)
   - **10A ✅** DoseLogger com auto-fill do regime (`a71843e`) — form inteligente: ao selecionar substância, dose e horário auto-preenchem com valor do regime ativo (chip "regime" violet visível, some quando user edita). `regimen_config.json` ressincronizado com defaults (estava com vestígio só de Venvanse 1mg). `COLORS_BY_ID` extraído pra `frontend/src/lib/substance-colors.ts` compartilhado.
   - **10B ✅** DoseCalendarView dual-pane (`375186c`) — `DoseHistoryView` (lista flat) substituído por calendário visual: grid mensal com Fraunces serif nos números, domingos italic, hoje com border violet, dots empilhados verticais coloridos por substância (max 4 + "+N"); side panel direito com dia selecionado + lista de doses + edit/delete inline preservados. Skill `frontend-design` aplicada (estética editorial-medical journal).
@@ -205,9 +205,16 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
 
 Estado completo do projeto + sub-sprints futuras: **`/root/RooCode/ROADMAP.md`**.
 
-Fases pendentes (escopo conhecido):
-- **11A-D** — polimentos opcionais (code-splitting, logger erros, Clonazepam PRN, TODOs(Anders))
-- **9E** (ação Anders) — re-upload CSV mood histórico no iPhone
+**Auditoria 2026-04-26:** 25 achados detalhados em `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` (fonte primária pra cada Sprint abaixo).
+
+Fases pendentes pós-auditoria:
+- **Sprint 11-Sec** (~2h, P0/P1) — auth API, Vite dist via Apache, env perms, usuário não-root, `.gitignore *.backup*`
+- **Sprint 11-Quality** (~1.5h) — atualizar fixtures testes, reescrever pk-convolution.test, lint React (7 erros), validações simétricas POST/PUT doses, NaN→null em `Mood/mood.py` GET
+- **Sprint 11-Flow** (~2h, engloba 11B antigo) — banner global erro/loading, helper `Ai/gemini.py` comum, `normalizeMoodValence` único, harmonizar `useDoses`, rename `claude`→`gemini` no UI
+- **Sprint 11-Perf** (~1.5h, engloba 11A antigo) — code-splitting `React.lazy` por aba, purga dead code (`data-pipeline.ts`, deps Zustand), smoke Playwright
+- **11C** (light, ~30min) — cadastrar Clonazepam PRN no catálogo via `MedicationCatalogEditor`
+- **11D** (light, ~30min) — resolver 3 TODOs(Anders) em adapter/readiness/health-policies
+- **11-Ops** (light, ~1h) — `requirements.txt` versionado, escrita atômica JSON (`os.replace`), logrotate, LRU cache em Interpolate/Forecast
 
 ---
 
@@ -224,30 +231,34 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Fase 11 (polimentos opcionais)
+## KICKOFF — Fase 11 (pós-auditoria)
 
-> Cole esse texto em sessão fresh. Detalhes em `/root/RooCode/ROADMAP.md`.
+> Cole esse texto em sessão fresh. Detalhes em `/root/RooCode/ROADMAP.md` e `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md`.
 
-**Estado pós sessão 2026-04-26:**
-- Fases 10A/B/C/D concluídas. 28+ commits ahead de origin/main.
-- `roocode.service` `active (running)`, 3 charts clínicos novos em sleepPhysiology.
-- AutoExport v1/v2 dual-format resolvido no adapter de metrics.
-- 9E segue aberta (ação Anders, sem código).
+**Estado pós sessão 2026-04-27:**
+- Fases 1–10D + 9E concluídas. Toda backlog do roadmap original fechada.
+- `roocode.service` `active (running)`, 3 charts clínicos da 10D em sleepPhysiology.
+- Auditoria 2026-04-26 mapeou 25 achados que reorganizam a Fase 11 em 4 sprints temáticos + 3 light.
+- `Mood/mood.csv` re-upado com HH:MM:SS preservado (3/3 emoções momentâneas com hora).
 
 **Sanity inicial:**
 ```bash
-systemctl is-active roocode.service
-git log --oneline origin/main..main | wc -l  # ≥28
+systemctl is-active roocode.service              # esperado: active
+curl -s -o /dev/null -w "%{http_code}\n" \
+     http://localhost:8011/sleep                 # esperado: 200
+git status --short                               # esperado: limpo (ou aceitável)
+git log --oneline origin/main..main | wc -l      # confere drift documental
 ```
 
-**Fases disponíveis (independentes, qualquer ordem):**
-- **11A** — code-splitting bundle JS (`React.lazy` por aba, ~1h)
-- **11B** — logger global de erros TanStack Query (toast em erros HTTP, ~30min)
-- **11C** — cadastrar Clonazepam PRN via `MedicationCatalogEditor` (~30min)
+**Sprints disponíveis (sequência sugerida — ordem importa):**
+1. **11-Sec** — segurança operacional (~2h, P0/P1). API auth, Vite static, env perms, user não-root, gitignore backups. **Recomendo primeiro** — corta exposição real.
+2. **11-Quality** — restaurar testes/lint + validações Farma + NaN/Mood (~1.5h). Rede de segurança antes de logic refactor.
+3. **11-Flow** — banner erro global, helper Gemini comum, normalização humor, useDoses harmonizado, rename claude→gemini (~2h). Engloba 11B antigo.
+4. **11-Perf** — code-splitting React.lazy + dead code + smoke Playwright (~1.5h). Engloba 11A antigo.
+
+**Sprints light (independentes, paralelos a qualquer um acima):**
+- **11C** — cadastrar Clonazepam PRN via `MedicationCatalogEditor` (~30min, ganho clínico imediato)
 - **11D** — resolver 3 TODOs(Anders) em `roocode-adapter.ts`, `data-readiness.ts`, `health-policies.ts` (~30min)
+- **11-Ops** — `requirements.txt`, `os.replace` em `_save_*`, logrotate, LRU cache (~1h)
 
-**9E (ação Anders, paralela):**
-iPhone → AutoExport → export State of Mind CSV → `POST /health/api/mood`. Verificar HH:MM:SS:
-```bash
-curl -s http://localhost:8011/mood | jq '.[] | select(.Fim == "Emoção Momentânea") | .Iniciar' | head -5
-```
+**Total pra zerar tudo:** ~7-9h em 4-5 sessões. Pode parar em qualquer Sprint sem comprometer o que já roda.

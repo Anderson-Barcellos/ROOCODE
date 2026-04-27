@@ -522,7 +522,7 @@ export default function App() {
               icon={<Telescope className="h-4 w-4" />}
               kicker="Descritivo + Insights"
               title="Exploração intraday e hipóteses clínicas"
-              description="Análises em granularidade horária — concentração × humor momentâneo, lag analysis e regularidade de doses. Observações, não diagnósticos."
+              description="Análises em granularidade horária — concentração × humor momentâneo e lag analysis. Observações, não diagnósticos."
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · sem eventos momentâneos' : `${data.snapshots.length} dias`}
             >

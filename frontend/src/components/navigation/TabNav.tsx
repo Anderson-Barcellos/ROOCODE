@@ -12,7 +12,7 @@ export type RangeOption = (typeof rangeOptions)[number]
 const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = [
   { key: 'off', label: 'Off' },
   { key: 'linear', label: 'Linear' },
-  { key: 'claude', label: 'Claude' },
+  { key: 'claude', label: 'IA' },
 ]
 
 const forecastOptions: Array<{ key: ForecastMode; label: string }> = [

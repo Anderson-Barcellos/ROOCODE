@@ -29,7 +29,6 @@ import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { TimelineChart } from '@/components/charts/timeline-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
-import { WeeklyPatternChart } from '@/components/charts/weekly-pattern-chart'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
@@ -514,7 +513,6 @@ export default function App() {
                 <div className="space-y-4">
                   <CorrelationHeatmap snapshots={ranged} />
                   <ScatterCorrelation snapshots={ranged} />
-                  <WeeklyPatternChart pattern={data.weeklyPattern} snapshots={ranged} interpolatedCount={ranged.filter((s) => s.interpolated).length} />
                 </div>
               )}
             </SurfaceFrame>

@@ -151,13 +151,6 @@ export const CHART_REQUIREMENTS = {
   sleepStagesChart: { type: 'days', readyMin: 3, partialMin: 1, field: 'sleepTotalHours' },
   spo2Chart: { type: 'days', readyMin: 3, partialMin: 1, field: 'spo2' },
   moodTimeline: { type: 'days', readyMin: 7, partialMin: 3, field: 'mood.valence' },
-  weeklyPatternChart: {
-    type: 'dow_coverage',
-    readyMin: 14,
-    partialMin: 7,
-    minDows: 5,
-    minSamplesPerDow: 2,
-  },
   correlationHeatmap: { type: 'pairs', readyMin: 20, partialMin: 10 },
   scatterCorrelation: { type: 'pairs', readyMin: 20, partialMin: 10 },
   // Fase 8A — Activity/Physiology

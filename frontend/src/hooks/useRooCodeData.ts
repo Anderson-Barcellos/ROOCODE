@@ -15,15 +15,6 @@ import {
 import { useForecast, type ForecastMode } from './useForecast'
 import { useInterpolation, type InterpolationMode } from './useInterpolation'
 
-export interface WeeklyDayStats {
-  dayName: string
-  dayIndex: number
-  avgExercise: number | null
-  avgEnergy: number | null
-  avgDaylight: number | null
-  count: number
-}
-
 export interface RooCodeData {
   snapshots: DailySnapshot[]
   medicationRows: MedicationRow[]
@@ -32,7 +23,6 @@ export interface RooCodeData {
   dates: string[]
   pkGroups: MedGroup[]
   overview: OverviewMetrics
-  weeklyPattern: WeeklyDayStats[]
   moodQuality: MoodDataQuality
   loading: boolean
   error: boolean
@@ -53,33 +43,6 @@ export interface RooCodeData {
   forecastedSnapshots: DailySnapshot[]
   forecastSignals: ForecastSignal[]
   forecastMaxConfidence: number
-}
-
-const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-
-function buildWeeklyPattern(snapshots: DailySnapshot[]): WeeklyDayStats[] {
-  const acc: Record<number, { exercise: number[]; energy: number[]; daylight: number[]; count: number }> = {}
-  for (let i = 0; i < 7; i++) acc[i] = { exercise: [], energy: [], daylight: [], count: 0 }
-
-  for (const snap of snapshots) {
-    const dow = new Date(snap.date).getDay()
-    if (snap.health) acc[dow].count += 1
-    if (snap.health?.exerciseMinutes != null) acc[dow].exercise.push(snap.health.exerciseMinutes)
-    if (snap.health?.activeEnergyKcal != null) acc[dow].energy.push(snap.health.activeEnergyKcal)
-    if (snap.health?.daylightMinutes != null) acc[dow].daylight.push(snap.health.daylightMinutes)
-  }
-
-  const avg = (xs: number[]): number | null =>
-    xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null
-
-  return DAY_NAMES.map((dayName, dayIndex) => ({
-    dayName,
-    dayIndex,
-    avgExercise: avg(acc[dayIndex].exercise),
-    avgEnergy: avg(acc[dayIndex].energy),
-    avgDaylight: avg(acc[dayIndex].daylight),
-    count: acc[dayIndex].count,
-  }))
 }
 
 function buildLast14Days(): string[] {
@@ -152,7 +115,6 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off', forecas
   // ─── Derivações (sempre a partir de effectiveSnapshots) ────────────────────
   const pkGroups = useMemo(() => buildMedGroups(resolved.medicationRows), [resolved.medicationRows])
   const overview = useMemo(() => buildOverviewMetrics(effectiveSnapshots), [effectiveSnapshots])
-  const weeklyPattern = useMemo(() => buildWeeklyPattern(effectiveSnapshots), [effectiveSnapshots])
 
   // ─── Progressive Unlock (Fase 5d) ──────────────────────────────────────────
   // Conta só dias REAIS (não interpolados) — readiness reflete dados coletados.
@@ -188,7 +150,6 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off', forecas
     dates,
     pkGroups,
     overview,
-    weeklyPattern,
     moodQuality: resolved.moodQuality,
     loading,
     error,

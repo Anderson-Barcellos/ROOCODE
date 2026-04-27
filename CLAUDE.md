@@ -205,16 +205,13 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
 
 Estado completo do projeto + sub-sprints futuras: **`/root/RooCode/ROADMAP.md`**.
 
-**Auditoria 2026-04-26:** 25 achados detalhados em `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` (fonte primária pra cada Sprint abaixo).
+**Auditoria 2026-04-26:** 25 achados em `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` — 13 entram no roadmap, 12 arquivados como overkill pra contexto single-user pessoal (auth API, Vite static, user não-root, code-splitting, Playwright, refactors DRY cosméticos). Ver tabela "Arquivado" no `ROADMAP.md`.
 
-Fases pendentes pós-auditoria:
-- **Sprint 11-Sec** (~2h, P0/P1) — auth API, Vite dist via Apache, env perms, usuário não-root, `.gitignore *.backup*`
-- **Sprint 11-Quality** (~1.5h) — atualizar fixtures testes, reescrever pk-convolution.test, lint React (7 erros), validações simétricas POST/PUT doses, NaN→null em `Mood/mood.py` GET
-- **Sprint 11-Flow** (~2h, engloba 11B antigo) — banner global erro/loading, helper `Ai/gemini.py` comum, `normalizeMoodValence` único, harmonizar `useDoses`, rename `claude`→`gemini` no UI
-- **Sprint 11-Perf** (~1.5h, engloba 11A antigo) — code-splitting `React.lazy` por aba, purga dead code (`data-pipeline.ts`, deps Zustand), smoke Playwright
+Sprint pendente:
+- **Sprint 11 — Bugs + QoL** (~1.5-2h) — banner global de erro TanStack Query, `Mood/mood.py` NaN→null, lint React 7 erros (bugs latentes reais), `.gitignore *.backup*`, logrotate, `requirements.txt`
 - **11C** (light, ~30min) — cadastrar Clonazepam PRN no catálogo via `MedicationCatalogEditor`
 - **11D** (light, ~30min) — resolver 3 TODOs(Anders) em adapter/readiness/health-policies
-- **11-Ops** (light, ~1h) — `requirements.txt` versionado, escrita atômica JSON (`os.replace`), logrotate, LRU cache em Interpolate/Forecast
+- **Cinza** (opcional, ~30min) — validações simétricas Farma, `chmod 600 env.yml`, escrita atômica JSON
 
 ---
 
@@ -231,34 +228,41 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Fase 11 (pós-auditoria)
+## KICKOFF — Fase 11 (Bugs + QoL)
 
-> Cole esse texto em sessão fresh. Detalhes em `/root/RooCode/ROADMAP.md` e `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md`.
+> Cole esse texto em sessão fresh. Detalhes em `/root/RooCode/ROADMAP.md`.
 
 **Estado pós sessão 2026-04-27:**
 - Fases 1–10D + 9E concluídas. Toda backlog do roadmap original fechada.
 - `roocode.service` `active (running)`, 3 charts clínicos da 10D em sleepPhysiology.
-- Auditoria 2026-04-26 mapeou 25 achados que reorganizam a Fase 11 em 4 sprints temáticos + 3 light.
-- `Mood/mood.csv` re-upado com HH:MM:SS preservado (3/3 emoções momentâneas com hora).
+- Auditoria 2026-04-26 filtrada com lente single-user pessoal: 13 itens entram, 12 arquivados.
+- `Mood/mood.csv` re-upado com HH:MM:SS preservado.
+
+**Princípio de filtragem:** RooCode é app de uso pessoal exclusivo do Anders. Critério pra aceitar item da auditoria é "single-user vai sentir o ganho?". Se não, é overengineering — fica arquivado em `ROADMAP.md` na tabela "Arquivado" como referência se contexto mudar.
 
 **Sanity inicial:**
 ```bash
 systemctl is-active roocode.service              # esperado: active
 curl -s -o /dev/null -w "%{http_code}\n" \
      http://localhost:8011/sleep                 # esperado: 200
-git status --short                               # esperado: limpo (ou aceitável)
-git log --oneline origin/main..main | wc -l      # confere drift documental
+git status --short                               # esperado: limpo
 ```
 
-**Sprints disponíveis (sequência sugerida — ordem importa):**
-1. **11-Sec** — segurança operacional (~2h, P0/P1). API auth, Vite static, env perms, user não-root, gitignore backups. **Recomendo primeiro** — corta exposição real.
-2. **11-Quality** — restaurar testes/lint + validações Farma + NaN/Mood (~1.5h). Rede de segurança antes de logic refactor.
-3. **11-Flow** — banner erro global, helper Gemini comum, normalização humor, useDoses harmonizado, rename claude→gemini (~2h). Engloba 11B antigo.
-4. **11-Perf** — code-splitting React.lazy + dead code + smoke Playwright (~1.5h). Engloba 11A antigo.
+**Sprint 11 — Bugs + QoL (~1.5-2h):**
+1. **Banner global erro TanStack Query** (~30min) — toast amber em `mutationCache.onError`. Resolve silenciamento que tu já sentiu na Fase 10B.
+2. **Lint React 7 erros** (~45min) — `Date.now()` em render (re-render constante), `setState` em effect (loop), memoização instável. Bugs latentes reais.
+3. **`Mood/mood.py` NaN→null** (~5min) — `json.loads(df.to_json(...))` em vez de `df.to_dict`.
+4. **`.gitignore *.backup*`** (~1min) — pega `mood.csv.backup-*` que `*.backup` não cobre.
+5. **logrotate `/etc/logrotate.d/roocode`** (~5min) — log já em ~19MB sem rotation.
+6. **`requirements.txt`** (~5min) — pip freeze filtrado pras 8 deps reais.
 
-**Sprints light (independentes, paralelos a qualquer um acima):**
-- **11C** — cadastrar Clonazepam PRN via `MedicationCatalogEditor` (~30min, ganho clínico imediato)
+**Lights paralelos (~1h total):**
+- **11C** — cadastrar Clonazepam PRN via `MedicationCatalogEditor` (~30min, ganho clínico imediato pra Insights)
 - **11D** — resolver 3 TODOs(Anders) em `roocode-adapter.ts`, `data-readiness.ts`, `health-policies.ts` (~30min)
-- **11-Ops** — `requirements.txt`, `os.replace` em `_save_*`, logrotate, LRU cache (~1h)
 
-**Total pra zerar tudo:** ~7-9h em 4-5 sessões. Pode parar em qualquer Sprint sem comprometer o que já roda.
+**Cinza (opcional, ~30min):**
+- Validações simétricas em `POST /farma/doses` (3 linhas)
+- `updateDose` resolver custom (1 linha)
+- `chmod 600 /root/GEMINI_API/env.yml` (zero custo)
+
+**Total realista:** ~3-4h em 1-2 sessões. Após Sprint 11: projeto em modo manutenção.

@@ -191,7 +191,13 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
   - **10B ✅** DoseCalendarView dual-pane (`375186c`) — `DoseHistoryView` (lista flat) substituído por calendário visual: grid mensal com Fraunces serif nos números, domingos italic, hoje com border violet, dots empilhados verticais coloridos por substância (max 4 + "+N"); side panel direito com dia selecionado + lista de doses + edit/delete inline preservados. Skill `frontend-design` aplicada (estética editorial-medical journal).
   - **Fix lateral ✅** cap de hours em /farma/doses (`5b8e28c`) — aumentado de `le=720` pra `le=8760` (1 ano) pra suportar janela de 90 dias do calendar. Side bug detectado: `get()` em `lib/api.ts` lança erro corretamente em 422, mas TanStack Query cacheia error state silenciosamente — daí o calendário renderizou vazio até o fix. Vira Fase 11B (logger global).
   - **10C ✅** Diagnóstico de redundâncias documentado em `/root/.claude/plans/fase-10c-findings.md`. Decisões: `HrvAnalysis` e `HeartRateBands` removidos de sleepPhysiology (ficam só em Executive), `WeeklyPatternChart` concentrado em patterns, MoodTimeline+Donut / PKScatter+Lag / SleepStages+Timeline confirmados como features (mantidos), 3 órfãos clínicos promovidos pra chart próprio (`respiratoryDisturbances`, `respiratoryRate+pulseTemperatureC`, `cardioRecoveryBpm`).
-  - **10D ⏳** Implementação dos findings da 10C — escopo completo em `/root/RooCode/ROADMAP.md` + `/root/.claude/plans/fase-10c-findings.md`.
+  - **10D ✅** (2026-04-26) Implementação dos findings da 10C — 6 commits:
+    - `91e063f` 10D-1: remoção de 3 charts duplicados de sleepPhysiology
+    - `8c7cfbf` 10D-2a: `RespiratoryDisturbancesChart` (Bar + SMA-7d, bandas IAH)
+    - `95227c7` 10D-2b: `VitalSignsTimeline` (dual-axis FR + temperatura)
+    - `40a6111` 10D-2c: `CardioRecoveryChart` (SMA-14d, bandas HRR-1)
+    - `305c1b3` fix: adapter aceita `Date/Time` (AutoExport v1) além de `Data/Hora` (v2)
+    - `8136359` fix: `MetricsRecord` tipado com ambas as variantes de coluna de data
 
 ---
 
@@ -200,7 +206,6 @@ Glob (`./**/*.{ts,tsx}`) também não funciona confiável. Cada arquivo novo com
 Estado completo do projeto + sub-sprints futuras: **`/root/RooCode/ROADMAP.md`**.
 
 Fases pendentes (escopo conhecido):
-- **10D** — execução dos findings da 10C (4 commits, ~1.5-2h)
 - **11A-D** — polimentos opcionais (code-splitting, logger erros, Clonazepam PRN, TODOs(Anders))
 - **9E** (ação Anders) — re-upload CSV mood histórico no iPhone
 
@@ -219,58 +224,30 @@ Ver plano atual em `/root/.claude/plans/wise-puzzling-shell.md`.
 
 ---
 
-## KICKOFF — Fase 10D: Implementação dos findings da 10C
+## KICKOFF — Fase 11 (polimentos opcionais)
 
-> Cole esse texto em sessão fresh. Detalhes operacionais em `/root/.claude/plans/fase-10c-findings.md` e `/root/RooCode/ROADMAP.md`.
+> Cole esse texto em sessão fresh. Detalhes em `/root/RooCode/ROADMAP.md`.
 
-**Estado pós sessão 2026-04-25:**
-- Fase 10A/B/C concluídas (commits `a71843e`, `375186c`, `5b8e28c`).
-- 22+ commits ahead de origin/main (depende de push entre sessões).
-- `roocode.service` `active (running)`, backend 4 endpoints `/farma/*` operacionais.
-- ROADMAP.md em `/root/RooCode/` documenta todas as sub-sprints futuras.
+**Estado pós sessão 2026-04-26:**
+- Fases 10A/B/C/D concluídas. 28+ commits ahead de origin/main.
+- `roocode.service` `active (running)`, 3 charts clínicos novos em sleepPhysiology.
+- AutoExport v1/v2 dual-format resolvido no adapter de metrics.
 - 9E segue aberta (ação Anders, sem código).
 
-**Objetivo da Fase 10D:** executar as decisões registradas em `fase-10c-findings.md` em 2 sub-sprints independentes.
-
-### Passo 0: Sanity inicial
-
+**Sanity inicial:**
 ```bash
 systemctl is-active roocode.service
-curl -s http://localhost:8011/farma/regimen | jq 'length'  # = 3
-git log --oneline origin/main..main | wc -l                # ≥22 (depende de push prévio)
+git log --oneline origin/main..main | wc -l  # ≥28
 ```
 
-### 10D-1 — Remoções (15-20min, 1 commit)
+**Fases disponíveis (independentes, qualquer ordem):**
+- **11A** — code-splitting bundle JS (`React.lazy` por aba, ~1h)
+- **11B** — logger global de erros TanStack Query (toast em erros HTTP, ~30min)
+- **11C** — cadastrar Clonazepam PRN via `MedicationCatalogEditor` (~30min)
+- **11D** — resolver 3 TODOs(Anders) em `roocode-adapter.ts`, `data-readiness.ts`, `health-policies.ts` (~30min)
 
-App.tsx: apagar 3 instâncias na aba sleepPhysiology:
-- `<HrvAnalysis />` (L489) — duplicata exata de executive L399
-- `<HeartRateBands />` (L490) — duplicata exata de executive L405
-- `<WeeklyPatternChart />` (L499) — triplicata de patterns L527
-
-Reorganizar grid se necessário pra preencher o espaço (ou deixar aberto pra 10D-2). `npm run build` zero erros.
-
-Commit: `refactor(roocode): fase 10D-1 — remover charts duplicados de sleepPhysiology`.
-
-### 10D-2 — 3 charts clínicos novos (1-1.5h, 3 commits)
-
-Novos componentes em `frontend/src/components/charts/`, posicionados na aba sleepPhysiology preenchendo o espaço dos removidos:
-
-- `RespiratoryDisturbancesChart` — `respiratoryDisturbances`, threshold IAH 5/15/30 (referência clínica)
-- `VitalSignsTimeline` — `respiratoryRate` (RR 12-20 rpm normal) + `pulseTemperatureC` (36-37°C normal), dual-axis
-- `CardioRecoveryChart` — `cardioRecoveryBpm`, bandas excelente >18 / boa 13-18 / regular 8-12 / ruim <8
-
-Pra cada: atualizar `frontend/src/utils/health-policies.ts` (thresholds), `frontend/src/utils/data-readiness.ts` (`CHART_REQUIREMENTS`), `frontend/src/utils/interpolate.ts` (policy). Reaproveitar estilo de `vo2-max-chart.tsx` (ReferenceArea), `spo2-chart.tsx` (alertas), `heart-rate-bands.tsx` (SMA + bandas).
-
-Commits: 1 por chart.
-
-### Após Fase 10D
-
-Decisão: continuar pra Fase 11 (polimentos opcionais — ver ROADMAP.md) ou push pra origin/main + pausar.
-
-### 9E — Re-upload CSV mood histórico (ação Anders, paralela)
-
-iPhone → AutoExport → export State of Mind CSV completo → upload via `POST /health/api/mood`. Verificar HH:MM:SS preservado em Emoções Momentâneas antigas:
+**9E (ação Anders, paralela):**
+iPhone → AutoExport → export State of Mind CSV → `POST /health/api/mood`. Verificar HH:MM:SS:
 ```bash
 curl -s http://localhost:8011/mood | jq '.[] | select(.Fim == "Emoção Momentânea") | .Iniciar' | head -5
 ```
-Não bloqueia 10D.

@@ -14,7 +14,15 @@ import {
 } from '@/utils/roocode-adapter'
 import { useForecast, type ForecastMode } from './useForecast'
 import { useInterpolation, type InterpolationMode } from './useInterpolation'
-import type { WeeklyDayStats } from './useActivityAnalysis'
+
+export interface WeeklyDayStats {
+  dayName: string
+  dayIndex: number
+  avgExercise: number | null
+  avgEnergy: number | null
+  avgDaylight: number | null
+  count: number
+}
 
 export interface RooCodeData {
   snapshots: DailySnapshot[]

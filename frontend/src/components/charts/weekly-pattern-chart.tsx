@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { WeeklyDayStats } from '@/hooks/useActivityAnalysis'
+import type { WeeklyDayStats } from '@/hooks/useRooCodeData'
 import type { DailySnapshot } from '@/types/apple-health'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from './shared/DataReadinessGate'

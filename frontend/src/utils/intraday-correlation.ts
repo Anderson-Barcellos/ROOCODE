@@ -41,17 +41,6 @@ export interface LagCorrelation {
   n: number
 }
 
-export interface AdherenceStats {
-  medicationId: string
-  medicationName: string
-  doseCount: number
-  medianHour: number | null
-  medianMinute: number | null
-  stdDevMinutes: number | null
-  regularityScore: number | null
-  windowDays: number
-}
-
 // ─── Parse timestamps do mood ────────────────────────────────────────────────
 
 /**
@@ -205,68 +194,6 @@ export function computeLagCorrelation(
     const r = pearson(x, y)
     return { lagHours: lag, r: Number.isFinite(r) ? r : 0, n: pairs.length }
   })
-}
-
-// ─── Adherence stats ─────────────────────────────────────────────────────────
-
-/**
- * Calcula regularidade dos horários de dose por substância.
- *
- * medianHour/medianMinute: o "horário típico" derivado dos dados.
- * stdDevMinutes: desvio padrão dos minutos do dia (0-1440).
- *   - <30min → muito regular
- *   - 30-90min → razoável
- *   - >90min → disperso
- *
- * regularityScore: 1 - min(stdDev/180, 1). 1 = perfeito, 0 = caótico.
- * Usa window of last N days (default 30) pra não dar peso a logs antigos.
- */
-export function buildAdherenceStats(
-  doses: DoseRecord[],
-  substances: Substance[],
-  windowDays = 30,
-): AdherenceStats[] {
-  const windowStart = Date.now() - windowDays * 86400 * 1000
-  const byMed = new Map<string, DoseRecord[]>()
-  for (const dose of doses) {
-    const t = new Date(dose.taken_at).getTime()
-    if (!Number.isFinite(t) || t < windowStart) continue
-    const arr = byMed.get(dose.substance) ?? []
-    arr.push(dose)
-    byMed.set(dose.substance, arr)
-  }
-
-  const nameFor = new Map(substances.map((s) => [s.id, s.display_name.split(' ')[0]]))
-
-  const stats: AdherenceStats[] = []
-  for (const [medId, records] of byMed) {
-    if (!records.length) continue
-    const minutesOfDay = records
-      .map((r) => {
-        const d = new Date(r.taken_at)
-        return d.getHours() * 60 + d.getMinutes()
-      })
-      .sort((a, b) => a - b)
-
-    const median = minutesOfDay[Math.floor(minutesOfDay.length / 2)]
-    const mean = minutesOfDay.reduce((a, b) => a + b, 0) / minutesOfDay.length
-    const variance =
-      minutesOfDay.reduce((acc, m) => acc + (m - mean) ** 2, 0) / minutesOfDay.length
-    const stdDev = Math.sqrt(variance)
-
-    stats.push({
-      medicationId: medId,
-      medicationName: nameFor.get(medId) ?? medId,
-      doseCount: records.length,
-      medianHour: Math.floor(median / 60),
-      medianMinute: median % 60,
-      stdDevMinutes: stdDev,
-      regularityScore: Math.max(0, 1 - Math.min(stdDev / 180, 1)),
-      windowDays,
-    })
-  }
-
-  return stats.sort((a, b) => (b.regularityScore ?? 0) - (a.regularityScore ?? 0))
 }
 
 /**

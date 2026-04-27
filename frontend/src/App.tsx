@@ -20,7 +20,6 @@ import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
-import { MedicationAdherenceChart } from '@/components/charts/medication-adherence-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
 import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
@@ -538,7 +537,6 @@ export default function App() {
                 </div>
                 <PKMoodScatterChart />
                 <LagCorrelationChart />
-                <MedicationAdherenceChart />
               </div>
             </SurfaceFrame>
           )}

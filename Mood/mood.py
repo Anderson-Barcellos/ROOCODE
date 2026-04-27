@@ -12,7 +12,7 @@ def _scalingValence(value: int | float) -> float:
     """
     Scales the valence value to a range of 0 to 100.
     """
-    return (value + 100) / 2
+    return round((value + 100) / 2)
 
 
 def _format_mood_date(value: object) -> str:

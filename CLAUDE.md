@@ -209,9 +209,10 @@ Estado completo do projeto + sub-sprints futuras: **`/root/RooCode/ROADMAP.md`**
 
 **Inventário 2026-04-27:** 3 agentes Explore mapearam frontend + backend + ops. Achados consolidados no histórico do chat e refletidos no ROADMAP. Achado mais relevante: ~2.035 LOC de dead code que a auditoria não viu (chart órfão de 710 LOC + 3 utils dead) — atacado na Sprint 11A.
 
-**🎯 Sidequest ativa:** revisão de charts em `CHARTENDEAVOR.md` — escopo separado, ritmo exploratório, aguardando sessão fresh.
+**🎯 Sidequest ativa — Revisão de Charts:** plano em `/root/.claude/plans/merry-plotting-sunbeam.md`. 5 sprints (CHART-1 a CHART-5). Sprint CHART-1 concluída em 2026-04-27 (sessão atual via `superpowers:subagent-driven-development`). Próxima: **Sprint CHART-2** (bugs adapter — `sleepInBedHours`, mismatch `[Min]/[Mínimo]`, `Peso (kg)`, `movementMinutes` zumbi).
 
 Sprints concluídas:
+- **Sprint CHART-1 ✅** (2026-04-27, commits `653f906` → `7b41083` → `2a3d0a0` → `1b1dfba`) — limpeza visual: removidos 3 charts de baixo signal (`MoodDonut`, `WeeklyPatternChart`, `MedicationAdherenceChart`) + dead-code chain (`buildWeeklyPattern`, `WeeklyDayStats`, `weeklyPattern` field do hook, `DAY_NAMES`, `buildAdherenceStats`, `AdherenceStats`, 3 entradas em `CHART_REQUIREMENTS`). Delta: **−590 LOC líquidas** (7 arquivos). Bundle gzip: 266 kB → 264 kB. Build verde. Achado pendente pra Sprint 11B: `dow_coverage` variant + `countDowCoverage` em `data-readiness.ts` viraram dead code não-alcançável após remoção do `weeklyPatternChart` (TS não detecta porque a variant ainda é tipo válido sintaticamente).
 - **Sprint 11A ✅** (2026-04-27, `ff33e70`) — limpeza dead code: 7 arquivos deletados (~2.035 LOC), 4 deps órfãs removidas (`zustand`, `clsx`, `class-variance-authority`, `tailwind-merge`), type `WeeklyDayStats` migrado pra `useRooCodeData.ts`. Build verde. Bundle estável (~960KB) — tree-shaking já eliminava esse código, ganho foi de manutenção/legibilidade.
 
 Sprints pendentes:

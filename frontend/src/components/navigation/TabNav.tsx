@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { BrainCircuit, LayoutDashboard, MoonStar, Orbit, Sparkles, Telescope } from 'lucide-react'
+import { Activity, BrainCircuit, LayoutDashboard, MoonStar, Orbit, Sparkles, Telescope } from 'lucide-react'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
-export type TabKey = 'executive' | 'moodMedication' | 'sleepPhysiology' | 'patterns' | 'insights'
+export type TabKey = 'panorama' | 'moodMedication' | 'sleepPhysiology' | 'atividade' | 'patterns' | 'insights'
 
 export const rangeOptions = ['7d', '30d', '90d', '1y', 'all'] as const
 export type RangeOption = (typeof rangeOptions)[number]
@@ -34,9 +34,10 @@ interface TabNavProps {
 }
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> = [
-  { key: 'executive', label: 'Executivo', icon: LayoutDashboard },
+  { key: 'panorama', label: 'Panorama', icon: LayoutDashboard },
+  { key: 'sleepPhysiology', label: 'Sono', icon: MoonStar },
+  { key: 'atividade', label: 'Atividade', icon: Activity },
   { key: 'moodMedication', label: 'Humor + Medicação', icon: BrainCircuit },
-  { key: 'sleepPhysiology', label: 'Sono + Fisiologia', icon: MoonStar },
   { key: 'patterns', label: 'Padrões', icon: Orbit },
   { key: 'insights', label: 'Descritivo e Insights', icon: Telescope },
 ]

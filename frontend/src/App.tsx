@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Compass, BrainCircuit, MoonStar, Orbit, FlaskConical, Telescope } from 'lucide-react'
+import { Activity, Compass, BrainCircuit, MoonStar, Orbit, FlaskConical, Telescope } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
@@ -254,7 +254,7 @@ function ForecastBanner({ mode, loading, error, forecastedCount }: ForecastBanne
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('executive')
+  const [activeTab, setActiveTab] = useState<TabKey>('panorama')
   const [range, setRange] = useState<RangeOption>('30d')
   const [hash, setHash] = useState(() => window.location.hash)
   const [catalogOpen, setCatalogOpen] = useState(false)
@@ -376,12 +376,12 @@ export default function App() {
             forecastedCount={data.forecastedCount}
           />
 
-          {activeTab === 'executive' && (
+          {activeTab === 'panorama' && (
             <SurfaceFrame
               icon={<Compass className="h-4 w-4" />}
-              kicker="Executivo"
-              title="Visão geral semanal"
-              description="Panorama consolidado de sono, atividade, humor e medicação nos últimos dias."
+              kicker="Panorama"
+              title="Como estou no geral?"
+              description="Visão consolidada de sono, atividade, humor e medicação nos últimos dias."
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
@@ -497,6 +497,19 @@ export default function App() {
                   <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                 </div>
               )}
+            </SurfaceFrame>
+          )}
+
+          {activeTab === 'atividade' && (
+            <SurfaceFrame
+              icon={<Activity className="h-4 w-4" />}
+              kicker="Atividade"
+              title="Estou me movendo bem?"
+              description="Energia, exercício, marcha e capacidade cardiorrespiratória."
+              window={{ label: range, coveredDays: ranged.length }}
+              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
+            >
+              <EmptyAnalyticsState message="Charts de atividade virão na próxima fase (R1.3) — esta tab será populada com ActivityBars, Passos, VO2 Máx e perfil de marcha." />
             </SurfaceFrame>
           )}
 

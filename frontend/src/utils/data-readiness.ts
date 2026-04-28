@@ -169,4 +169,5 @@ export const CHART_REQUIREMENTS = {
   respiratoryDisturbancesChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'respiratoryDisturbances' },
   vitalSignsTimelineChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'respiratoryRate' },
   cardioRecoveryChart: { type: 'days', readyMin: 14, partialMin: 7, field: 'cardioRecoveryBpm' },
+  hrRangeChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'heartRateMean' },
 } as const satisfies Record<string, ReadinessRequirement>

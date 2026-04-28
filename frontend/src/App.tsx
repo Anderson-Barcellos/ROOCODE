@@ -23,6 +23,7 @@ import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
 import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
+import { HRRangeChart } from '@/components/charts/hr-range-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { TimelineChart } from '@/components/charts/timeline-chart'
@@ -407,6 +408,9 @@ export default function App() {
                       forecastStartDate={forecast === 'on' ? todayIso : undefined}
                     />
                   </div>
+
+                  {/* CHART-2 — Range diario de FC (min/mean/max) */}
+                  <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                   {/* Fase 8A — Passos & distância (atividade psicomotora) */}
                   <StepsChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />

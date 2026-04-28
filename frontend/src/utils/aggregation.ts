@@ -25,6 +25,16 @@ function meanFields(rows: HealthAutoExportRow[], key: keyof HealthAutoExportRow)
   return mean(rows.map((row) => row[key] as number | null))
 }
 
+function minFields(rows: HealthAutoExportRow[], key: keyof HealthAutoExportRow): number | null {
+  const values = rows.map((row) => row[key] as number | null).filter((v): v is number => v != null)
+  return values.length > 0 ? Math.min(...values) : null
+}
+
+function maxFields(rows: HealthAutoExportRow[], key: keyof HealthAutoExportRow): number | null {
+  const values = rows.map((row) => row[key] as number | null).filter((v): v is number => v != null)
+  return values.length > 0 ? Math.max(...values) : null
+}
+
 function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHealthMetrics {
   const sleepInBedHours = sumFields(rows, 'sleepInBedHours')
   const sleepAsleepHours = sumFields(rows, 'sleepAsleepHours')
@@ -46,8 +56,8 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
     respiratoryDisturbances: sumFields(rows, 'respiratoryDisturbances'),
     activeEnergyKcal: sumFields(rows, 'activeEnergyKcal'),
     restingEnergyKcal: meanFields(rows, 'restingEnergyKcal'),
-    heartRateMin: meanFields(rows, 'heartRateMin'),
-    heartRateMax: meanFields(rows, 'heartRateMax'),
+    heartRateMin: minFields(rows, 'heartRateMin'),
+    heartRateMax: maxFields(rows, 'heartRateMax'),
     heartRateMean: meanFields(rows, 'heartRateMean'),
     restingHeartRate: meanFields(rows, 'restingHeartRate'),
     spo2: meanFields(rows, 'spo2'),

@@ -71,12 +71,17 @@ function toneFor(value: number | null, positive: number, watch: number, lowerIsB
   return 'negative'
 }
 
+type MetricCluster = {
+  title: string
+  metrics: AnalyticsMetric[]
+}
+
 function buildExecutiveMetrics(
   ov: OverviewMetrics,
   days: { validRealDays: number; validMoodDays: number },
   activity: { steps7d: number | null; vo2Max7d: number | null; walkingSpeed7d: number | null },
   physiology: { respiratoryRate7d: number | null; pulseTemperatureC7d: number | null },
-): AnalyticsMetric[] {
+): MetricCluster[] {
   // Fase 5d: KPIs de média-7d só fazem sentido com 7+ dias reais.
   // Abaixo disso, value vira null → MetricGrid mostra "Sem dados".
   const enoughReal = days.validRealDays >= 7
@@ -96,92 +101,83 @@ function buildExecutiveMetrics(
   const rpm = enoughReal ? physiology.respiratoryRate7d : null
   const wristTemp = enoughReal ? physiology.pulseTemperatureC7d : null
   return [
-    { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
-    { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
     {
-      label: 'FC Repouso 7d',
-      value: rhr,
-      unit: 'bpm',
-      tone: toneFor(rhr, 60, 70, true),
+      title: 'Sono e Recuperação',
+      metrics: [
+        { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
+        { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
+        { label: 'FC Repouso 7d', value: rhr, unit: 'bpm', tone: toneFor(rhr, 60, 70, true) },
+        {
+          // Freq. respiratória em repouso adulto: 12-20 rpm normal; acima = taquipneia.
+          // Bradipneia <12 raro neste perfil farmacológico, mas tratado como 'watch'.
+          label: 'Freq. resp. 7d',
+          value: rpm,
+          unit: 'rpm',
+          tone: rpm == null
+            ? 'neutral'
+            : rpm > 20
+            ? 'negative'
+            : rpm >= 16
+            ? 'watch'
+            : rpm >= 12
+            ? 'positive'
+            : 'watch',
+        },
+        {
+          // Temperatura de pulso noturna (wrist temp absoluto °C) — faixa estável
+          // 35.5-36.8 em repouso. >37.0 sinaliza possível febre incipiente; <35.5
+          // merece atenção ('watch') mas pode ser variação normal de periferia.
+          label: 'Temp. pulso 7d',
+          value: wristTemp,
+          unit: '°C',
+          tone: wristTemp == null
+            ? 'neutral'
+            : wristTemp >= 37.0
+            ? 'negative'
+            : wristTemp >= 36.8
+            ? 'watch'
+            : wristTemp >= 35.5
+            ? 'positive'
+            : 'watch',
+        },
+      ],
     },
     {
-      label: 'Humor 7d',
-      value: moodPct,
-      unit: '%',
-      tone: mood == null
-        ? 'neutral'
-        : mood >= 0.35
-        ? 'positive'
-        : mood >= -0.1
-        ? 'watch'
-        : 'negative',
+      title: 'Atividade e Energia',
+      metrics: [
+        {
+          label: 'Passos 7d',
+          value: steps != null ? Math.round(steps) : null,
+          unit: '',
+          tone: toneFor(steps, 10000, 7500),
+        },
+        {
+          label: 'Exercício 7d',
+          value: exMin,
+          unit: 'min',
+          tone: exMin == null ? 'neutral' : exMin >= 30 ? 'positive' : 'watch',
+        },
+        { label: 'Energia ativa 7d', value: kcal, unit: 'kcal', tone: toneFor(kcal, 400, 200) },
+        { label: 'VO2 Máx 7d', value: vo2, unit: '', tone: toneFor(vo2, 45, 37) },
+        { label: 'Vel. marcha 7d', value: walkingSpeed, unit: 'km/h', tone: toneFor(walkingSpeed, 5.5, 4.5) },
+      ],
     },
     {
-      label: 'Passos 7d',
-      value: steps != null ? Math.round(steps) : null,
-      unit: '',
-      tone: toneFor(steps, 10000, 7500),
-    },
-    {
-      label: 'VO2 Máx 7d',
-      value: vo2,
-      unit: '',
-      tone: toneFor(vo2, 45, 37),
-    },
-    {
-      label: 'Vel. marcha 7d',
-      value: walkingSpeed,
-      unit: 'km/h',
-      tone: toneFor(walkingSpeed, 5.5, 4.5),
-    },
-    {
-      label: 'Energia ativa 7d',
-      value: kcal,
-      unit: 'kcal',
-      tone: toneFor(kcal, 400, 200),
-    },
-    {
-      label: 'Exercício 7d',
-      value: exMin,
-      unit: 'min',
-      tone: exMin == null
-        ? 'neutral'
-        : exMin >= 30
-        ? 'positive'
-        : 'watch',
-    },
-    {
-      // Freq. respiratória em repouso adulto: 12-20 rpm normal; acima = taquipneia.
-      // Bradipneia <12 raro neste perfil farmacológico, mas tratado como 'watch'.
-      label: 'Freq. resp. 7d',
-      value: rpm,
-      unit: 'rpm',
-      tone: rpm == null
-        ? 'neutral'
-        : rpm > 20
-        ? 'negative'
-        : rpm >= 16
-        ? 'watch'
-        : rpm >= 12
-        ? 'positive'
-        : 'watch',
-    },
-    {
-      // Temperatura de pulso noturna (wrist temp absoluto °C) — faixa estável
-      // 35.5-36.8 em repouso. >37.0 sinaliza possível febre incipiente; <35.5
-      // merece atenção ('watch') mas pode ser variação normal de periferia.
-      label: 'Temp. pulso 7d',
-      value: wristTemp,
-      unit: '°C',
-      tone: wristTemp == null
-        ? 'neutral'
-        : wristTemp >= 37.0
-        ? 'negative'
-        : wristTemp >= 36.8
-        ? 'watch'
-        : wristTemp >= 35.5
-        ? 'positive'
-        : 'watch',
+      title: 'Humor',
+      metrics: [
+        {
+          label: 'Humor 7d',
+          value: moodPct,
+          unit: '%',
+          tone: mood == null
+            ? 'neutral'
+            : mood >= 0.35
+            ? 'positive'
+            : mood >= -0.1
+            ? 'watch'
+            : 'negative',
+        },
+      ],
     },
   ]
 }
@@ -388,8 +384,15 @@ export default function App() {
               {ranged.length === 0 ? (
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
-                <div className="space-y-4">
-                  <MetricGrid metrics={executiveMetrics} />
+                <div className="space-y-6">
+                  {executiveMetrics.map((cluster) => (
+                    <div key={cluster.title} className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {cluster.title}
+                      </h3>
+                      <MetricGrid metrics={cluster.metrics} />
+                    </div>
+                  ))}
 
                   <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 

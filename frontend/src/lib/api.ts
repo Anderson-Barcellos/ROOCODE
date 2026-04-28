@@ -112,7 +112,6 @@ export interface MetricsRecord {
   'Variabilidade da Frequência Cardíaca (ms)'?: number
   'Velocidade de Caminhada (km/hr)'?: number
   'Velocidade de Corrida (km/hr)'?: number
-  'Peso (kg)'?: number
   'Recuperação Cardio (contagem/min)'?: number
 }
 

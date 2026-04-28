@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { Activity, BrainCircuit, Heart, LayoutDashboard, MoonStar, Orbit, Sparkles, Telescope } from 'lucide-react'
+import { Activity, Heart, LayoutDashboard, MoonStar, Orbit, Pill, Sparkles, Telescope } from 'lucide-react'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
-export type TabKey = 'panorama' | 'sono' | 'coracao' | 'atividade' | 'moodMedication' | 'patterns' | 'insights'
+export type TabKey = 'panorama' | 'sono' | 'coracao' | 'atividade' | 'farmaco' | 'patterns' | 'insights'
 
 export const rangeOptions = ['7d', '30d', '90d', '1y', 'all'] as const
 export type RangeOption = (typeof rangeOptions)[number]
@@ -38,7 +38,7 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> 
   { key: 'sono', label: 'Sono', icon: MoonStar },
   { key: 'coracao', label: 'Coração', icon: Heart },
   { key: 'atividade', label: 'Atividade', icon: Activity },
-  { key: 'moodMedication', label: 'Humor + Medicação', icon: BrainCircuit },
+  { key: 'farmaco', label: 'Farmaco', icon: Pill },
   { key: 'patterns', label: 'Padrões', icon: Orbit },
   { key: 'insights', label: 'Descritivo e Insights', icon: Telescope },
 ]

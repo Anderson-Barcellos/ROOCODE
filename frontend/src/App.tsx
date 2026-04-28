@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Activity, Compass, BrainCircuit, MoonStar, Orbit, FlaskConical, Telescope } from 'lucide-react'
+import { Activity, Compass, MoonStar, Orbit, FlaskConical, Pill, Telescope } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
@@ -406,11 +406,11 @@ export default function App() {
             </SurfaceFrame>
           )}
 
-          {activeTab === 'moodMedication' && (
+          {activeTab === 'farmaco' && (
             <SurfaceFrame
-              icon={<BrainCircuit className="h-4 w-4" />}
-              kicker="Humor + Medicação"
-              title="Farmacocinética e estado afetivo"
+              icon={<Pill className="h-4 w-4" />}
+              kicker="Farmaco"
+              title="A medicação está funcionando?"
               description="Concentração plasmática (% Cmax) sobreposta ao humor — com doses, lags e regressões."
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}

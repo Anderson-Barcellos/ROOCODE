@@ -30,7 +30,6 @@ export interface HealthAutoExportRow {
   respiratoryRate: number | null
   pulseTemperatureC: number | null
   exerciseMinutes: number | null
-  movementMinutes: number | null
   standingMinutes: number | null
   daylightMinutes: number | null
   hrvSdnn: number | null
@@ -94,7 +93,6 @@ export interface DailyHealthMetrics {
   respiratoryRate: number | null
   pulseTemperatureC: number | null
   exerciseMinutes: number | null
-  movementMinutes: number | null
   standingMinutes: number | null
   daylightMinutes: number | null
   hrvSdnn: number | null
@@ -154,7 +152,6 @@ export type TimelineSeriesKey =
   | 'spo2'
   | 'activeEnergyKcal'
   | 'exerciseMinutes'
-  | 'movementMinutes'
   | 'standingMinutes'
   | 'daylightMinutes'
   | 'valence'

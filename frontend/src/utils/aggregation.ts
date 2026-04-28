@@ -54,7 +54,6 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
     respiratoryRate: meanFields(rows, 'respiratoryRate'),
     pulseTemperatureC: meanFields(rows, 'pulseTemperatureC'),
     exerciseMinutes: sumFields(rows, 'exerciseMinutes'),
-    movementMinutes: sumFields(rows, 'movementMinutes'),
     standingMinutes: sumFields(rows, 'standingMinutes'),
     daylightMinutes: sumFields(rows, 'daylightMinutes'),
     hrvSdnn: meanFields(rows, 'hrvSdnn'),
@@ -253,8 +252,6 @@ function getSeriesValue(snapshot: DailySnapshot, key: TimelineSeriesKey): number
       return health?.activeEnergyKcal ?? null
     case 'exerciseMinutes':
       return health?.exerciseMinutes ?? null
-    case 'movementMinutes':
-      return health?.movementMinutes ?? null
     case 'standingMinutes':
       return health?.standingMinutes ?? null
     case 'daylightMinutes':

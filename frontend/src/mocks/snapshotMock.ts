@@ -59,7 +59,6 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
     // Atividade
     const activeEnergy = 350 + rand() * 200          // 350-550 kcal
     const exerciseMin = 20 + rand() * 40             // 20-60 min
-    const movementMin = 40 + rand() * 40             // 40-80 min
     const standingMin = 10 + rand() * 4              // 10-14 horas (standing hours)
     const daylightMin = 30 + rand() * 60             // 30-90 min
 
@@ -102,7 +101,6 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
         respiratoryRate: +respRate.toFixed(1),
         pulseTemperatureC: +pulseTemp.toFixed(2),
         exerciseMinutes: +exerciseMin.toFixed(0),
-        movementMinutes: +movementMin.toFixed(0),
         standingMinutes: +standingMin.toFixed(0),
         daylightMinutes: +daylightMin.toFixed(0),
         hrvSdnn: +hrv.toFixed(1),

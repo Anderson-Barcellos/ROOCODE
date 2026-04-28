@@ -33,7 +33,6 @@ const seriesPalette: Record<TimelineSeriesKey, string> = {
   spo2: '#7c3aed',
   activeEnergyKcal: '#ea580c',
   exerciseMinutes: '#ca8a04',
-  movementMinutes: '#c2410c',
   standingMinutes: '#fb7185',
   daylightMinutes: '#f59e0b',
   valence: '#15803d',

@@ -167,7 +167,6 @@ export function InterpolationDemo() {
     spo2: 'SpO₂',
     activeEnergyKcal: 'Energia Ativa',
     exerciseMinutes: 'Exercício',
-    movementMinutes: 'Movimento',
     standingMinutes: 'Em Pé',
     daylightMinutes: 'Luz Natural',
     sleepEfficiencyPct: 'Eficiência Sono',

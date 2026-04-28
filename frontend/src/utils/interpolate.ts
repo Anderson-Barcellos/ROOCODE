@@ -50,7 +50,6 @@ const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   respiratoryRate: 'interpolate',
   pulseTemperatureC: 'linear_bounded',
   exerciseMinutes: 'interpolate',
-  movementMinutes: 'interpolate',
   standingMinutes: 'interpolate',
   daylightMinutes: 'interpolate',
   // Fase 8A — novos campos
@@ -233,7 +232,6 @@ function interpolateHealth(
     respiratoryRate: null,
     pulseTemperatureC: null,
     exerciseMinutes: null,
-    movementMinutes: null,
     standingMinutes: null,
     daylightMinutes: null,
     // Fase 8A — Activity/Physiology

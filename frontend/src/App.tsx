@@ -44,7 +44,6 @@ const TIMELINE_LABELS: Record<TimelineSeriesKey, string> = {
   spo2: 'SpO₂ (%)',
   activeEnergyKcal: 'Energia ativa (kcal)',
   exerciseMinutes: 'Exercício (min)',
-  movementMinutes: 'Movimento (min)',
   standingMinutes: 'Em pé (min)',
   daylightMinutes: 'Luz do dia (min)',
   valence: 'Humor',

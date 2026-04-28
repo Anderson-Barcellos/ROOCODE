@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Activity, Compass, MoonStar, Orbit, FlaskConical, Pill, Telescope } from 'lucide-react'
+import { Activity, Compass, MoonStar, FlaskConical, Pill, Telescope } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
@@ -525,34 +525,14 @@ export default function App() {
             </SurfaceFrame>
           )}
 
-          {activeTab === 'patterns' && (
-            <SurfaceFrame
-              icon={<Orbit className="h-4 w-4" />}
-              kicker="Padrões"
-              title="Análise correlacional"
-              description="Matriz N×N Pearson entre PK, humor, sono, HRV e atividade. Clique uma célula para ver o scatter detalhado."
-              window={{ label: range, coveredDays: ranged.length }}
-              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
-            >
-              {ranged.length === 0 ? (
-                <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
-              ) : (
-                <div className="space-y-4">
-                  <CorrelationHeatmap snapshots={ranged} />
-                  <ScatterCorrelation snapshots={ranged} />
-                </div>
-              )}
-            </SurfaceFrame>
-          )}
-
           {activeTab === 'insights' && (
             <SurfaceFrame
               icon={<Telescope className="h-4 w-4" />}
-              kicker="Descritivo + Insights"
-              title="Exploração intraday e hipóteses clínicas"
-              description="Análises em granularidade horária — concentração × humor momentâneo e lag analysis. Observações, não diagnósticos."
+              kicker="Insights"
+              title="O que a IA vê nos meus dados?"
+              description="Correlações Pearson entre métricas + análises intraday concentração × humor. Observações, não diagnósticos."
               window={{ label: range, coveredDays: ranged.length }}
-              status={data.usedMock ? 'Mock · sem eventos momentâneos' : `${data.snapshots.length} dias`}
+              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
               <div className="space-y-4">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
@@ -563,6 +543,12 @@ export default function App() {
                     dados pra conclusão robusta.
                   </span>
                 </div>
+                {ranged.length > 0 && (
+                  <>
+                    <CorrelationHeatmap snapshots={ranged} />
+                    <ScatterCorrelation snapshots={ranged} />
+                  </>
+                )}
                 <PKMoodScatterChart />
                 <LagCorrelationChart />
               </div>

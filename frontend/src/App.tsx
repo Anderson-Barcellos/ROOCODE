@@ -393,10 +393,6 @@ export default function App() {
 
                   <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
-                  <ActivityBars snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-
-                  <StepsChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-
                   {forecast === 'on' && (
                     <ForecastSignalsPanel
                       signals={data.forecastSignals}
@@ -465,12 +461,6 @@ export default function App() {
 
                   <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
-                  {/* Vo2Max + Walking Vitality migram pra atividade em R1.3 */}
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                  </div>
-
                   <div className="grid gap-4 lg:grid-cols-2">
                     <RespiratoryDisturbancesChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <VitalSignsTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
@@ -518,7 +508,20 @@ export default function App() {
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
-              <EmptyAnalyticsState message="Charts de atividade virão na próxima fase (R1.3) — esta tab será populada com ActivityBars, Passos, VO2 Máx e perfil de marcha." />
+              {ranged.length === 0 ? (
+                <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
+              ) : (
+                <div className="space-y-4">
+                  <ActivityBars snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+
+                  <StepsChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                    <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  </div>
+                </div>
+              )}
             </SurfaceFrame>
           )}
 

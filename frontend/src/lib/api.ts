@@ -70,6 +70,7 @@ export interface SleepRecord {
   'Date/Time': string
   'Total Sleep (hr)': number
   'Asleep (Unspecified) (hr)': number
+  'In Bed (hr)'?: number
   'Core (hr)': number
   'Deep (hr)': number
   'REM (hr)': number

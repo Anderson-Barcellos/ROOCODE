@@ -70,7 +70,10 @@ function sleepRecordToHealthRow(record: SleepRecord): HealthAutoExportRow | null
     dateTime: iso,
     sleepTotalHours: record['Total Sleep (hr)'] ?? null,
     sleepAsleepHours: record['Asleep (Unspecified) (hr)'] ?? null,
-    sleepInBedHours: null,
+    sleepInBedHours:
+      record['In Bed (hr)'] != null && record['In Bed (hr)'] > 0
+        ? record['In Bed (hr)']
+        : null,
     sleepCoreHours: record['Core (hr)'] ?? null,
     sleepDeepHours: record['Deep (hr)'] ?? null,
     sleepRemHours: record['REM (hr)'] ?? null,

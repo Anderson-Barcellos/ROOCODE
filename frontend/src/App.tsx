@@ -16,6 +16,7 @@ import { HeartRateBands } from '@/components/charts/heart-rate-bands'
 import { HrvAnalysis } from '@/components/charts/hrv-analysis'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
+import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
@@ -434,6 +435,8 @@ export default function App() {
                 <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                 <PKMedicationGrid hoursWindow={168} />
+
+                <PKHumorCorrelation snapshots={ranged} />
 
                 <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
                   <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">

@@ -1,10 +1,10 @@
 # RooCode — Roadmap de Fechamento
 
-> Última atualização: 2026-04-28 · Pós-Sprint CHART-2 (4 bugs adapter + HRRangeChart) · Filtrado pra contexto pessoal
-> Estado base: **Sprints 11A + CHART-1 + CHART-2 ✅ concluídas**, working tree praticamente limpo (`CHARTENDEAVOUR.md` vazio órfão pendente de decisão), sincronizado com `origin/main`
+> Última atualização: 2026-04-28 · Pós-Sprint REDESIGN-1 (reorganização estrutural) + REDESIGN-3 parcial (SMA + correlação PK×humor) · Filtrado pra contexto pessoal
+> Estado base: **Sprints 11A + CHART-1 + CHART-2 + REDESIGN-1 + REDESIGN-3 (parcial) ✅ concluídas**, working tree limpo (`CHARTENDEAVOUR.md` populado por Anders + Claude desktop como spec do redesign), sincronizado com `origin/main`
 > Referência bruta: `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` (25 achados — usar como consulta, **não** como roteiro)
 >
-> 🎯 **Sidequest ativa:** revisão de charts em `/root/.claude/plans/merry-plotting-sunbeam.md` — 5 sprints (CHART-1 a CHART-5), CHART-1 e CHART-2 fechadas, **CHART-3 (~30min)** próxima na fila (`physicalEffort` + `standingMinutes`).
+> 🎯 **Sidequest ativa:** Redesign do Dashboard em `/root/RooCode/CHARTENDEAVOUR.md` — princípio: cada tab uma pergunta clínica. Plan file antigo `merry-plotting-sunbeam.md` aposentado (CHART-1 e CHART-2 fechadas, CHART-3/4/5 superseded por REDESIGN-2/3-resto/4/5). **Próxima:** REDESIGN-2 (charts novos: FC ao caminhar, MET, perfil de marcha).
 
 ## Contexto
 
@@ -19,7 +19,12 @@ RooCode é app de **uso pessoal exclusivo do Anders**. Não vai pra distribuiç�
 | **11A** ✅ | Limpeza dead code (-2086 LOC + 4 deps órfãs) | concluída 2026-04-27 | — |
 | **CHART-1** ✅ | Remoção 3 charts baixo signal (Mood Donut, Weekly Pattern, Med Adherence) | concluída 2026-04-27 | — |
 | **CHART-2** ✅ | 4 bugs adapter (movement, peso, HR keys, sleepInBed) + HRRangeChart | concluída 2026-04-28 | — |
-| **CHART-3 🚧** | physicalEffort + standingMinutes | ~30min | Baixo |
+| **REDESIGN-1** ✅ | Reorganização tabs (5→6 narrativas), KPI clusters, Pill icon Farmaco | concluída 2026-04-28 | — |
+| **REDESIGN-3 (parcial)** ✅ | SMA(4×t½) overlay nos PKCompactCards + PKHumorCorrelation panel | concluída 2026-04-28 | — |
+| **REDESIGN-2 🚧** | Charts novos: FC ao caminhar + MET + perfil marcha + ratio energia | 1-2h | Médio |
+| **REDESIGN-3 (resto)** | Variância Lamictal (chart SMA × SD humor) | 30min | Baixo |
+| **REDESIGN-4** | Gemini briefing semanal (Insights tab, prompt clamp comportamento) | 1h | Médio |
+| **REDESIGN-5** | Polish: tooltips ricos, summary cards, syncId | 1h | Baixo |
 | **11B — Bugs + QoL** | Banner erro, lint React 7 erros, Mood NaN→null, gitignore, logrotate, requirements.txt | 1.5-2h | Baixo |
 | **11C — Infra + DRY** | Frontend Vite em systemd OU dist estático via Apache, helpers Gemini comuns | 45min | Baixo |
 | **Lights paralelos** | 11C Clonazepam + 11D TODOs(Anders) | 1h | Baixo |

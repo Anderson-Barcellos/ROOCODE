@@ -209,7 +209,7 @@ Estado completo do projeto + sub-sprints futuras: **`/root/RooCode/ROADMAP.md`**
 
 **Inventário 2026-04-27:** 3 agentes Explore mapearam frontend + backend + ops. Achados consolidados no histórico do chat e refletidos no ROADMAP. Achado mais relevante: ~2.035 LOC de dead code que a auditoria não viu (chart órfão de 710 LOC + 3 utils dead) — atacado na Sprint 11A.
 
-**🎯 Sidequest ativa — Revisão de Charts:** plano em `/root/.claude/plans/merry-plotting-sunbeam.md`. 5 sprints (CHART-1 a CHART-5). Sprints CHART-1 e CHART-2 concluídas. **Próxima:** Sprint CHART-3 (`physicalEffort` + `standingMinutes`, ~30min) — KICKOFF text no plan file linhas 1029+.
+**🎯 Sidequest ativa — Redesign do Dashboard:** spec em `/root/RooCode/CHARTENDEAVOUR.md` (escrito por Anders + Claude desktop). Princípio: cada tab responde uma **pergunta clínica**, não uma lista de métricas. Plan file antigo `/root/.claude/plans/merry-plotting-sunbeam.md` (CHART-1 a CHART-5) **aposentado** — CHART-1 + CHART-2 ainda válidas, mas CHART-3/4/5 superseded pelo roadmap REDESIGN-1 a REDESIGN-5 do CHARTENDEAVOUR. **Próxima:** REDESIGN-2 (charts novos: FC ao caminhar + MET + perfil de marcha + ratio energia ativa).
 
 Sprints concluídas:
 - **Sprint CHART-1 ✅** (2026-04-27, commits `653f906` → `7b41083` → `2a3d0a0` → `1b1dfba`) — limpeza visual: removidos 3 charts de baixo signal (`MoodDonut`, `WeeklyPatternChart`, `MedicationAdherenceChart`) + dead-code chain (`buildWeeklyPattern`, `WeeklyDayStats`, `weeklyPattern` field do hook, `DAY_NAMES`, `buildAdherenceStats`, `AdherenceStats`, 3 entradas em `CHART_REQUIREMENTS`). Delta: **−590 LOC líquidas** (7 arquivos). Bundle gzip: 266 kB → 264 kB. Build verde. Achado pendente pra Sprint 11B: `dow_coverage` variant + `countDowCoverage` em `data-readiness.ts` viraram dead code não-alcançável após remoção do `weeklyPatternChart` (TS não detecta porque a variant ainda é tipo válido sintaticamente).
@@ -221,10 +221,26 @@ Sprints concluídas:
   - **Bug 1** (`f9362ee`): adicionado `'In Bed (hr)'?` em `SleepRecord` + sentinel `0 → null` no adapter (iPhone exporta 0.0 quando não captura — clinicamente impossível). Desbloqueia `sleepEfficiencyPct` pros 12 consumers. **18/121 dias com `inBed > 0`** — efficiency surge imediato em ~15% dos snapshots.
   - **HRRangeChart** (`582c7b1`, amend pós-review): novo chart na Executive entre `ActivityBars+HeartRateBands` e `StepsChart`. Banda min-max via 2 `<Area>` (Recharts não tem range-fill nativo) + linha mean + SMA-7d em `strokeDasharray` + 3 `ReferenceArea` clínicas (bradicardia 40-60, normal 60-100, taquicardia 100-150). Refactor adicional: `minFields`/`maxFields` em `aggregation.ts` (`meanFields(min)` era semanticamente errado).
   - Bundle: 264 kB → 265.32 kB gzip (+1.32 kB, bem abaixo dos 5-8 kB esperados — tree-shaking compartilha Recharts entre charts).
-  - Achado pra próxima: 3 keys de marcha não checadas contra tipos (`Comprimento do Passo`, `Velocidade de Caminhada`, `Teste de Caminhada de Seis Minutos`) — registrar em CHART-3 se Bug 5 oculto aparecer.
+  - Achado pra próxima: 3 keys de marcha não checadas contra tipos (`Comprimento do Passo`, `Velocidade de Caminhada`, `Teste de Caminhada de Seis Minutos`) — verificar em REDESIGN-2 quando portar perfil de marcha.
+- **Sprint REDESIGN-1 ✅** (2026-04-28, commits `60578fa` → `3ca3221` → `fd13808` → `97d4abf` → `c489432` → `ae8ee00`) — Reorganização estrutural conforme `CHARTENDEAVOUR.md` Sec 1-2. 6 commits incrementais via modo light (sem subagent reviewers, edit direto + tsc/build entre cada):
+  - `60578fa` rename `executive`→`panorama` + add tab `atividade` vazia
+  - `3ca3221` split `sleepPhysiology` → `sono` (mantém arquitetura noturna) + `coracao` (HRV, HRBands, HRRange, CardioRecovery vindos do panorama+sono)
+  - `fd13808` `atividade` populada com ActivityBars + Steps + Vo2Max + WalkingVitality
+  - `97d4abf` rename `moodMedication` → `farmaco` + ícone Pill
+  - `c489432` absorve tab `patterns` em `insights` (CorrelationHeatmap + Scatter movem)
+  - `ae8ee00` KPI clusters no Panorama (3 grupos: Sono+Recup / Atividade+Energia / Humor)
+  - Resultado: 5 tabs antigas → **6 tabs narrativas com pergunta clínica**: Panorama / Sono / Coração / Atividade / Farmaco / Insights
+  - Não tocado nesta sprint: syncId cross-chart (R1.7 opcional, requer alterar prop em ~10 chart wrappers — fica como sub-quest se aparecer demanda)
+- **Sprint REDESIGN-3 (parcial) ✅** (2026-04-28, commits `004b0f5` → `04ae4c2`) — PK × Humor SMA(4×t½) conforme `CHARTENDEAVOUR.md` Sec 6.3-6.4. Observação clínica de Anders: quedas na concentração refletem no humor com magnitude similar ao atraso da SMA dessa janela.
+  - `004b0f5` `getMoodCorrelationWindowMs(med)` em `pharmacokinetics.ts` (4×halfLife em ms) + overlay SMA nos `PKCompactCard` (Area da curva PK opacity 0.08, Line SMA solid grossa por cima)
+  - `04ae4c2` novo `PKHumorCorrelation` panel na tab Farmaco — tabela Pearson r (lag 0 + lag +1d) + p-value via Fisher z + erf approx, scatter pré-configurado abaixo. Reuso `pearson` + `substanceToPKMedication` + `toPKDoses` de `intraday-correlation.ts`. Janelas resultantes: Venvanse 44h, Lexapro/Lamictal 5d, Clonazepam 6d, Bacopa/Piracetam 16-20h, Magnésio 56h.
+  - Pendente da REDESIGN-3: variância Lamictal (correlação SMA Lamictal × SD rolling 7d humor — Sec 6.5 do CHARTENDEAVOUR), score contínuo de humor (Anders disse "valência tá funcionando bem como tá", então pulado)
 
-Sprints pendentes:
-- **Sprint CHART-3 🚧** (~30min) — `physicalEffort` (eixo Y direito laranja em `ActivityBars`) + `standingMinutes` (entrada em `EXEC_SERIES` no `TimelineChart` da Executive). Side-check Bug 5 oculto se aparecer durante curl.
+Sprints pendentes (roadmap CHARTENDEAVOUR):
+- **REDESIGN-2 🚧** (~1-2h) — Charts novos: FC ao caminhar + Índice Cronotrópico (Coração), MET / Esforço Físico + Perfil de Marcha unificado + Ratio Energia Ativa/Repouso (Atividade)
+- **REDESIGN-3 (resto)** (~30min) — Variância Lamictal (chart dual-axis SMA × SD humor)
+- **REDESIGN-4** (~1h) — Gemini briefing semanal na tab Insights (prompt clamp: comportamento, NUNCA medicação)
+- **REDESIGN-5** (~1h) — Polish: tooltips enriquecidos (delta + z-score + dose), summary cards por tab, syncId cross-chart se valer
 - **Sprint 11B — Bugs + QoL** (~1.5-2h) — banner global de erro TanStack Query, `Mood/mood.py` NaN→null, lint React 7 erros (bugs latentes reais), `.gitignore *.backup*`, logrotate, `requirements.txt`
 - **Sprint 11C — Infra + DRY** (~45min, achado novo do inventário 2026-04-27) — frontend Vite em systemd OU dist estático via Apache (sem service hoje, reboot derruba o frontend), extrair helpers Gemini duplicados pra `Ai/gemini.py`
 - **11C** (light, ~30min) — cadastrar Clonazepam PRN no catálogo via `MedicationCatalogEditor`

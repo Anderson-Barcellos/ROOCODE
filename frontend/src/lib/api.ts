@@ -95,9 +95,9 @@ export interface MetricsRecord {
   'Energia Ativa (kcal)'?: number
   'Energia em repouso (kcal)'?: number
   'Esforço Físico (kcal/hr·kg)'?: number
-  'Frequência Cardíaca [Mínimo] (bpm)'?: number
-  'Frequência Cardíaca [Máx] (bpm)'?: number
-  'Frequência Cardíaca [Média] (bpm)'?: number
+  'Frequência Cardíaca [Min] (bpm)'?: number
+  'Frequência Cardíaca [Max] (bpm)'?: number
+  'Frequência Cardíaca [Avg] (bpm)'?: number
   'Frequência Cardíaca em Repouso (bpm)'?: number
   'Média de Frequência Cardíaca ao Caminhar (bpm)'?: number
   'Porcentagem de Assimetria ao Andar (%)'?: number

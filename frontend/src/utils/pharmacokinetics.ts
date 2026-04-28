@@ -267,6 +267,13 @@ export function getTrendWindowMs(med: PKMedication): number {
   return Math.round(hours * 60 * 60 * 1000)
 }
 
+// Janela 4×t½ — observação clínica de Anders: quedas na concentração refletem
+// no humor com magnitude similar ao atraso da SMA dessa janela. Janela uniforme
+// pra todas as substâncias (não diferencia crônica/aguda como getTrendWindowMs).
+export function getMoodCorrelationWindowMs(med: PKMedication): number {
+  return Math.round(4 * med.halfLife * 60 * 60 * 1000)
+}
+
 export function computeTrendFromSamples(
   timestamps: number[],
   values: Array<number | null>,

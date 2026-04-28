@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import {
   ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,7 +19,9 @@ import { useDoses, useSubstances } from '../../lib/api'
 import type { DoseRecord, Substance } from '../../lib/api'
 import {
   calculateConcentration,
+  computeTrendFromSamples,
   DEFAULT_PK_BODY_WEIGHT_KG,
+  getMoodCorrelationWindowMs,
   type PKMedication,
   type PKDose,
 } from '../../utils/pharmacokinetics'
@@ -33,6 +36,8 @@ type GridPoint = {
   timestamp: number
   pct: number | null
   conc_ng_ml: number | null
+  sma_pct: number | null
+  sma_ng_ml: number | null
   label: string
 }
 
@@ -148,20 +153,33 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
     const stepMinutes = 30
     const stepMs = stepMinutes * 60 * 1000
     const n = Math.max(1, Math.floor((windowEnd - windowStart) / stepMs))
-    const series: GridPoint[] = []
+    const timestamps: number[] = []
+    const concs: number[] = []
     let maxConc = 0
     for (let i = 0; i <= n; i++) {
       const t = windowStart + i * stepMs
       const conc = calculateConcentration(med, doses, t, weightKg)
       if (conc > maxConc) maxConc = conc
-      const pct = range ? (conc / range.max) * 100 : null
-      series.push({
+      timestamps.push(t)
+      concs.push(conc)
+    }
+
+    const smaWindowMs = getMoodCorrelationWindowMs(med)
+    const smaSeries = computeTrendFromSamples(timestamps, concs, smaWindowMs, 3)
+
+    const series: GridPoint[] = timestamps.map((t, i) => {
+      const conc = concs[i]
+      const smaVal = smaSeries[i]
+      return {
         timestamp: t,
         conc_ng_ml: conc,
-        pct,
+        pct: range ? (conc / range.max) * 100 : null,
+        sma_ng_ml: smaVal,
+        sma_pct: smaVal != null && range ? (smaVal / range.max) * 100 : null,
         label: format(t, "d MMM · HH:mm", { locale: ptBR }),
-      })
-    }
+      }
+    })
+
     const nowConc = calculateConcentration(med, doses, Date.now(), weightKg)
     const currentPct = range ? (nowConc / range.max) * 100 : 0
     return {
@@ -181,6 +199,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
 
   // Key da série e domínio do Y axis dependem do modo.
   const seriesKey = hasRange ? 'pct' : 'conc_ng_ml'
+  const smaKey = hasRange ? 'sma_pct' : 'sma_ng_ml'
   const yDomain: [number, number] = hasRange ? [0, 150] : [0, Math.max(maxConc * 1.2, 1)]
   const yTicks = hasRange ? [0, 50, 100, 150] : undefined
   const yTickFormatter = hasRange
@@ -287,9 +306,19 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
               type="monotone"
               dataKey={seriesKey}
               stroke={color}
-              strokeWidth={1.8}
+              strokeWidth={1.2}
+              strokeOpacity={0.45}
               fill={color}
-              fillOpacity={0.15}
+              fillOpacity={0.08}
+              isAnimationActive={false}
+              connectNulls
+            />
+            <Line
+              type="monotone"
+              dataKey={smaKey}
+              stroke={color}
+              strokeWidth={2.4}
+              dot={false}
               isAnimationActive={false}
               connectNulls
             />

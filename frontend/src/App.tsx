@@ -391,28 +391,10 @@ export default function App() {
                 <div className="space-y-4">
                   <MetricGrid metrics={executiveMetrics} />
 
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div className="lg:col-span-2">
-                      <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    </div>
-                    <div>
-                      <HrvAnalysis snapshots={rangedWithForecast} baselineBands={cardio.hrvBaselineBands} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    </div>
-                  </div>
+                  <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <ActivityBars snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    <HeartRateBands
-                      snapshots={rangedWithForecast}
-                      overtraining={cardio.overtrainingStatus ?? undefined}
-                      forecastStartDate={forecast === 'on' ? todayIso : undefined}
-                    />
-                  </div>
+                  <ActivityBars snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
-                  {/* CHART-2 — Range diario de FC (min/mean/max) */}
-                  <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-
-                  {/* Fase 8A — Passos & distância (atividade psicomotora) */}
                   <StepsChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                   {forecast === 'on' && (
@@ -466,12 +448,12 @@ export default function App() {
             </SurfaceFrame>
           )}
 
-          {activeTab === 'sleepPhysiology' && (
+          {activeTab === 'sono' && (
             <SurfaceFrame
               icon={<MoonStar className="h-4 w-4" />}
-              kicker="Sono + Fisiologia"
-              title="Arquitetura do sono e recuperação"
-              description="Estágios de sono, HRV, FC em repouso, SpO₂ e padrões semanais."
+              kicker="Sono"
+              title="Como foram minhas noites?"
+              description="Arquitetura do sono, qualidade respiratória noturna e regulação circadiana."
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
@@ -483,17 +465,44 @@ export default function App() {
 
                   <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
-                  {/* Fase 8A — VO2 Máx + Vitalidade de marcha */}
+                  {/* Vo2Max + Walking Vitality migram pra atividade em R1.3 */}
                   <div className="grid gap-4 lg:grid-cols-2">
                     <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                   </div>
 
-                  {/* Fase 10D — Charts clínicos */}
                   <div className="grid gap-4 lg:grid-cols-2">
                     <RespiratoryDisturbancesChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                     <VitalSignsTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                   </div>
+                </div>
+              )}
+            </SurfaceFrame>
+          )}
+
+          {activeTab === 'coracao' && (
+            <SurfaceFrame
+              icon={<Compass className="h-4 w-4" />}
+              kicker="Coração"
+              title="Como está meu sistema nervoso autônomo?"
+              description="HRV, FC em repouso, ranges diários e recuperação cardíaca pós-esforço."
+              window={{ label: range, coveredDays: ranged.length }}
+              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
+            >
+              {ranged.length === 0 ? (
+                <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
+              ) : (
+                <div className="space-y-4">
+                  <HrvAnalysis snapshots={rangedWithForecast} baselineBands={cardio.hrvBaselineBands} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+
+                  <HeartRateBands
+                    snapshots={rangedWithForecast}
+                    overtraining={cardio.overtrainingStatus ?? undefined}
+                    forecastStartDate={forecast === 'on' ? todayIso : undefined}
+                  />
+
+                  <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+
                   <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
                 </div>
               )}

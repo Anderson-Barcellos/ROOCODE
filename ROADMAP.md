@@ -1,10 +1,10 @@
 # RooCode — Roadmap de Fechamento
 
-> Última atualização: 2026-04-27 · Pós-Sprint 11A (cleanup) · Filtrado pra contexto pessoal
-> Estado base: **Sprint 11A ✅ concluída** (-2086 LOC dead code + 4 deps órfãs removidas), working tree limpo, sincronizado com `origin/main`
+> Última atualização: 2026-04-28 · Pós-Sprint CHART-2 (4 bugs adapter + HRRangeChart) · Filtrado pra contexto pessoal
+> Estado base: **Sprints 11A + CHART-1 + CHART-2 ✅ concluídas**, working tree praticamente limpo (`CHARTENDEAVOUR.md` vazio órfão pendente de decisão), sincronizado com `origin/main`
 > Referência bruta: `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` (25 achados — usar como consulta, **não** como roteiro)
 >
-> 🎯 **Sidequest ativa:** revisão de charts em `CHARTENDEAVOR.md` — escopo separado, ritmo exploratório, aguardando sessão fresh pra começar a marcar 🟢🟡🔴 nos 22 charts ativos.
+> 🎯 **Sidequest ativa:** revisão de charts em `/root/.claude/plans/merry-plotting-sunbeam.md` — 5 sprints (CHART-1 a CHART-5), CHART-1 e CHART-2 fechadas, **CHART-3 (~30min)** próxima na fila (`physicalEffort` + `standingMinutes`).
 
 ## Contexto
 
@@ -17,6 +17,9 @@ RooCode é app de **uso pessoal exclusivo do Anders**. Não vai pra distribuiç�
 | **10D** ✅ | Charts clínicos (RespDist, VitalSigns, CardioRecov) | concluída 2026-04-26 | — |
 | **9E** ✅ | Re-upload CSV mood histórico (HH:MM:SS preservado) | concluída 2026-04-27 | — |
 | **11A** ✅ | Limpeza dead code (-2086 LOC + 4 deps órfãs) | concluída 2026-04-27 | — |
+| **CHART-1** ✅ | Remoção 3 charts baixo signal (Mood Donut, Weekly Pattern, Med Adherence) | concluída 2026-04-27 | — |
+| **CHART-2** ✅ | 4 bugs adapter (movement, peso, HR keys, sleepInBed) + HRRangeChart | concluída 2026-04-28 | — |
+| **CHART-3 🚧** | physicalEffort + standingMinutes | ~30min | Baixo |
 | **11B — Bugs + QoL** | Banner erro, lint React 7 erros, Mood NaN→null, gitignore, logrotate, requirements.txt | 1.5-2h | Baixo |
 | **11C — Infra + DRY** | Frontend Vite em systemd OU dist estático via Apache, helpers Gemini comuns | 45min | Baixo |
 | **Lights paralelos** | 11C Clonazepam + 11D TODOs(Anders) | 1h | Baixo |

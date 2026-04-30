@@ -78,7 +78,7 @@ Todos sob `/health/api/*` via Apache ou `:8011/*` direto:
 - REDESIGN-2 concluída: FC ao caminhar, esforço/MET, perfil de marcha com comprimento do passo, ratio energia ativa/repouso.
 - REDESIGN-3 parcial concluída: SMA(4×t½) nos PKCompactCards + painel `PKHumorCorrelation`.
 - Trilha antiga REDESIGN-3/4/5 foi absorvida pela nova fila **Mood Impact**.
-- **Próxima sprint oficial: MOOD-IMPACT-2 — Lag & Hypothesis Lab**, conforme `ROADMAP.md`.
+- **Sprint oficial ativa: MOOD-IMPACT-2 — Lag & Hypothesis Lab**, conforme `ROADMAP.md`.
 
 ## Roadmap e Docs
 
@@ -172,12 +172,14 @@ git diff --check
 
 Objetivo: criar o **Lag & Hypothesis Lab** em fatia pequena, cruzando métrica → humor em lags interpretáveis (`0d` a `3d`) com qualidade do sinal explícita.
 
+Status 2026-04-30: primeira fatia concluída. `frontend/src/components/charts/mood-lag-hypothesis-lab.tsx` aparece na aba Insights via `CorrelationHeatmap`; `frontend/src/utils/correlations.ts` calcula lags `0d` a `3d`, `n`, qualidade do sinal, Pearson `r` e baseline de humor quando a métrica está acima/abaixo da média pessoal. Teste focal: `frontend/tests/mood-lag-hypothesis.test.ts`.
+
 Cuidados:
 
 - Reaproveitar `utils/correlations.ts` e `utils/statistics.ts`.
-- Começar com poucas métricas de alto valor: sono total, HRV, FC repouso, passos/luz e medicação.
-- Exibir `n`, lag e aviso de sampling bias.
-- Absorver Lamictal variance só se couber sem reescrever PK/humor.
+- Métricas já cobertas: sono total, HRV, FC repouso, passos, luz do dia e doses logadas.
+- Preservar `n`, lag, qualidade do sinal e aviso de sampling bias.
+- Próxima fatia possível: Lamictal variance vs SD rolling 7d do humor, só se couber sem reescrever PK/humor.
 - Não declarar causalidade clínica.
 
 Validação esperada:

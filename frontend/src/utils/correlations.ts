@@ -15,6 +15,8 @@ export const METRIC_KEYS = [
   'exerciseMinutes',
   'daylightMinutes',
   'pulseTemperatureC',
+  'steps',
+  'medicationCount',
   'valence',
 ] as const
 
@@ -33,12 +35,15 @@ export const METRIC_LABELS: Record<MetricKey, string> = {
   exerciseMinutes: 'Exercício',
   daylightMinutes: 'Luz do dia',
   pulseTemperatureC: 'Temp. pulso',
+  steps: 'Passos',
+  medicationCount: 'Doses logadas',
   valence: 'Humor',
 }
 
 export function extractMetricValues(snapshots: DailySnapshot[], key: MetricKey): Array<number | null> {
   return snapshots.map((s) => {
     if (key === 'valence') return s.mood?.valence ?? null
+    if (key === 'medicationCount') return s.medications?.count ?? null
     return (s.health as Record<string, number | null> | null)?.[key] ?? null
   })
 }
@@ -128,3 +133,134 @@ export const PRESET_CORRELATIONS: PresetCorrelation[] = [
   { xKey: 'spo2', yKey: 'sleepTotalHours', lag: 0, description: 'SpO2 → Sono total' },
   { xKey: 'activeEnergyKcal', yKey: 'hrvSdnn', lag: 1, description: 'Energia ativa → HRV amanhã' },
 ]
+
+export type MoodLagQuality = 'insufficient' | 'partial' | 'observable'
+
+export interface MoodLagMetricOption {
+  key: MetricKey
+  label: string
+  unit: string
+}
+
+export interface MoodLagHypothesisRow {
+  lagDays: number
+  n: number
+  quality: MoodLagQuality
+  result: CorrelationResult | null
+  metricMean: number | null
+  aboveMeanMood: number | null
+  belowMeanMood: number | null
+  moodDelta: number | null
+}
+
+export interface MoodLagHypothesis {
+  metricKey: MetricKey
+  label: string
+  unit: string
+  rows: MoodLagHypothesisRow[]
+  bestLagDays: number | null
+  bestResult: CorrelationResult | null
+  realMoodDays: number
+}
+
+interface MoodLagPair {
+  metric: number
+  mood: number
+}
+
+export const MOOD_LAG_METRICS: MoodLagMetricOption[] = [
+  { key: 'sleepTotalHours', label: METRIC_LABELS.sleepTotalHours, unit: 'h' },
+  { key: 'hrvSdnn', label: METRIC_LABELS.hrvSdnn, unit: 'ms' },
+  { key: 'restingHeartRate', label: METRIC_LABELS.restingHeartRate, unit: 'bpm' },
+  { key: 'steps', label: METRIC_LABELS.steps, unit: 'passos' },
+  { key: 'daylightMinutes', label: METRIC_LABELS.daylightMinutes, unit: 'min' },
+  { key: 'medicationCount', label: METRIC_LABELS.medicationCount, unit: 'dose(s)' },
+]
+
+const MOOD_LAG_DAYS = [0, 1, 2, 3]
+
+function qualityForPairCount(pairCount: number): MoodLagQuality {
+  if (pairCount < 10) return 'insufficient'
+  if (pairCount < 25) return 'partial'
+  return 'observable'
+}
+
+function mean(values: number[]): number | null {
+  if (values.length === 0) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function buildLagPairs(values: Array<number | null>, moods: Array<number | null>, lagDays: number): MoodLagPair[] {
+  const pairs: MoodLagPair[] = []
+  for (let i = 0; i + lagDays < Math.min(values.length, moods.length); i++) {
+    const metric = values[i]
+    const mood = moods[i + lagDays]
+    if (
+      metric != null &&
+      mood != null &&
+      Number.isFinite(metric) &&
+      Number.isFinite(mood)
+    ) {
+      pairs.push({ metric, mood })
+    }
+  }
+  return pairs
+}
+
+function buildMoodBaseline(pairs: MoodLagPair[]) {
+  const metricMean = mean(pairs.map((pair) => pair.metric))
+  if (metricMean == null) {
+    return { metricMean: null, aboveMeanMood: null, belowMeanMood: null, moodDelta: null }
+  }
+
+  const above = pairs.filter((pair) => pair.metric >= metricMean).map((pair) => pair.mood)
+  const below = pairs.filter((pair) => pair.metric < metricMean).map((pair) => pair.mood)
+  const aboveMeanMood = mean(above)
+  const belowMeanMood = mean(below)
+  const moodDelta = aboveMeanMood != null && belowMeanMood != null
+    ? aboveMeanMood - belowMeanMood
+    : null
+
+  return { metricMean, aboveMeanMood, belowMeanMood, moodDelta }
+}
+
+export function buildMoodLagHypothesis(
+  snapshots: DailySnapshot[],
+  metricKey: MetricKey,
+  lagDays = MOOD_LAG_DAYS,
+): MoodLagHypothesis {
+  const usable = snapshots.filter((snapshot) => !snapshot.forecasted && !snapshot.interpolated)
+  const values = extractMetricValues(usable, metricKey)
+  const moods = extractMetricValues(usable, 'valence')
+  const metricOption = MOOD_LAG_METRICS.find((metric) => metric.key === metricKey)
+  const rows = lagDays.map((lag): MoodLagHypothesisRow => {
+    const pairs = buildLagPairs(values, moods, lag)
+    const result = pairs.length >= 10
+      ? pearson(
+          pairs.map((pair) => pair.metric),
+          pairs.map((pair) => pair.mood),
+        )
+      : null
+    return {
+      lagDays: lag,
+      n: pairs.length,
+      quality: qualityForPairCount(pairs.length),
+      result,
+      ...buildMoodBaseline(pairs),
+    }
+  })
+
+  const best = rows
+    .filter((row): row is MoodLagHypothesisRow & { result: CorrelationResult } => row.result != null)
+    .sort((a, b) => Math.abs(b.result.r) - Math.abs(a.result.r))[0]
+
+  return {
+    metricKey,
+    label: metricOption?.label ?? METRIC_LABELS[metricKey],
+    unit: metricOption?.unit ?? '',
+    rows,
+    bestLagDays: best?.lagDays ?? null,
+    bestResult: best?.result ?? null,
+    realMoodDays: usable.filter((snapshot) => snapshot.mood?.valence != null).length,
+  }
+}

@@ -59,8 +59,8 @@ Sem esse contrato, a sprint não começa. Chega de implementação bonita que s�
 | Ordem | Sprint | Escopo | Gate de valor |
 |-------|--------|--------|---------------|
 | 1 | **MOOD-LOG-1 — CONCLUÍDA** | Medication Action Center: log de dose mais rápido, calendário mais fluido e atalhos por regime/PRN | Reduz atrito e melhora a densidade dos dados que alimentam PK/humor. |
-| 2 | **MOOD-IMPACT-1 — PRÓXIMA** | Mood Driver Board: cards diários de sono, autonômico, ativação, luz/circadiano e medicação | Explica "o que pode estar pesando no humor" antes de abrir gráficos. |
-| 3 | MOOD-IMPACT-2 | Lag & Hypothesis Lab: métrica → humor com lags 0-3d, qualidade do sinal e Lamictal variance | Transforma correlação em hipótese testável, não em afirmação clínica. |
+| 2 | **MOOD-IMPACT-1 — CONCLUÍDA** | Mood Driver Board: cards diários de sono, autonômico, ativação, luz/circadiano e medicação | Explica "o que pode estar pesando no humor" antes de abrir gráficos. |
+| 3 | **MOOD-IMPACT-2 — PRÓXIMA** | Lag & Hypothesis Lab: métrica → humor com lags 0-3d, qualidade do sinal e Lamictal variance | Transforma correlação em hipótese testável, não em afirmação clínica. |
 | 4 | MOOD-IMPACT-3 | Circadian + Autonomic Deep Dive: luz, sono, HRV/RHR, respiração, SpO2 e temperatura quando houver | Usa sinais fisiológicos com narrativa clínica mais clara. |
 | 5 | MOOD-AI-1 | IA/Superpowers: manter IA atual e adicionar briefing OpenAI com evidências e limites explícitos | Resume padrões, inclusive hipóteses pessoais sobre medicação, sem executar ação automática. |
 | 6 | MOOD-LAYOUT-1 | Polish de layout: summary cards, tooltips ricos, responsivo e sync se valer | Só entra depois dos insights principais existirem. |
@@ -106,6 +106,8 @@ git diff --check
 ## MOOD-IMPACT-1 — Mood Driver Board
 
 Objetivo: criar uma leitura diária de fatores plausíveis que impactam humor, com qualidade do sinal explícita.
+
+Status 2026-04-30: concluída em primeira fatia. `MoodDriverBoard` foi criado e aparece no topo da aba Insights via `CorrelationHeatmap`, com cards de sono, autonômico, ativação, circadiano e medicação. Cada card compara janela recente contra baseline disponível e só interpreta quando há pelo menos `>=3` pares humor+métrica.
 
 Drivers iniciais:
 

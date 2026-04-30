@@ -16,6 +16,7 @@
 | **REDESIGN-4 — Gemini Insights** | absorvida | Virou `MOOD-AI-1` no `ROADMAP.md`. Para o protótipo pessoal, IA pode levantar hipóteses sobre rotina, humor e medicação, sem executar ação automática |
 | **REDESIGN-5 — Polish** | absorvida | Virou `MOOD-LAYOUT-1` no `ROADMAP.md`: tooltips, summary cards, responsivo e sync se o ganho justificar |
 | **MOOD-LOG-1 — Medication Action Center** | ✅ concluída | `DoseLogger` com **tomar agora** por regime; `DoseCalendarView` com adicionar dose no dia selecionado; endpoints/schemas/PK preservados |
+| **MOOD-IMPACT-1 — Mood Driver Board** | ✅ concluída | Cards de sono, autonômico, ativação, circadiano e medicação no topo de Insights; estado insuficiente exige `>=3` pares humor+métrica |
 
 Filtro ativo: continuar só se a próxima etapa trouxer redesign importante, mais dados, insight clínico novo ou melhoria clara de layout. Manutenção cosmética/DRY fica fora desta spec. Métricas podem ser implementadas com estado de `dados insuficientes`; elas devem ativar quando o log amadurecer, sem mockar insight.
 

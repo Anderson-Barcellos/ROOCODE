@@ -78,7 +78,7 @@ Todos sob `/health/api/*` via Apache ou `:8011/*` direto:
 - REDESIGN-2 concluída: FC ao caminhar, esforço/MET, perfil de marcha com comprimento do passo, ratio energia ativa/repouso.
 - REDESIGN-3 parcial concluída: SMA(4×t½) nos PKCompactCards + painel `PKHumorCorrelation`.
 - Trilha antiga REDESIGN-3/4/5 foi absorvida pela nova fila **Mood Impact**.
-- **Próxima sprint oficial: MOOD-IMPACT-1 — Mood Driver Board**, conforme `ROADMAP.md`.
+- **Próxima sprint oficial: MOOD-IMPACT-2 — Lag & Hypothesis Lab**, conforme `ROADMAP.md`.
 
 ## Roadmap e Docs
 
@@ -149,6 +149,8 @@ Ao concluir:
 
 Objetivo: criar o **Mood Driver Board** em fatia pequena, explicando fatores plausíveis que pesam no humor antes de abrir gráficos detalhados.
 
+Status 2026-04-30: concluído em primeira fatia. `frontend/src/components/charts/mood-driver-board.tsx` resume sono, autonômico, ativação, circadiano e medicação; integração mínima em `CorrelationHeatmap` para aparecer na aba Insights sem mexer no shell principal.
+
 Cuidados:
 
 - Declarar campos de entrada antes de editar código.
@@ -156,6 +158,27 @@ Cuidados:
 - Cada card precisa ter estado `dados insuficientes` com critério objetivo.
 - Não mockar insight, não transformar `null` em zero e não sugerir causalidade clínica.
 - Preservar Gemini/Forecast existente.
+
+Validação esperada:
+
+```bash
+cd /root/RooCode/frontend
+npx tsc --noEmit
+npm run build
+git diff --check
+```
+
+## KICKOFF — MOOD-IMPACT-2
+
+Objetivo: criar o **Lag & Hypothesis Lab** em fatia pequena, cruzando métrica → humor em lags interpretáveis (`0d` a `3d`) com qualidade do sinal explícita.
+
+Cuidados:
+
+- Reaproveitar `utils/correlations.ts` e `utils/statistics.ts`.
+- Começar com poucas métricas de alto valor: sono total, HRV, FC repouso, passos/luz e medicação.
+- Exibir `n`, lag e aviso de sampling bias.
+- Absorver Lamictal variance só se couber sem reescrever PK/humor.
+- Não declarar causalidade clínica.
 
 Validação esperada:
 

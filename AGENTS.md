@@ -11,11 +11,15 @@ Context is expensive. Prefer the smallest useful read, the smallest safe edit, a
    - `systemctl is-active roocode.service`
    - `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8011/sleep`
    - `git status --short`
-3. Active sprint after 2026-04-30: **MOOD-IMPACT-1 — Mood Driver Board**.
+3. Active sprint after 2026-04-30: **MOOD-IMPACT-2 — Lag & Hypothesis Lab**.
 4. Preserve the completed **MOOD-LOG-1 — Medication Action Center** behavior:
    - `DoseLogger` has **tomar agora** shortcuts for active regimen entries.
    - `DoseCalendarView` can add a dose on the selected day with regimen dose/time auto-fill.
    - `/farma/doses`, `/farma/doses/{id}`, `/farma/regimen`, `/farma/substances`, public schemas, and PK engine are unchanged.
+5. Preserve the completed **MOOD-IMPACT-1 — Mood Driver Board** behavior:
+   - `MoodDriverBoard` appears at the top of Insights through `CorrelationHeatmap`.
+   - It uses existing `DailySnapshot[]` only.
+   - Cards require `>=3` humor+metric pairs before interpreting a driver.
 
 ## Sprint Gate
 

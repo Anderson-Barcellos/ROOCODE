@@ -2,19 +2,22 @@
 
 > Spec para reorganização do dashboard de saúde pessoal.
 > Princípio: cada seção responde uma **pergunta clínica**, não uma lista de métricas.
-> Documento de referência para Claude Code implementar incrementalmente.
+> Documento de referência histórica/técnica. A ordem oficial atual fica em `ROADMAP.md`.
 
 ---
 
-## Status de Implementação (atualizado 2026-04-28)
+## Status Histórico de Implementação (atualizado 2026-04-30)
 
 | Sprint | Estado | Commits / Notas |
 |---|---|---|
-| **Sprint 1 — Reorganização Estrutural** | ✅ | `60578fa` → `ae8ee00` (6 commits). Tabs reorganizadas, KPI clusters, syncId pulado |
-| **Sprint 2 — Charts & Métricas Novos** | 🚧 próxima | FC caminhar, Índice Cronotrópico, MET, Perfil Marcha, Ratio Energia |
-| **Sprint 3 — PK × Humor** | ⏳ parcial | `004b0f5` (SMA overlay) + `04ae4c2` (PKHumorCorrelation panel). **Pendente:** variância Lamictal (Sec 6.5). Score contínuo de humor descartado por Anders ("valência tá funcionando bem"). |
-| **Sprint 4 — Gemini Insights** | ⏸ pendente | Lembrete: prompt deve clamp recomendação a comportamento (sono/exercício/luz), nunca medicação |
-| **Sprint 5 — Polish** | ⏸ pendente | Tooltips enriquecidos, summary cards por tab, syncId se valer |
+| **REDESIGN-1 — Reorganização Estrutural** | ✅ concluída | `60578fa` → `ae8ee00` (6 commits). Tabs reorganizadas, KPI clusters, syncId pulado por ser opcional |
+| **REDESIGN-2 — Charts & Métricas Novos** | ✅ concluída | FC caminhar + índice cronotrópico, MET/esforço físico, perfil de marcha com comprimento do passo, ratio energia ativa/repouso |
+| **REDESIGN-3 — PK × Humor** | ✅ parcial concluída / absorvida | `004b0f5` (SMA overlay) + `04ae4c2` (PKHumorCorrelation panel). Variância Lamictal foi absorvida por `MOOD-IMPACT-2` no `ROADMAP.md`. Score contínuo descartado por decisão do Anders: "valência tá funcionando bem" |
+| **REDESIGN-4 — Gemini Insights** | absorvida | Virou `MOOD-AI-1` no `ROADMAP.md`. Para o protótipo pessoal, IA pode levantar hipóteses sobre rotina, humor e medicação, sem executar ação automática |
+| **REDESIGN-5 — Polish** | absorvida | Virou `MOOD-LAYOUT-1` no `ROADMAP.md`: tooltips, summary cards, responsivo e sync se o ganho justificar |
+| **MOOD-LOG-1 — Medication Action Center** | ✅ concluída | `DoseLogger` com **tomar agora** por regime; `DoseCalendarView` com adicionar dose no dia selecionado; endpoints/schemas/PK preservados |
+
+Filtro ativo: continuar só se a próxima etapa trouxer redesign importante, mais dados, insight clínico novo ou melhoria clara de layout. Manutenção cosmética/DRY fica fora desta spec. Métricas podem ser implementadas com estado de `dados insuficientes`; elas devem ativar quando o log amadurecer, sem mockar insight.
 
 ---
 
@@ -67,7 +70,7 @@
 **Humor (mood endpoint):**
 - Date/Time
 - Valência: Agradável / Neutro / Desagradável
-- Associações: float contínuo (0-100) — score composto, usar como variável contínua
+- Associações: float contínuo (0-100) — disponível como dado bruto, mas a UI segue priorizando valência textual por decisão do Anders
 
 **Farmacologia (dose log):**
 - Substância, Dose (mg), Horário, Nota
@@ -487,41 +490,45 @@ Novas métricas computadas a partir dos dados brutos:
 
 ---
 
-## 10. Ordem de Implementação Sugerida
+## 10. Ordem de Implementação
 
-### Sprint 1 — Reorganização Estrutural
-- [ ] Criar nova estrutura de tabs (renomear, reordenar)
-- [ ] Mover charts existentes para suas novas tabs (sem criar nada novo)
-- [ ] Agrupar KPI cards em clusters no Panorama
-- [ ] Implementar syncId por tab
-- [ ] Remover charts duplicados do Panorama
+Esta seção descreve a trilha de redesign. A ordem oficial entre sprints vive em `ROADMAP.md`.
 
-### Sprint 2 — Novos Charts & Métricas
-- [ ] FC ao Caminhar + Índice Cronotrópico (tab Coração)
-- [ ] Esforço Físico / MET (tab Atividade)
-- [ ] Perfil de Marcha unificado (tab Atividade)
-- [ ] Comprimento do Passo chart (tab Atividade)
-- [ ] Ratio Energia Ativa/Repouso (tab Atividade)
+### REDESIGN-1 — Reorganização Estrutural ✅ concluída
+- [x] Criar nova estrutura de tabs (renomear, reordenar)
+- [x] Mover charts existentes para suas novas tabs (sem criar nada novo)
+- [x] Agrupar KPI cards em clusters no Panorama
+- [x] Remover charts duplicados do Panorama
+- [ ] `syncId` por tab — opcional; não implementado porque exige tocar vários wrappers e o ganho ainda não justificou
 
-### Sprint 3 — Feature PK×Humor
-- [ ] SMA com janela 4×t½ por substância (backend)
-- [ ] Overlay SMA nos mini-charts PK existentes
-- [ ] Tabela de correlação SMA×humor (tab Farmaco)
-- [ ] Scatter PK×humor com seletor (tab Farmaco)
-- [ ] Toggle score contínuo no chart de humor
-- [ ] Correlação de variância para Lamictal
+### REDESIGN-2 — Novos Charts & Métricas ✅ concluída
+- [x] FC ao Caminhar + Índice Cronotrópico (tab Coração)
+- [x] Esforço Físico / MET (tab Atividade)
+- [x] Perfil de Marcha unificado (tab Atividade)
+- [x] Comprimento do Passo chart (tab Atividade)
+- [x] Ratio Energia Ativa/Repouso (tab Atividade)
 
-### Sprint 4 — Gemini Insights
+### REDESIGN-3 — Feature PK×Humor ✅ parcial concluída / absorvida
+- [x] SMA com janela 4×t½ por substância
+- [x] Overlay SMA nos mini-charts PK existentes
+- [x] Tabela/painel de correlação SMA×humor (tab Farmaco)
+- [x] Scatter PK×humor reaproveitado no painel
+- [x] Toggle score contínuo no chart de humor — descartado por decisão do Anders; manter valência textual
+- [ ] Correlação de variância para Lamictal — absorvida por `MOOD-IMPACT-2` no `ROADMAP.md`
+
+### REDESIGN-4 — Gemini Insights absorvida por MOOD-AI-1
 - [ ] Briefing semanal: prompt template + endpoint
 - [ ] Card de visualização com timestamp
 - [ ] Mover análise intraday e lag analysis para tab Insights
 - [ ] Mover matriz de correlação e scatter para tab Insights
+- [ ] Garantir que hipóteses de IA fiquem rotuladas como protótipo pessoal/exploratório, sem executar ajuste automático de medicação
 
-### Sprint 5 — Polish
+### REDESIGN-5 — Polish absorvida por MOOD-LAYOUT-1
 - [ ] Tooltips enriquecidos (delta, z-score, doses)
 - [ ] Critérios de status documentados e expostos
 - [ ] Summary cards por tab
 - [ ] Responsive / mobile adjustments
+- [ ] `syncId` cross-chart somente se o ganho justificar a mudança ampla
 
 ---
 
@@ -549,9 +556,10 @@ Estas notas ajudam o Claude Code a entender o PORQUÊ das decisões:
 
 ## 12. Decisões em Aberto
 
-- [ ] Nome final das tabs (emojis? só texto? ícones custom?)
+- [x] Nome/estrutura das tabs — decidido e implementado em REDESIGN-1: Panorama / Sono / Coração / Atividade / Farmaco / Insights
 - [ ] Onde colocar Hora de Ficar em Pé / Tempo em Pé: Atividade ou Panorama?
 - [ ] Catálogo de substâncias: mantém como modal ou vira sub-tab?
-- [ ] Briefing Gemini: automático toda segunda ou só on-demand?
-- [ ] Formato do score contínuo de humor: normalizar 0-1 ou manter 0-100?
+- [ ] Briefing IA: começar on-demand; automático semanal só se Anders pedir depois
+- [x] Formato do score contínuo de humor — descartado por enquanto; valência textual segue como leitura principal
+- [ ] `syncId` cross-chart: opcional, implementar só se o ganho visual justificar tocar vários wrappers
 - [ ] Adicionar notificações/alertas push quando métrica sai do baseline?

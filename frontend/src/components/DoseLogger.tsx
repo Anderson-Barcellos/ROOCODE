@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { Pill, CheckCircle, AlertCircle, Sparkles } from 'lucide-react'
+import { Pill, CheckCircle, AlertCircle, Sparkles, Zap } from 'lucide-react'
 
 import { useSubstances, useLogDose, useRegimen } from '../lib/api'
 
@@ -45,6 +45,11 @@ export default function DoseLogger() {
 
   const selectedSub = substances.find((s) => s.id === substance)
   const activeEntry = regimen.find((e) => e.active && e.substance === substance)
+  const activeRegimen = useMemo(() => regimen.filter((e) => e.active), [regimen])
+  const substanceById = useMemo(
+    () => new Map(substances.map((s) => [s.id, s])),
+    [substances],
+  )
 
   useEffect(() => {
     if (substance === prevSubstance.current) return
@@ -104,6 +109,25 @@ export default function DoseLogger() {
     }
   }
 
+  const handleQuickDose = async (entry: (typeof regimen)[number]) => {
+    try {
+      await logDose.mutateAsync({
+        substance: entry.substance,
+        dose_mg: entry.dose_mg,
+        taken_at: new Date().toISOString(),
+        note: '',
+      })
+      if ('vibrate' in navigator) {
+        navigator.vibrate(40)
+      }
+      setFeedback('ok')
+      setTimeout(() => setFeedback(null), 3000)
+    } catch {
+      setFeedback('err')
+      setTimeout(() => setFeedback(null), 3000)
+    }
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     background: 'var(--card)',
@@ -146,6 +170,22 @@ export default function DoseLogger() {
     fontWeight: 600,
   }
 
+  const quickDoseButton: React.CSSProperties = {
+    border: '1px solid rgba(139,92,246,0.22)',
+    background: 'rgba(139, 92, 246, 0.06)',
+    color: 'var(--foreground)',
+    borderRadius: 6,
+    padding: '7px 9px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: 10,
+    textAlign: 'left',
+  }
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
@@ -158,6 +198,42 @@ export default function DoseLogger() {
           Log de Dose
         </span>
       </div>
+
+      {activeRegimen.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+          <span style={labelStyle}>TOMAR AGORA</span>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {activeRegimen.map((entry) => {
+              const sub = substanceById.get(entry.substance)
+              const label = sub?.display_name?.split(' ')[0] ?? entry.substance
+              const unit = sub?.dose_unit ?? 'mg'
+              const defaultTime = entry.times?.[0]
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => handleQuickDose(entry)}
+                  disabled={logDose.isPending}
+                  style={{
+                    ...quickDoseButton,
+                    opacity: logDose.isPending ? 0.55 : 1,
+                  }}
+                  title={`Registrar ${label} agora`}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Zap size={11} color="var(--accent-violet)" />
+                    <span>{label}</span>
+                  </span>
+                  <span style={{ color: 'var(--muted)' }}>
+                    {entry.dose_mg} {unit}
+                    {defaultTime ? ` · ${defaultTime}` : ''}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}

@@ -1,172 +1,221 @@
-# RooCode — Roadmap de Fechamento
+# RooCode — Roadmap Mestre
 
-> Última atualização: 2026-04-28 · Pós-Sprint REDESIGN-1 (reorganização estrutural) + REDESIGN-3 parcial (SMA + correlação PK×humor) · Filtrado pra contexto pessoal
-> Estado base: **Sprints 11A + CHART-1 + CHART-2 + REDESIGN-1 + REDESIGN-3 (parcial) ✅ concluídas**, working tree limpo (`CHARTENDEAVOUR.md` populado por Anders + Claude desktop como spec do redesign), sincronizado com `origin/main`
-> Referência bruta: `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` (25 achados — usar como consulta, **não** como roteiro)
->
-> 🎯 **Sidequest ativa:** Redesign do Dashboard em `/root/RooCode/CHARTENDEAVOUR.md` — princípio: cada tab uma pergunta clínica. Plan file antigo `merry-plotting-sunbeam.md` aposentado (CHART-1 e CHART-2 fechadas, CHART-3/4/5 superseded por REDESIGN-2/3-resto/4/5). **Próxima:** REDESIGN-2 (charts novos: FC ao caminhar, MET, perfil de marcha).
+> Última atualização: 2026-04-30 · Fonte única de sequência/sprints.
+> Próxima sprint oficial: **MOOD-LOG-1 — Medication Action Center**.
+> Spec histórica do redesign visual: `CHARTENDEAVOUR.md`.
+> Auditoria bruta: `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md` — consulta histórica, não roteiro ativo.
 
-## Contexto
+## Contrato documental
 
-RooCode é app de **uso pessoal exclusivo do Anders**. Não vai pra distribuição, single-user em rede local/domínio próprio, sem ataque externo realista. A auditoria de 2026-04-26 mapeou achados úteis, mas muitos têm viés SaaS multi-tenant que não se aplica aqui (auth API, code-splitting agressivo, suite Playwright, refactors DRY cosméticos). Esta versão do ROADMAP filtra **só o que single-user vai sentir**.
+| Documento | Papel |
+|-----------|-------|
+| `ROADMAP.md` | Ordem oficial de execução, filas e status das sprints. |
+| `CHARTENDEAVOUR.md` | Spec detalhada/histórica do redesign visual; não define mais a próxima sprint. |
+| `CLAUDE.md` | Handoff operacional compacto e kickoff da próxima sessão fresh. |
+| `Docs/RELATORIO_*` | Auditorias e evidências históricas. Não mandam na sequência. |
+| `frontend/docs/README.md` | Checklist histórico da Fase 5, sem pendência ativa. |
 
-## Visão geral
+RooCode é app de **uso pessoal exclusivo do Anders**. Decisão de 2026-04-30: daqui pra frente só vira sprint o que aumentar a utilidade real do diário de humor: **log mais fácil**, **mais dados extraídos**, **insights sobre humor**, **redesign complementar** ou **layout que reduza atrito**. Manutenção pequena, lint, DRY e higiene operacional ficam estacionados até virarem dor real.
 
-| Sprint | Escopo | Esforço | Risco |
-|--------|--------|---------|-------|
-| **10D** ✅ | Charts clínicos (RespDist, VitalSigns, CardioRecov) | concluída 2026-04-26 | — |
-| **9E** ✅ | Re-upload CSV mood histórico (HH:MM:SS preservado) | concluída 2026-04-27 | — |
-| **11A** ✅ | Limpeza dead code (-2086 LOC + 4 deps órfãs) | concluída 2026-04-27 | — |
-| **CHART-1** ✅ | Remoção 3 charts baixo signal (Mood Donut, Weekly Pattern, Med Adherence) | concluída 2026-04-27 | — |
-| **CHART-2** ✅ | 4 bugs adapter (movement, peso, HR keys, sleepInBed) + HRRangeChart | concluída 2026-04-28 | — |
-| **REDESIGN-1** ✅ | Reorganização tabs (5→6 narrativas), KPI clusters, Pill icon Farmaco | concluída 2026-04-28 | — |
-| **REDESIGN-3 (parcial)** ✅ | SMA(4×t½) overlay nos PKCompactCards + PKHumorCorrelation panel | concluída 2026-04-28 | — |
-| **REDESIGN-2 🚧** | Charts novos: FC ao caminhar + MET + perfil marcha + ratio energia | 1-2h | Médio |
-| **REDESIGN-3 (resto)** | Variância Lamictal (chart SMA × SD humor) | 30min | Baixo |
-| **REDESIGN-4** | Gemini briefing semanal (Insights tab, prompt clamp comportamento) | 1h | Médio |
-| **REDESIGN-5** | Polish: tooltips ricos, summary cards, syncId | 1h | Baixo |
-| **11B — Bugs + QoL** | Banner erro, lint React 7 erros, Mood NaN→null, gitignore, logrotate, requirements.txt | 1.5-2h | Baixo |
-| **11C — Infra + DRY** | Frontend Vite em systemd OU dist estático via Apache, helpers Gemini comuns | 45min | Baixo |
-| **Lights paralelos** | 11C Clonazepam + 11D TODOs(Anders) | 1h | Baixo |
-| **Cinza** | Higiene operacional barata se vier vontade | 30min | Baixo |
-| **Push** | `git push origin main` ao fim de cada sprint | 30s | Nenhum |
+## Opinião de produto
 
-**Total realista pra zerar:** ~3-4h em 1-2 sessões. Pode parar em qualquer ponto.
+O app não precisa de mais gráficos soltos. Ele precisa virar um **laboratório pessoal de fatores que mexem no humor**.
 
----
+Os CSVs já dão sinais suficientes para isso:
 
-## Sprint 11 — Bugs + QoL (~1.5-2h)
+| Cobertura atual | Sinais | Decisão |
+|-----------------|--------|---------|
+| Alta | sono completo `131/131`, passos/distância `272/272`, marcha `247/272` | Usar como base forte de rotina, ativação comportamental e recuperação. |
+| Boa | energia `68-71%`, esforço físico `65%`, HR min/max/avg `65%`, HRV `60%`, RHR `55%`, SpO2 `60%`, respiração `52%` | Usar em scorecards e correlações com qualidade explícita. |
+| Média | luz do dia `43%` | Usar como eixo circadiano, com aviso de cobertura. |
+| Esparsa | distúrbios respiratórios `24%`, temperatura de pulso `25%`, caminhada 6 min `8%` | Mostrar só como contexto quando houver dado; não guiar sprint principal. |
+| Fraca/agora inútil | VO2 `2/272`, corrida `0/272` | Estacionar até aparecer densidade real. |
 
-**Critério de inclusão:** o item gera bug latente, regressão real, ou QoL que tu já sentiu (ou vai sentir em uso normal). Nada de "boa prática" sem ganho concreto pra single-user.
+Gargalo real: `Mood/mood.csv` tem 35 entradas. Então o roadmap prioriza **reduzir atrito de logging** e **cruzar sinais por janela/lag** antes de inventar painel decorativo.
 
-### Tarefas
+## Contrato anti-lazy
 
-1. **Banner global de erro TanStack Query** (~30min)
-   - Tu já sentiu o silenciamento na Fase 10B (calendário vazio em 422 sem aviso)
-   - Implementação simples: `mutationCache.onError` ou `<QueryErrorBoundary>` mostrando toast amber discreto — `"erro {status} em {endpoint}"`
-   - Arquivos: `frontend/src/main.tsx` ou `App.tsx` + helper em `lib/api.ts`
+Toda sprint nova precisa declarar, antes de editar código:
 
-2. **`Mood/mood.py` GET → NaN→null** (~5min)
-   - Bug latente: `df.to_dict(orient="records")` preserva `NaN` que pode quebrar `JSONResponse`
-   - Fix copiado de Metrics e Sleep que já corrigiram: `json.loads(df.to_json(orient="records"))`
-   - Arquivo: `Mood/mood.py:128`
+1. Campo(s) de entrada: CSV/backend/hook exato.
+2. Feature derivada: fórmula simples ou decisão de não derivar.
+3. Componente alvo: arquivo/tela exata onde aparece.
+4. Estado vazio: como a UI se comporta com dado insuficiente.
+5. Validação: pelo menos `npx tsc --noEmit`, `npm run build`, e `git diff --check`.
 
-3. **Lint React — só os 7 erros reais** (~30-45min)
-   - Esses NÃO são esoterismo — são bugs latentes que podem afetar UX:
-     - `DoseLogger.tsx:54` — `setState` sincronico em effect (risco de loop)
-     - `pk-medication-grid.tsx:165, 297, 370` — `Date.now()` em render puro (re-render constante)
-     - `pk-mood-scatter-chart.tsx:70-82`, `lag-correlation-chart.tsx:78` — memoização instável (perde otimização)
-   - Arquivos: 4 componentes acima
+Sem esse contrato, a sprint não começa. Chega de implementação bonita que só encosta na superfície, meu velho.
 
-4. **`.gitignore` cobrir backups reais** (~1min)
-   - Adicionar `*.backup*` e `*.csv.backup*` (atual `*.backup` não pega `mood.csv.backup-2026-04-23-*`)
-   - Arquivo: `.gitignore`
+## Política de dados insuficientes
 
-5. **logrotate pro `/var/log/roocode-api.log`** (~5min)
-   - Log já tá em ~19.6 MB sem rotation, só vai crescer
-   - Arquivo novo: `/etc/logrotate.d/roocode` com weekly rotate, keep 4
+É aceitável implementar métricas que ainda precisem de mais registros para aparecer. O comportamento correto é:
 
-6. **`requirements.txt` versionado** (~5min)
-   - Garante reproducibilidade se algum dia tu trocar de máquina
-   - `pip freeze` no venv → filtrar pras 8 deps reais (fastapi, uvicorn, pandas, pydantic, google-genai, PyYAML, python-multipart, scipy)
-   - Arquivo novo: `requirements.txt`
+- Mostrar estado `dados insuficientes` com critério objetivo (`precisa ≥N pares`, `cobertura <X%`, `sem sobreposição humor+metric`).
+- Não preencher insight com mock, não inferir causalidade e não transformar null em zero.
+- A métrica deve aparecer automaticamente quando a densidade ficar suficiente.
+- Priorizar componentes que também incentivem mais logging real, especialmente humor e medicação.
 
-### Validação
+## Trilha ativa: Mood Impact
+
+| Ordem | Sprint | Escopo | Gate de valor |
+|-------|--------|--------|---------------|
+| 1 | **MOOD-LOG-1 — CONCLUÍDA** | Medication Action Center: log de dose mais rápido, calendário mais fluido e atalhos por regime/PRN | Reduz atrito e melhora a densidade dos dados que alimentam PK/humor. |
+| 2 | **MOOD-IMPACT-1 — PRÓXIMA** | Mood Driver Board: cards diários de sono, autonômico, ativação, luz/circadiano e medicação | Explica "o que pode estar pesando no humor" antes de abrir gráficos. |
+| 3 | MOOD-IMPACT-2 | Lag & Hypothesis Lab: métrica → humor com lags 0-3d, qualidade do sinal e Lamictal variance | Transforma correlação em hipótese testável, não em afirmação clínica. |
+| 4 | MOOD-IMPACT-3 | Circadian + Autonomic Deep Dive: luz, sono, HRV/RHR, respiração, SpO2 e temperatura quando houver | Usa sinais fisiológicos com narrativa clínica mais clara. |
+| 5 | MOOD-AI-1 | IA/Superpowers: manter IA atual e adicionar briefing OpenAI com evidências e limites explícitos | Resume padrões, inclusive hipóteses pessoais sobre medicação, sem executar ação automática. |
+| 6 | MOOD-LAYOUT-1 | Polish de layout: summary cards, tooltips ricos, responsivo e sync se valer | Só entra depois dos insights principais existirem. |
+| Operação | Push | `git push origin main` ao fim de sprint concluída | Nenhum risco funcional. |
+
+## MOOD-LOG-1 — Medication Action Center
+
+Objetivo: tornar o registro de medicação tão rápido que o dado fique bom por padrão.
+
+Status 2026-04-30: concluída em fatia conservadora. `DoseLogger` ganhou botões **tomar agora** para entradas ativas do regime; `DoseCalendarView` ganhou ação **adicionar** no dia selecionado com auto-fill de dose/horário do regime e edição manual direta. Endpoints, schemas públicos e PK engine foram preservados.
+
+Referências:
+
+- RooCode atual: `frontend/src/components/DoseLogger.tsx` e `frontend/src/components/DoseCalendarView.tsx`.
+- Inspiração UX: `/root/CODEX/mood-pharma-tracker/src/features/doses/components/QuickDoseModal.tsx`.
+- Backend atual preservado: `/farma/doses`, `/farma/doses/{id}`, `/farma/regimen`, `/farma/substances`.
+
+Escopo desejado:
+
+1. [x] Botões de **tomar agora** para substâncias ativas no regime.
+2. [x] Auto-fill de dose e horário padrão, com indicação visual de que veio do regime.
+3. [x] Horário customizado direto via `datetime-local`, sem fluxo longo.
+4. [x] Registro PRN/manual sem atrito quando a substância existe no catálogo.
+5. [x] Calendário mantendo edição/delete, com ação rápida para adicionar dose no dia selecionado.
+6. [x] Nenhuma mudança de endpoint, schema público ou PK engine.
+
+Fora de escopo:
+
+- Notificações push.
+- Reforma completa do catálogo.
+- Reescrever o calendário do zero.
+- Migrar UI inteira do `mood-pharma-tracker`.
+
+Validação:
 
 ```bash
-# Banner erro:
-curl -X POST http://localhost:8011/farma/doses -d 'malformed'    # Frontend deve mostrar toast
-# Mood NaN:
-curl -s http://localhost:8011/mood | jq . | head    # Sem erro, NaN aparece como null
-# Lint:
-cd frontend && npm run lint    # 0 erros
-# logrotate:
-sudo logrotate -d /etc/logrotate.d/roocode    # dry-run sem erro
-# requirements.txt:
-diff <(sort requirements.txt) <(./bin/pip freeze | sort)    # idem
+cd /root/RooCode/frontend
+npx tsc --noEmit
+npm run build
+git diff --check
 ```
 
----
+## MOOD-IMPACT-1 — Mood Driver Board
 
-## Lights paralelos (~1h total)
+Objetivo: criar uma leitura diária de fatores plausíveis que impactam humor, com qualidade do sinal explícita.
 
-Independentes do Sprint 11, podem ser feitas em qualquer ordem ou paralelo.
+Drivers iniciais:
 
-### 11C — Cadastrar Clonazepam PRN (~30min)
-**Por quê:** Clonazepam tem cor reservada (`#f59e0b` em `substance-colors.ts`) mas zero entrada no backend. Aba Insights ganha PK PRN quando logado.
+- **Sono/recuperação:** sono total, REM, profundo, desperto, déficit vs referência pessoal.
+- **Autonômico:** HRV, FC repouso, HR range, FC ao caminhar.
+- **Ativação comportamental:** passos, distância, energia ativa, esforço físico, exercício.
+- **Circadiano:** luz do dia, sono, temperatura de pulso quando houver.
+- **Medicação:** doses registradas, regularidade, exposição PK e gaps.
 
-**Como:** entrar via `MedicationCatalogEditor` no UI, PK realista (t½ 30-40h, Vd 3 L/kg, F ~90%, ka 1.0/h), `therapeutic_range` `null` → renderizar como concentração bruta no `PKCompactCard` (modo experimental já existe na Fase 8A.1).
+Regra: cada card precisa responder "isso ajuda a entender meu humor hoje?" Se não ajuda, vira dado auxiliar ou fica fora.
 
-### 11D — TODOs(Anders) (~30min)
+Estado vazio é parte do produto: cards com `n` baixo devem explicar qual dado falta e continuar prontos para ativar quando o log amadurecer.
 
-| Arquivo:linha | TODO |
-|---------------|------|
-| `frontend/src/utils/roocode-adapter.ts:158, 180` | Heurística de detecção de mock vs real |
-| `frontend/src/utils/data-readiness.ts:61` | Tom/formato das mensagens "faltam N dias" |
-| `frontend/src/utils/health-policies.ts:17` | Bands de VO2 max pra homem 35-44 anos |
+## MOOD-IMPACT-2 — Lag & Hypothesis Lab
 
-Tweaks de tom/heurística, não lógica nova.
+Objetivo: cruzar sinais com humor em janelas interpretáveis.
 
----
+Escopo:
 
-## Cinza (~30min, só se vier vontade)
+- Selector de métrica contra humor.
+- Lags `0d`, `1d`, `2d`, `3d`.
+- `n` de pares, qualidade do sinal e aviso de sampling bias.
+- Baseline pessoal: mood quando métrica está acima/abaixo da própria média.
+- Absorve o antigo **REDESIGN-3 resto**: variância Lamictal vs SD rolling 7d do humor.
 
-Higiene operacional barata. Não dá ganho dramático, mas custa pouco e é higiene básica.
+## MOOD-IMPACT-3 — Circadian + Autonomic Deep Dive
 
-- **`POST /farma/doses` validações simétricas** com `PUT` — `dose_mg > 0` + `_validate_iso_timestamp` (3 linhas em `Farma/router.py:440-462`). Tu mesmo é o único que loga, mas evita bug bobo se errar timestamp.
-- **`updateDose` resolver custom** — trocar `get_substance_profile()` por `_resolve_substance_any()` em `Farma/router.py:495-503`. Single-line fix, cobre custom substance edits.
-- **`chmod 600 /root/GEMINI_API/env.yml`** — higiene de credencial básica, custa zero.
-- **Escrita atômica JSON** (`os.replace` em `_save_doses` etc.) — single-user single-process não tem concorrência prática, mas custa 5 linhas e protege contra crash mid-write.
+Objetivo: separar gráficos fisiológicos por pergunta clínica, não por coluna CSV.
 
----
+Painéis:
 
-## Arquivado (overkill pra contexto pessoal)
+- Luz do dia → sono → humor no dia seguinte.
+- HRV/RHR/respiração como carga autonômica.
+- SpO2/distúrbios respiratórios/temperatura de pulso como contexto noturno quando houver dado.
+- Marcha/energia como sinal de ativação, não só performance física.
 
-Itens da auditoria que **não vão entrar** em Sprint, ficam apenas como referência caso o contexto mude (distribuição, multi-user, equipe). A auditoria completa em `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md`.
+## MOOD-AI-1 — IA/Superpowers
 
-| Achado da auditoria | Por que arquivado |
-|---------------------|-------------------|
-| Auth básica em `/health/api/*` | Single-user em domínio pessoal, sem threat model realista |
-| Vite dev → `dist` estático via Apache | Vite dev funciona, HMR só local, performance OK |
-| `roocode.service` rodar como user não-root | Blast radius prático = "Anders apaga dados de Anders" |
-| Code-splitting `React.lazy` por aba | First paint em LAN local não dói, manutenção custa mais que o ganho |
-| Suite Playwright completa | Validação visual já é manual, overhead de manutenção > regressão capturada |
-| Helper `Ai/gemini.py` comum | DRY puro entre 2 arquivos, drift atual gerenciável |
-| Harmonizar `useDoses(window)` | Latência atual aceitável, não está no caminho de UX dolorosa |
-| Rename `claude` → `gemini` | Cosmético, label não confunde tu mesmo |
-| Reescrever testes frontend stale | Se não roda há meses, deletar é melhor que consertar |
-| Remover token de `.git/config` | Higiene boa, mas baixa urgência (repo não é alvo realista) |
-| `GET /farma/regimen` side effect | Aceitável em single-user — documentado e ponto |
-| LRU em cache IA | Cache cresce devagar pra single-user, não é urgente |
+Objetivo: manter as seções de IA que já existem e melhorar a camada de análise on-demand dos padrões recentes.
 
-**Resumo:** 12 dos 25 achados foram para esta lista. O ROADMAP enxuto cobre os 13 que **single-user vai sentir**.
+Decisão do Anders:
 
----
+- As seções de IA atuais continuam como estão até haver motivo real para mexer.
+- Gemini/Forecast existente não deve ser removido só por troca de stack.
+- Nova IA do produto/protótipo deve preferir `gpt-5.4-mini`, reasoning `high` e verbosity `high`.
+- Como é app pessoal, as regras podem ser mais frouxas: a IA pode levantar hipóteses francas sobre rotina, sono, métricas, humor e medicação.
+- Limite prático: a IA não executa mudanças, não edita doses automaticamente e não finge certeza clínica.
 
-## Visão de longo prazo (Fase 12+)
+Regras:
 
-Vazia por design. Abre quando surgir necessidade real. Hipóteses (sem urgência):
+- Usar evidências explícitas: datas, métricas, `n`, cobertura.
+- Separar "hipótese pessoal" de "achado robusto".
+- Pode comentar medicação como hipótese exploratória quando houver dado, mas sempre com linguagem de protótipo pessoal.
+- Preservar análise exploratória existente na tab Insights; melhorar em cima dela, não substituir por vazio bonito.
 
-- Export PDF/PNG mensal do dashboard pra registro clínico
-- Comparação mês-a-mês (overlay `mês anterior` em charts de tendência)
-- Integração direta iPhone Shortcuts → backend (sem AutoExport intermediário)
-- Modo de leitura "consulta médica" (versão impressível ou tela cheia clean)
+## Absorvido ou estacionado
 
-Nada disso entra em planejamento até ser pedido.
+| Item antigo | Decisão |
+|-------------|---------|
+| REDESIGN-3 resto | Absorvido por MOOD-IMPACT-2; Lamictal variance continua útil, mas não manda sozinho na fila. |
+| REDESIGN-4 | Absorvido por MOOD-AI-1. |
+| REDESIGN-5 | Absorvido por MOOD-LAYOUT-1. |
+| 11B Bugs + QoL | Estacionado até bloquear uso real. |
+| 11C Infra/DRY | Estacionado; frontend permanente/systemd só se reboot resilience virar dor. |
+| Light Clonazepam PRN | Entra em MOOD-LOG-1 se melhorar logging/PK real. |
+| 11D TODOs Anders | Estacionado salvo se afetar insight ou qualidade de dado. |
+| Cinza | Estacionado: validações Farma, permissão env, escrita atômica JSON. |
 
----
+## Concluído
 
-## Sequenciamento sugerido
+| Sprint | Resultado |
+|--------|-----------|
+| 10D | Charts clínicos: RespiratoryDisturbances, VitalSigns, CardioRecovery. |
+| 9E | Re-upload CSV mood histórico com HH:MM:SS preservado. |
+| 11A | Limpeza de dead code: ~2.035 LOC removidas e 4 deps órfãs removidas. |
+| CHART-1 | Remoção de charts de baixo signal e limpeza visual. |
+| CHART-2 | 4 bugs de adapter corrigidos + `HRRangeChart`. |
+| REDESIGN-1 | Reorganização 5→6 tabs narrativas, KPI clusters, Farmaco com ícone Pill. |
+| REDESIGN-2 | FC ao caminhar, esforço/MET, perfil de marcha com comprimento do passo, ratio energia ativa/repouso. |
+| REDESIGN-3 parcial | SMA(4×t½) nos PKCompactCards + painel `PKHumorCorrelation`. |
 
-**Próxima sessão (Sprint 11 Bugs+QoL, ~1.5-2h):**
-1. Banner erro global (30min) — mais alto valor de QoL
-2. Lint React 7 erros (45min) — bugs latentes reais
-3. Mood NaN + .gitignore + logrotate + requirements.txt (20min) — pequenos
-4. Atualizar CLAUDE.md/ROADMAP.md + commit + push (5min)
+## Arquivado
 
-**Quando der vontade (paralelo):**
-- 11C Clonazepam (30min — ganho clínico imediato)
-- 11D TODOs(Anders) (30min — polish)
-- Cinza (30min — higiene se vier vontade)
+Itens da auditoria de 2026-04-26 que não entram em sprint no contexto atual:
 
-Após tudo: projeto entra em **modo manutenção** — só novas features se pedido específico.
+| Achado da auditoria | Decisão |
+|---------------------|---------|
+| Auth básica em `/health/api/*` | Arquivado: single-user em domínio pessoal. |
+| Vite dev → `dist` estático via Apache | Rebaixado: só entra se a trilha 11C escolher essa rota por reboot resilience. |
+| `roocode.service` rodar como user não-root | Arquivado: baixo ganho prático no host pessoal. |
+| Code-splitting `React.lazy` por aba | Arquivado: ganho pequeno frente ao custo de manutenção. |
+| Suite Playwright completa | Arquivado: overhead alto para app pessoal. |
+| Rename `claude` → `gemini` | Arquivado: cosmético. |
+| Harmonizar todos `useDoses(window)` | Arquivado até virar dor de UX. |
+| Reescrever testes frontend stale | Arquivado: melhor recriar testes quando houver necessidade real. |
+| Remover token de `.git/config` | Higiene boa, mas fora da fila ativa. |
+| `GET /farma/regimen` side effect | Aceito e documentado. |
+| LRU em cache IA | Arquivado: crescimento lento em uso single-user. |
+
+## Sequenciamento fresh
+
+Próxima sessão:
+
+1. Ler `ROADMAP.md` e `CLAUDE.md`; `CHARTENDEAVOUR.md` só como contexto histórico.
+2. Implementar **MOOD-IMPACT-1** em fatia pequena.
+3. Preservar o Medication Action Center já implementado em `DoseLogger` e `DoseCalendarView`.
+4. Validar com `npx tsc --noEmit`, `npm run build` e `git diff --check`.
+5. Atualizar docs apenas com status real do que foi concluído.
+
+Depois:
+
+- MOOD-IMPACT-1 vira a primeira sprint de insight sobre fatores que pesam no humor.
+- Manutenção só volta se bloquear uso ou se for necessária para entregar insight.

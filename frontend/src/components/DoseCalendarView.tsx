@@ -19,11 +19,15 @@ import {
   Trash2,
   Check,
   X,
+  Plus,
+  Sparkles,
 } from 'lucide-react'
 
 import {
   useDoses,
   useDeleteDose,
+  useLogDose,
+  useRegimen,
   useUpdateDose,
   useSubstances,
 } from '../lib/api'
@@ -41,6 +45,25 @@ const toLocalInput = (iso: string): string => {
   }
 }
 
+const buildLocalDateTimeForDay = (day: Date, timeHHMM?: string): string => {
+  const fallback = format(new Date(), 'HH:mm')
+  const [h, m] = (timeHHMM || fallback).split(':').map((s) => parseInt(s, 10))
+  const safeHour = Number.isFinite(h) ? h : 9
+  const safeMinute = Number.isFinite(m) ? m : 0
+  return format(
+    new Date(
+      day.getFullYear(),
+      day.getMonth(),
+      day.getDate(),
+      safeHour,
+      safeMinute,
+      0,
+      0,
+    ),
+    "yyyy-MM-dd'T'HH:mm",
+  )
+}
+
 export default function DoseCalendarView() {
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(new Date()))
   const [selectedDay, setSelectedDay] = useState(() => new Date())
@@ -50,9 +73,20 @@ export default function DoseCalendarView() {
     taken_at: '',
     note: '',
   })
+  const [isAdding, setIsAdding] = useState(false)
+  const [addDraft, setAddDraft] = useState<{ substance: string; dose_mg: string; taken_at: string; note: string }>({
+    substance: '',
+    dose_mg: '',
+    taken_at: '',
+    note: '',
+  })
+  const [addDoseFromRegimen, setAddDoseFromRegimen] = useState(false)
+  const [addTimeFromRegimen, setAddTimeFromRegimen] = useState(false)
 
   const { data: doses = [], isLoading } = useDoses(HOURS_WINDOW)
   const { data: substances = [] } = useSubstances()
+  const { data: regimen = [] } = useRegimen()
+  const logDose = useLogDose()
   const updateDose = useUpdateDose()
   const deleteDose = useDeleteDose()
 
@@ -60,6 +94,8 @@ export default function DoseCalendarView() {
     () => new Map(substances.map((s) => [s.id, s])),
     [substances],
   )
+
+  const activeRegimen = useMemo(() => regimen.filter((entry) => entry.active), [regimen])
 
   const dosesByDay = useMemo(() => {
     const map = new Map<string, DoseRecord[]>()
@@ -94,6 +130,7 @@ export default function DoseCalendarView() {
   const selectedDoses = dosesByDay.get(selectedKey) ?? []
 
   const startEdit = (record: DoseRecord) => {
+    setIsAdding(false)
     setEditingId(record.id)
     setDraft({
       dose_mg: String(record.dose_mg),
@@ -117,6 +154,48 @@ export default function DoseCalendarView() {
       },
     })
     setEditingId(null)
+  }
+
+  const startAdd = () => {
+    const entry = activeRegimen[0]
+    setEditingId(null)
+    setAddDraft({
+      substance: entry?.substance ?? '',
+      dose_mg: entry ? String(entry.dose_mg) : '',
+      taken_at: buildLocalDateTimeForDay(selectedDay, entry?.times?.[0]),
+      note: '',
+    })
+    setAddDoseFromRegimen(Boolean(entry))
+    setAddTimeFromRegimen(Boolean(entry?.times?.[0]))
+    setIsAdding(true)
+  }
+
+  const cancelAdd = () => setIsAdding(false)
+
+  const handleAddSubstanceChange = (substance: string) => {
+    const entry = activeRegimen.find((item) => item.substance === substance)
+    setAddDraft((current) => ({
+      ...current,
+      substance,
+      dose_mg: entry ? String(entry.dose_mg) : addDoseFromRegimen ? '' : current.dose_mg,
+      taken_at: entry?.times?.[0]
+        ? buildLocalDateTimeForDay(selectedDay, entry.times[0])
+        : current.taken_at || buildLocalDateTimeForDay(selectedDay),
+    }))
+    setAddDoseFromRegimen(Boolean(entry))
+    setAddTimeFromRegimen(Boolean(entry?.times?.[0]))
+  }
+
+  const saveAdd = async () => {
+    const dose_mg = parseFloat(addDraft.dose_mg)
+    if (!addDraft.substance || !Number.isFinite(dose_mg) || dose_mg <= 0 || !addDraft.taken_at) return
+    await logDose.mutateAsync({
+      substance: addDraft.substance,
+      dose_mg,
+      taken_at: new Date(addDraft.taken_at).toISOString(),
+      note: addDraft.note,
+    })
+    setIsAdding(false)
   }
 
   const confirmDelete = async (record: DoseRecord) => {
@@ -183,6 +262,21 @@ export default function DoseCalendarView() {
       alignItems: 'center',
       gap: 4,
     }
+  }
+
+  const chipStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 3,
+    background: 'rgba(139, 92, 246, 0.1)',
+    color: 'var(--accent-violet)',
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: 8,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    padding: '1px 5px',
+    textTransform: 'uppercase',
   }
 
   return (
@@ -481,6 +575,36 @@ export default function DoseCalendarView() {
 
           <div
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 9,
+                color: 'var(--muted)',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {selectedDoses.length} dose{selectedDoses.length === 1 ? '' : 's'}
+            </span>
+            <button
+              onClick={startAdd}
+              disabled={logDose.isPending}
+              style={iconBtn('emerald')}
+              type="button"
+            >
+              <Plus size={10} /> adicionar
+            </button>
+          </div>
+
+          <div
+            style={{
               flex: 1,
               overflowY: 'auto',
               display: 'flex',
@@ -489,6 +613,126 @@ export default function DoseCalendarView() {
               minHeight: 0,
             }}
           >
+            {isAdding && (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  padding: 8,
+                  borderRadius: 6,
+                  background: 'rgba(15, 118, 110, 0.06)',
+                  border: '1px solid rgba(15, 118, 110, 0.22)',
+                }}
+              >
+                <select
+                  value={addDraft.substance}
+                  onChange={(e) => handleAddSubstanceChange(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="">substância...</option>
+                  {substances.map((substance) => {
+                    const inRegimen = activeRegimen.some((entry) => entry.substance === substance.id)
+                    return (
+                      <option key={substance.id} value={substance.id}>
+                        {substance.display_name.split(' ')[0]}
+                        {inRegimen ? ' · regime' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.7fr) minmax(0, 1.3fr)', gap: 6 }}>
+                  <div>
+                    {addDoseFromRegimen && (
+                      <div style={{ marginBottom: 4 }}>
+                        <span style={chipStyle}>
+                          <Sparkles size={8} /> regime
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={addDraft.dose_mg}
+                      onChange={(e) => {
+                        setAddDraft({ ...addDraft, dose_mg: e.target.value })
+                        setAddDoseFromRegimen(false)
+                      }}
+                      placeholder="dose"
+                      style={{
+                        ...inputStyle,
+                        width: '100%',
+                        ...(addDoseFromRegimen
+                          ? {
+                              background: 'rgba(139, 92, 246, 0.06)',
+                              borderColor: 'rgba(139, 92, 246, 0.25)',
+                            }
+                          : {}),
+                      }}
+                    />
+                  </div>
+                  <div>
+                    {addTimeFromRegimen && (
+                      <div style={{ marginBottom: 4 }}>
+                        <span style={chipStyle}>
+                          <Sparkles size={8} /> horário
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="datetime-local"
+                      value={addDraft.taken_at}
+                      onChange={(e) => {
+                        setAddDraft({ ...addDraft, taken_at: e.target.value })
+                        setAddTimeFromRegimen(false)
+                      }}
+                      style={{
+                        ...inputStyle,
+                        width: '100%',
+                        ...(addTimeFromRegimen
+                          ? {
+                              background: 'rgba(139, 92, 246, 0.06)',
+                              borderColor: 'rgba(139, 92, 246, 0.25)',
+                            }
+                          : {}),
+                      }}
+                    />
+                  </div>
+                </div>
+                <textarea
+                  value={addDraft.note}
+                  onChange={(e) => setAddDraft({ ...addDraft, note: e.target.value })}
+                  placeholder="nota..."
+                  style={{
+                    ...inputStyle,
+                    resize: 'none',
+                    height: 32,
+                    lineHeight: 1.4,
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                  <button
+                    onClick={cancelAdd}
+                    disabled={logDose.isPending}
+                    style={iconBtn('muted')}
+                    type="button"
+                  >
+                    <X size={10} /> cancelar
+                  </button>
+                  <button
+                    onClick={saveAdd}
+                    disabled={logDose.isPending}
+                    style={iconBtn('emerald')}
+                    type="button"
+                  >
+                    <Check size={10} />
+                    {logDose.isPending ? '…' : 'salvar'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {selectedDoses.length === 0 && (
               <span
                 style={{

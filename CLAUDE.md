@@ -1,113 +1,76 @@
-# RooCode — Handoff Operacional
+# RooCode — Handoff Operacional (estado real)
 
 Pipeline: iPhone AutoExport → FastAPI (8011) → React/Vite (3031) → Apache → `https://ultrassom.ai/health/`
 
-Este arquivo é o handoff curto para uma sessão fresh. A ordem oficial de execução fica em `ROADMAP.md`; a spec histórica/técnica do redesign fica em `CHARTENDEAVOUR.md`; auditorias ficam em `Docs/`.
+Este arquivo é o handoff curto para sessão fresh. Ordem de execução fica em `ROADMAP.md`; contrato operacional em `AGENTS.md`.
 
 ## Stack
 
-- **Backend:** FastAPI unificado em `main.py` (porta 8011) + pandas + venv local (`/root/RooCode/bin/python`).
+- **Backend:** FastAPI unificado em `main.py` (porta 8011), pandas, venv local (`/root/RooCode/bin/python`).
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + Recharts + TanStack Query.
-- **Tema:** warm editorial (Fraunces serif + Manrope sans, fundo creme + acentos teal/amber/violet).
 - **Módulos backend:** `Sleep/`, `Metrics/`, `Mood/`, `Farma/`, `Forecast/`, `Interpolate/`.
-- **PK:** `Farma/math.py` + `Farma/medDataBase.json` no backend; timeline multi-medicação no frontend via `pharmacokinetics.ts` + `medication-bridge.ts`.
-- **Medicação:** catálogo built-in + custom, logs reais em `/farma/doses`, defaults read-only em `Farma/regimen_config.json`.
+- **Farmacocinética:** `Farma/math.py` + `Farma/medDataBase.json` (backend) e `frontend/src/utils/pharmacokinetics.ts` (frontend).
 
-## Comandos
+## Runtime e serviços
+
+- Backend oficial: `roocode.service` (`/etc/systemd/system/roocode.service`).
+- Proxy Apache:
+  - `/health/` → frontend (`localhost:3031`)
+  - `/health/api/` → backend (`localhost:8011`)
+
+## Comandos principais
 
 ```bash
 # Backend
 source /root/RooCode/bin/activate
-./bin/python main.py
-# ou:
 /root/RooCode/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8011
 
 # Frontend
 cd /root/RooCode/frontend
 npm run dev -- --host 0.0.0.0
+
+# Qualidade
 npx tsc --noEmit
 npm run build
+npm run lint
+npm run test:unit
+
+# Backend tests
+cd /root/RooCode
+/root/RooCode/bin/python -m unittest tests.test_farma -v
+git diff --check
 ```
 
-**Web:** `https://ultrassom.ai/health/`
-**Dev direto:** `http://localhost:3031/health/`
+## Endpoints principais
 
-## Endpoints
+- `/sleep` (GET/POST)
+- `/metrics` (GET/POST)
+- `/mood` (GET/POST)
+- `/farma/substances` (GET; `?full=true` para campos PK completos)
+- `/farma/substances/{key}` (POST/PUT/DELETE custom)
+- `/farma/regimen` (GET)
+- `/farma/doses` (GET/POST)
+- `/farma/doses/{id}` (PUT/DELETE)
+- `/interpolate` (POST)
+- `/forecast` (POST)
 
-Todos sob `/health/api/*` via Apache ou `:8011/*` direto:
+## Baseline funcional preservado
 
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
-| `/sleep` | GET/POST | AutoExport Sleep CSV |
-| `/metrics` | GET/POST | AutoExport Health Metrics CSV |
-| `/mood` | GET/POST | AutoExport State of Mind CSV |
-| `/farma/substances` | GET | Built-in + custom merged. Use `?full=true` para todos campos PK |
-| `/farma/substances/{key}` | POST/PUT/DELETE | CRUD de custom; built-ins imutáveis retornam 409 |
-| `/farma/doses` | GET/POST | Log de doses |
-| `/farma/doses/{id}` | PUT/DELETE | Edita/remove dose individual |
-| `/farma/regimen` | GET | Defaults read-only; `PUT` removido na Fase 9A.3 |
-| `/forecast` | POST | Forecasting 5 dias via Gemini |
-| `/interpolate` | POST | Interpolação temporal linear/Gemini |
+- Medication Action Center ativo:
+  - `DoseLogger` com **tomar agora** por regime.
+  - `DoseCalendarView` com **adicionar/editar/remover** no dia selecionado.
+- Insights ativos:
+  - `MoodDriverBoard` no topo de Insights.
+  - `MoodLagHypothesisLab` com lags `0d..3d`, `n`, qualidade, `r`, baseline e aviso de sampling bias.
 
-## Apache e Serviços
+## Achados abertos de regularização
 
-- Apache: `/health/` → `localhost:3031`; `/health/api/` → `localhost:8011`.
-- Config principal: `/etc/apache2/sites-available/ultrassom.ai-optimized.conf`.
-- Inventário de portas/regras: consultar `/etc/apache2/APACHE.md` antes de criar serviço ou mudar proxy.
-- Backend oficial: `roocode.service` em `/etc/systemd/system/`, `active (running)`, enabled.
-- `ExecStart`: `/root/RooCode/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8011`.
-- Serviços antigos `sleep-api.service`, `metrics-api.service`, `mood-api.service` foram removidos; `main.py` é a fonte única.
+1. `frontend/src/utils/roocode-adapter.ts`: heurística `detectMoodDataQuality` ainda com TODO/stub.
+2. `npm run lint`: falhando em componentes existentes (hooks/purity/memo).
+3. `npm run test:unit`: falhando por testes stale vs código atual.
+4. Worktree local contém WIP parcial de frontend ainda sem decisão final.
 
-## Quirks Vivos
-
-- CSVs do iPhone misturam ISO 8601 e PT-BR; backend e frontend já têm normalização defensiva.
-- `Mood/mood.csv` foi re-upado em 2026-04-27 com HH:MM:SS preservado nas Emoções Momentâneas.
-- `In Bed (hr) = 0.0` no AutoExport é sentinel de ausência; tratar como `null`, nunca como eficiência real.
-- `VITE_USE_MOCK=true` pode ficar preso no processo Vite até restart. Se aparecer "Mock · 14 dias", verificar `/proc/<pid-vite>/environ`.
-- Evitar `uvicorn --reload` no uso pessoal; se porta 8011 ficar presa, investigar PID órfão antes de relançar.
-- Tailwind v4 não escaneia alias `@/` de forma confiável; arquivo novo com classes Tailwind pode precisar de `@source` explícito em `frontend/src/index.css`.
-- Peso default PK do Anders: 91 kg (`DEFAULT_PK_BODY_WEIGHT_KG`).
-
-## Estado Atual
-
-- Fases 1-10D concluídas.
-- 9E concluída: mood histórico re-upado com hora.
-- 11A concluída: limpeza de dead code e deps órfãs.
-- CHART-1 e CHART-2 concluídas.
-- REDESIGN-1 concluída: 6 tabs narrativas (`Panorama`, `Sono`, `Coração`, `Atividade`, `Farmaco`, `Insights`).
-- REDESIGN-2 concluída: FC ao caminhar, esforço/MET, perfil de marcha com comprimento do passo, ratio energia ativa/repouso.
-- REDESIGN-3 parcial concluída: SMA(4×t½) nos PKCompactCards + painel `PKHumorCorrelation`.
-- Trilha antiga REDESIGN-3/4/5 foi absorvida pela nova fila **Mood Impact**.
-- **Sprint oficial ativa: MOOD-IMPACT-2 — Lag & Hypothesis Lab**, conforme `ROADMAP.md`.
-
-## Roadmap e Docs
-
-- `ROADMAP.md`: Antiga fonte de Historico única de sequência/sprints.
-- `CHARTENDEAVOUR.md`: spec histórica/técnica do redesign visual; não define a próxima sprint.
-- `Docs/RELATORIO_AUDITORIA_ROOCODE_2026-04-26.md`: auditoria histórica; consultar como evidência, não como roteiro ativo.
-- `frontend/docs/README.md`: checklist histórico da Fase 5, sem pendência ativa.
-
-Filtro ativo: não puxar sprints de manutenção pequena por inércia. Só propor próxima tarefa se ela trouxer redesign relevante, dado novo, insight clínico ou layout perceptivelmente melhor.
-
-Política de dado insuficiente: métrica nova pode nascer `data-gated`. Estado vazio deve dizer o critério (`precisa ≥N pares`, cobertura baixa, sem overlap humor+metric), sem mockar insight e sem transformar null em zero.
-
-Política de IA/Superpowers:
-
-- Seções de IA existentes continuam válidas e podem ser melhoradas incrementalmente.
-- Não remover Gemini/Forecast existente sem uma sprint explícita de migração.
-- Para a IA do produto/protótipo, preferência do Anders: `gpt-5.4-mini`, reasoning `high`, verbosity `high`.
-- Como é app pessoal, a IA pode ser mais franca e experimental: hipóteses sobre rotina, sono, métricas, humor e medicação são permitidas.
-- Limite prático: não executar mudanças, não editar doses automaticamente e não fingir certeza clínica.
-
-## KICKOFF — MOOD-LOG-1
-
-> Cole este bloco em uma sessão fresh quando for implementar a próxima sprint.
-
-Objetivo: implementar o **Medication Action Center**: deixar o registro de dose mais rápido e menos friccional, preservando endpoints, schemas e PK engine atuais.
-
-Status 2026-04-30: concluído. `DoseLogger` tem atalhos **tomar agora** por regime; `DoseCalendarView` tem ação **adicionar** no dia selecionado com auto-fill de dose/horário do regime e campos manuais diretos. Backend Farma, endpoints, schemas e PK engine não foram alterados.
-
-Sanity inicial:
+## Fresh start (obrigatório)
 
 ```bash
 systemctl is-active roocode.service
@@ -115,78 +78,4 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8011/sleep
 git status --short
 ```
 
-Escopo MOOD-LOG-1:
-
-1. Ler `frontend/src/components/DoseLogger.tsx` e `frontend/src/components/DoseCalendarView.tsx`.
-2. Usar `/root/CODEX/mood-pharma-tracker/src/features/doses/components/QuickDoseModal.tsx` só como referência de UX.
-3. Criar ação rápida **tomar agora** para substâncias do regime.
-4. Manter auto-fill de dose/horário padrão com indicação visual de origem.
-5. Permitir horário customizado sem abrir fluxo longo.
-6. Melhorar o calendário para adicionar/editar dose no dia selecionado com menos atrito.
-
-Cuidados:
-
-- Não alterar endpoint, tipo público, schema ou comportamento de runtime.
-- Não migrar arquitetura do `mood-pharma-tracker`; reaproveitar ideia, não copiar app.
-- Não reescrever o calendário do zero.
-- Tratar PRN/manual como fluxo simples, sem exigir remodelagem completa do catálogo.
-
-Validação esperada:
-
-```bash
-cd /root/RooCode/frontend
-npx tsc --noEmit
-npm run build
-```
-
-Ao concluir:
-
-1. Historico `ROADMAP.md`, `CHARTENDEAVOUR.md` e este `CLAUDE.md`. Adicionar observacoes em AGENTS.md
-2. Rodar `git diff --check`.
-3. Commit + push se tudo estiver verde.
-
-## KICKOFF — MOOD-IMPACT-1
-
-Objetivo: criar o **Mood Driver Board** em fatia pequena, explicando fatores plausíveis que pesam no humor antes de abrir gráficos detalhados.
-
-Status 2026-04-30: concluído em primeira fatia. `frontend/src/components/charts/mood-driver-board.tsx` resume sono, autonômico, ativação, circadiano e medicação; integração mínima em `CorrelationHeatmap` para aparecer na aba Insights sem mexer no shell principal.
-
-Cuidados:
-
-- Declarar campos de entrada antes de editar código.
-- Começar com poucos drivers de alta cobertura: sono, ativação, autonômico e medicação.
-- Cada card precisa ter estado `dados insuficientes` com critério objetivo.
-- Não mockar insight, não transformar `null` em zero e não sugerir causalidade clínica.
-- Preservar Gemini/Forecast existente.
-
-Validação esperada:
-
-```bash
-cd /root/RooCode/frontend
-npx tsc --noEmit
-npm run build
-git diff --check
-```
-
-## KICKOFF — MOOD-IMPACT-2
-
-Objetivo: criar o **Lag & Hypothesis Lab** em fatia pequena, cruzando métrica → humor em lags interpretáveis (`0d` a `3d`) com qualidade do sinal explícita.
-
-Status 2026-04-30: primeira fatia concluída. `frontend/src/components/charts/mood-lag-hypothesis-lab.tsx` aparece na aba Insights via `CorrelationHeatmap`; `frontend/src/utils/correlations.ts` calcula lags `0d` a `3d`, `n`, qualidade do sinal, Pearson `r` e baseline de humor quando a métrica está acima/abaixo da média pessoal. Teste focal: `frontend/tests/mood-lag-hypothesis.test.ts`.
-
-Cuidados:
-
-- Reaproveitar `utils/correlations.ts` e `utils/statistics.ts`.
-- Métricas já cobertas: sono total, HRV, FC repouso, passos, luz do dia e doses logadas.
-- Preservar `n`, lag, qualidade do sinal e aviso de sampling bias.
-- Próxima fatia possível: Lamictal variance vs SD rolling 7d do humor, só se couber sem reescrever PK/humor.
-- Não declarar causalidade clínica.
-
-Validação esperada:
-
-```bash
-cd /root/RooCode/frontend
-npx tsc --noEmit
-npm run build
-git diff --check
-```
+Depois: seguir `ROADMAP.md` e fechar o gate de regularização antes de retomar sprint de feature.

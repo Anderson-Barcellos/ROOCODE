@@ -1,41 +1,55 @@
 import assert from 'node:assert/strict'
 import { addDays, format, startOfDay, subDays } from 'date-fns'
 
-import type { DailySnapshot } from '../src/types/apple-health'
+import type { DailyHealthMetrics, DailySnapshot } from '../src/types/apple-health'
 import { selectSnapshotRange } from '../src/utils/aggregation'
 import { toDayKey } from '../src/utils/date'
+
+const BASE_HEALTH: Omit<DailyHealthMetrics, 'date' | 'sleepTotalHours'> = {
+  interpolated: false,
+  sleepAsleepHours: null,
+  sleepInBedHours: null,
+  sleepCoreHours: null,
+  sleepDeepHours: null,
+  sleepRemHours: null,
+  sleepAwakeHours: null,
+  sleepEfficiencyPct: null,
+  respiratoryDisturbances: null,
+  activeEnergyKcal: null,
+  restingEnergyKcal: null,
+  heartRateMin: null,
+  heartRateMax: null,
+  heartRateMean: null,
+  restingHeartRate: null,
+  spo2: null,
+  respiratoryRate: null,
+  pulseTemperatureC: null,
+  exerciseMinutes: null,
+  standingMinutes: null,
+  daylightMinutes: null,
+  hrvSdnn: null,
+  steps: null,
+  distanceKm: null,
+  physicalEffort: null,
+  walkingHeartRateAvg: null,
+  walkingAsymmetryPct: null,
+  walkingSpeedKmh: null,
+  runningSpeedKmh: null,
+  vo2Max: null,
+  sixMinuteWalkMeters: null,
+  cardioRecoveryBpm: null,
+  recordCount: 1,
+  placeholderRestingEnergyRows: 0,
+}
 
 function snapshot(date: string, kind: 'health' | 'mood' = 'health'): DailySnapshot {
   return {
     date,
     health: kind === 'health'
       ? {
+          ...BASE_HEALTH,
           date,
           sleepTotalHours: 7,
-          sleepAsleepHours: null,
-          sleepInBedHours: null,
-          sleepCoreHours: null,
-          sleepDeepHours: null,
-          sleepRemHours: null,
-          sleepAwakeHours: null,
-          sleepEfficiencyPct: null,
-          respiratoryDisturbances: null,
-          activeEnergyKcal: null,
-          restingEnergyKcal: null,
-          heartRateMin: null,
-          heartRateMax: null,
-          heartRateMean: null,
-          restingHeartRate: null,
-          spo2: null,
-          respiratoryRate: null,
-          pulseTemperatureC: null,
-          exerciseMinutes: null,
-          movementMinutes: null,
-          standingMinutes: null,
-          daylightMinutes: null,
-          hrvSdnn: null,
-          recordCount: 1,
-          placeholderRestingEnergyRows: 0,
         }
       : null,
     mood: kind === 'mood'

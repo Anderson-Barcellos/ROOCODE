@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Pill, CheckCircle, AlertCircle, Sparkles, Zap } from 'lucide-react'
 
@@ -40,25 +40,21 @@ export default function DoseLogger() {
   const [doseFromRegimen, setDoseFromRegimen] = useState(false)
   const [timeFromRegimen, setTimeFromRegimen] = useState(false)
 
-  // Track substance change pra disparar auto-fill SÓ na transição
-  const prevSubstance = useRef('')
-
   const selectedSub = substances.find((s) => s.id === substance)
-  const activeEntry = regimen.find((e) => e.active && e.substance === substance)
   const activeRegimen = useMemo(() => regimen.filter((e) => e.active), [regimen])
   const substanceById = useMemo(
     () => new Map(substances.map((s) => [s.id, s])),
     [substances],
   )
 
-  useEffect(() => {
-    if (substance === prevSubstance.current) return
-    prevSubstance.current = substance
+  const handleSubstanceChange = (value: string) => {
+    setSubstance(value)
 
-    if (substance && activeEntry) {
-      setDoseMg(String(activeEntry.dose_mg))
+    const entry = regimen.find((e) => e.active && e.substance === value)
+    if (value && entry) {
+      setDoseMg(String(entry.dose_mg))
       setDoseFromRegimen(true)
-      const firstTime = activeEntry.times?.[0]
+      const firstTime = entry.times?.[0]
       if (firstTime) {
         setTakenAt(buildScheduledDateTime(firstTime))
         setTimeFromRegimen(true)
@@ -66,12 +62,13 @@ export default function DoseLogger() {
         setTakenAt(localNow())
         setTimeFromRegimen(false)
       }
-    } else {
-      // Substância manual (suplemento/PRN) — preserva campos pra user digitar
-      setDoseFromRegimen(false)
-      setTimeFromRegimen(false)
+      return
     }
-  }, [substance, activeEntry])
+
+    // Substância manual (suplemento/PRN) — preserva campos pra user digitar
+    setDoseFromRegimen(false)
+    setTimeFromRegimen(false)
+  }
 
   const handleDoseChange = (value: string) => {
     setDoseMg(value)
@@ -101,7 +98,6 @@ export default function DoseLogger() {
       setTakenAt(localNow())
       setDoseFromRegimen(false)
       setTimeFromRegimen(false)
-      prevSubstance.current = ''
       setTimeout(() => setFeedback(null), 3000)
     } catch {
       setFeedback('err')
@@ -244,7 +240,7 @@ export default function DoseLogger() {
           <label style={labelStyle}>SUBSTÂNCIA</label>
           <select
             value={substance}
-            onChange={(e) => setSubstance(e.target.value)}
+            onChange={(e) => handleSubstanceChange(e.target.value)}
             style={{ ...inputStyle, cursor: 'pointer' }}
             required
           >

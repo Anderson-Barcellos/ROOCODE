@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ComposedChart,
   Area,
@@ -142,10 +142,11 @@ type CardProps = {
   doseRecords: DoseRecord[]
   windowStart: number
   windowEnd: number
+  nowTimestamp: number
   weightKg: number
 }
 
-function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weightKg }: CardProps) {
+function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTimestamp, weightKg }: CardProps) {
   const range = med.therapeuticRange
   const hasRange = range != null
 
@@ -180,7 +181,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
       }
     })
 
-    const nowConc = calculateConcentration(med, doses, Date.now(), weightKg)
+    const nowConc = calculateConcentration(med, doses, nowTimestamp, weightKg)
     const currentPct = range ? (nowConc / range.max) * 100 : 0
     return {
       data: series,
@@ -189,7 +190,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
       rangeMinPct: range ? (range.min / range.max) * 100 : 0,
       maxConc,
     }
-  }, [med, doses, range, windowStart, windowEnd, weightKg])
+  }, [med, doses, range, windowStart, windowEnd, nowTimestamp, weightKg])
 
   const color = COLORS_BY_ID[med.id] ?? '#8b5cf6'
   const status = hasRange ? statusOf(currentPct, rangeMinPct) : null
@@ -323,7 +324,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
               connectNulls
             />
             <ReferenceLine
-              x={Date.now()}
+              x={nowTimestamp}
               stroke="var(--muted)"
               strokeDasharray="2 2"
               strokeOpacity={0.6}
@@ -357,6 +358,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, weight
 export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const { data: allDoses = [], isLoading: loadingDoses } = useDoses(hoursWindow)
   const { data: substances = [], isLoading: loadingSubs } = useSubstances()
+  const [nowTimestamp] = useState(() => Date.now())
 
   const { cards, orphanNames } = useMemo(() => {
     const medsById = new Map<string, PKMedication>()
@@ -396,9 +398,8 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
     return { cards, orphanNames: uniqueOrphans }
   }, [substances, allDoses])
 
-  const now = Date.now()
-  const windowStart = now - hoursWindow * 3600 * 1000
-  const windowEnd = now + 12 * 3600 * 1000 // 12h de projeção pra frente
+  const windowStart = nowTimestamp - hoursWindow * 3600 * 1000
+  const windowEnd = nowTimestamp + 12 * 3600 * 1000 // 12h de projeção pra frente
 
   if (loadingDoses || loadingSubs) {
     return (
@@ -457,6 +458,7 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
             doseRecords={records}
             windowStart={windowStart}
             windowEnd={windowEnd}
+            nowTimestamp={nowTimestamp}
             weightKg={weightKg}
           />
         ))}

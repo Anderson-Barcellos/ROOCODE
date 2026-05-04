@@ -31,7 +31,6 @@ const BASE_HEALTH: Omit<DailyHealthMetrics, 'date' | 'sleepTotalHours'> = {
   physicalEffort: null,
   walkingHeartRateAvg: null,
   walkingAsymmetryPct: null,
-  walkingStepLengthCm: null,
   walkingSpeedKmh: null,
   runningSpeedKmh: null,
   vo2Max: null,

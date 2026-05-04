@@ -155,40 +155,61 @@ function metricsRecordToHealthRow(record: MetricsRecord): HealthAutoExportRow | 
   }
 }
 
+const MOOD_SLEEP_SIGNATURE_FIELDS = [
+  'Total Sleep (hr)',
+  'Asleep (Unspecified) (hr)',
+  'In Bed (hr)',
+  'Core (hr)',
+  'Deep (hr)',
+  'REM (hr)',
+  'Awake (hr)',
+  'Date/Time',
+] as const
+
+const MOOD_SLEEP_DOMINANCE_RATIO = 2
+
+function hasNonEmptyValue(value: unknown): boolean {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  return true
+}
+
+function hasSleepSignature(record: Record<string, unknown>): boolean {
+  return MOOD_SLEEP_SIGNATURE_FIELDS.some((field) => hasNonEmptyValue(record[field]))
+}
+
+function isMoodLikeRecord(record: Record<string, unknown>): boolean {
+  const hasStart = typeof record.Iniciar === 'string' && record.Iniciar.trim().length > 0
+  if (!hasStart) return false
+  return normalizeMoodValence(record.Associações as MoodRecord['Associações']) != null
+}
+
 /**
- * 🛠️ TODO(Anders): define a heurística de detecção.
+ * Heurística de qualidade de payload de humor.
  *
- * Contexto: um MoodRecord válido tem Iniciar + Associações. O backend RooCode
- * pode entregar Associações na escala Apple normalizada 0..100; mocks antigos
- * ainda usam valence direto em [-1, +1]. O adapter normaliza os dois formatos.
- *
- * Um MoodRecord corrompido vai ter campos extras de sleep (Total Sleep,
- * Core, Deep, REM). Associações em string numérica (ex: "0,25") é aceita.
- *
- * Decisões a tomar:
- * - Se QUALQUER linha tiver `Total Sleep (hr)` presente → tratar como corrupted?
- * - Ou só se A MAIORIA das linhas tiver sleep fields? (majority-vote)
- * - Associações pode vir como "0.25" string se Python export serializou mal?
- * - Empty array ([]) → 'empty' (não é erro, só não tem dados)
- *
- * Por ora stub retorna 'corrupted' se vê qualquer field sleep,
- * 'empty' se array vazio, 'valid' caso contrário. Ajusta conforme conhecimento
- * do formato real.
+ * Regras:
+ * - `empty`: sem linhas ou sem conteúdo útil.
+ * - `corrupted`: nenhuma linha mood-like, ou payload com assinatura de sono
+ *   dominando em proporção >= 2x sobre linhas mood-like.
+ * - `valid`: existe sinal mood-like suficiente e o payload não é dominado por sono.
  */
 export function detectMoodDataQuality(rows: MoodRecord[] | undefined): MoodDataQuality {
   if (!rows || rows.length === 0) return 'empty'
 
-  // TODO(Anders): tua lógica aqui. Exemplo de detecção por campos suspeitos:
-  const hasSleepFields = rows.some((row) => {
-    const record = row as unknown as Record<string, unknown>
-    return (
-      'Total Sleep (hr)' in record ||
-      'Core (hr)' in record ||
-      'Deep (hr)' in record ||
-      'REM (hr)' in record
-    )
-  })
-  if (hasSleepFields) return 'corrupted'
+  const records = rows as unknown as Array<Record<string, unknown>>
+  const nonEmptyRecords = records.filter((record) => Object.values(record).some(hasNonEmptyValue))
+  if (nonEmptyRecords.length === 0) return 'empty'
+
+  let moodLikeCount = 0
+  let sleepLikeCount = 0
+
+  for (const record of nonEmptyRecords) {
+    if (isMoodLikeRecord(record)) moodLikeCount += 1
+    if (hasSleepSignature(record)) sleepLikeCount += 1
+  }
+
+  if (moodLikeCount === 0) return 'corrupted'
+  if (sleepLikeCount >= moodLikeCount * MOOD_SLEEP_DOMINANCE_RATIO) return 'corrupted'
 
   return 'valid'
 }

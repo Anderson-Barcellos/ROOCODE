@@ -67,7 +67,7 @@ export function PKMoodScatterChart() {
   const selectedSub = substances.find((s) => s.id === selectedMedId)
   const med = selectedSub ? substanceToPKMedication(selectedSub) : null
 
-  const { pairs, r, regression, xMax } = useMemo(() => {
+  const { pairs, r, regression, xMax } = (() => {
     if (!med) return { pairs: [], r: NaN, regression: null as null | { slope: number; intercept: number }, xMax: 0 }
     const dosesForMed = allDoses.filter((d) => d.substance === med.id)
     const pkDoses = toPKDoses(dosesForMed)
@@ -79,15 +79,11 @@ export function PKMoodScatterChart() {
     const regression = linearRegression(xs, ys)
     const xMax = Math.max(...xs, 1)
     return { pairs, r, regression, xMax }
-  }, [med, allDoses, events, lagHours])
+  })()
 
-  const readiness = useMemo(
-    () =>
-      evaluateReadiness([], CHART_REQUIREMENTS.pkMoodScatter, 'Scatter PK×Humor', {
-        pairCount: pairs.length,
-      }),
-    [pairs.length],
-  )
+  const readiness = evaluateReadiness([], CHART_REQUIREMENTS.pkMoodScatter, 'Scatter PK×Humor', {
+    pairCount: pairs.length,
+  })
 
   const regressionLine =
     regression && pairs.length >= 3

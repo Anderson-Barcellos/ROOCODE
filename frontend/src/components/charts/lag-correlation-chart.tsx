@@ -59,7 +59,7 @@ export function LagCorrelationChart() {
   const selectedSub = substances.find((s) => s.id === selectedMedId)
   const med = selectedSub ? substanceToPKMedication(selectedSub) : null
 
-  const { data, bestLag, eventCount } = useMemo(() => {
+  const { data, bestLag, eventCount } = (() => {
     if (!med || events.length === 0) return { data: [], bestLag: null as number | null, eventCount: 0 }
     const dosesForMed = allDoses.filter((d) => d.substance === med.id)
     const pkDoses = toPKDoses(dosesForMed)
@@ -75,15 +75,11 @@ export function LagCorrelationChart() {
       ? causalLags.reduce((best, cur) => (Math.abs(cur.r) > Math.abs(best.r) ? cur : best)).lagHours
       : null
     return { data, bestLag, eventCount: events.length }
-  }, [med, allDoses, events])
+  })()
 
-  const readiness = useMemo(
-    () =>
-      evaluateReadiness([], CHART_REQUIREMENTS.lagCorrelation, 'Análise de lag', {
-        pairCount: eventCount,
-      }),
-    [eventCount],
-  )
+  const readiness = evaluateReadiness([], CHART_REQUIREMENTS.lagCorrelation, 'Análise de lag', {
+    pairCount: eventCount,
+  })
 
   const availableMeds = substances
     .map((s) => substanceToPKMedication(s))

@@ -16,9 +16,9 @@ Homogeneizar documentação, fechar implementações incompletas e recuperar con
 
 | Ordem | Trilha | Status | Resultado esperado |
 |---|---|---|---|
-| REG-0 | Baseline + decisão de WIP | EM ANDAMENTO | Destino explícito do worktree atual (finalizar ou reverter). |
-| REG-1 | Frontend unit tests | PENDENTE | `npm run test:unit` verde sem bypass. |
-| REG-2 | Frontend lint/purity | PENDENTE | `npm run lint` verde (hooks/purity resolvidos). |
+| REG-0 | Baseline + decisão de WIP | CONCLUÍDA (LOCAL) | WIP antigo retirado do worktree e estacionado em stash (`stash@{0}`). |
+| REG-1 | Frontend unit tests | CONCLUÍDA (LOCAL) | `npm run test:unit` verde sem bypass. |
+| REG-2 | Frontend lint/purity | CONCLUÍDA (LOCAL) | `npm run lint` verde (hooks/purity resolvidos). |
 | REG-3 | Heurística de qualidade de humor | PENDENTE | `detectMoodDataQuality` sem TODO/stub e com regra objetiva. |
 | REG-4 | Documentação homogênea | EM ANDAMENTO | `AGENTS.md`/`ROADMAP.md`/`CLAUDE.md` refletindo só estado real. |
 | REG-5 | Reabertura de roadmap de features | BLOQUEADA | Próxima sprint definida somente após gate fechado. |
@@ -76,6 +76,12 @@ cd /root/RooCode
 /root/RooCode/bin/python -m unittest tests.test_farma -v
 git diff --check
 ```
+
+Status local 2026-05-04:
+
+- Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint`, `npm run build` ✅
+- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v` ✅
+- Integridade de diff: `git diff --check` ✅
 
 ## Critério para voltar a sprint de feature
 

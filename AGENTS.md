@@ -35,9 +35,13 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 ## Achados abertos (alto valor)
 
 1. TODO/stub de qualidade de humor em `frontend/src/utils/roocode-adapter.ts`.
-2. Lint frontend falhando (hooks/purity em componentes existentes).
-3. `test:unit` frontend falhando (tests stale vs exports/tipos atuais).
-4. Worktree local com mudanças parciais de frontend que precisam decisão (finalizar ou reverter).
+2. Slice antigo de charts foi estacionado em stash (`stash@{0}`) e precisa destino final (absorver ou descartar).
+
+## Status local de regularização (2026-05-04)
+
+- REG-0 fechado localmente: WIP antigo retirado do worktree e estacionado em stash.
+- REG-1 fechado localmente: `npm run test:unit` verde.
+- REG-2 fechado localmente: `npm run lint` verde.
 
 ## Sequência fresh obrigatória
 

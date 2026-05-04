@@ -66,9 +66,13 @@ git diff --check
 ## Achados abertos de regularização
 
 1. `frontend/src/utils/roocode-adapter.ts`: heurística `detectMoodDataQuality` ainda com TODO/stub.
-2. `npm run lint`: falhando em componentes existentes (hooks/purity/memo).
-3. `npm run test:unit`: falhando por testes stale vs código atual.
-4. Worktree local contém WIP parcial de frontend ainda sem decisão final.
+2. Slice antigo de charts estacionado em stash (`stash@{0}`), aguardando decisão de absorver ou descartar.
+
+## Status local validado (2026-05-04)
+
+- Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint`, `npm run build` ✅
+- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v` ✅
+- Diff hygiene: `git diff --check` ✅
 
 ## Fresh start (obrigatório)
 

@@ -60,6 +60,8 @@ const TIMELINE_LABELS: Record<TimelineSeriesKey, string> = {
 
 const EXEC_SERIES: TimelineSeriesKey[] = ['sleepTotalHours', 'hrvSdnn', 'restingHeartRate']
 
+const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
+
 function toneFor(value: number | null, positive: number, watch: number, lowerIsBetter = false): AnalyticsTone {
   if (value == null) return 'neutral'
   if (lowerIsBetter) {
@@ -209,9 +211,9 @@ function InterpolationBanner({ mode, loading, error, filledCount }: Interpolatio
       ? { border: 'border-teal-200', bg: 'bg-teal-50', strong: 'text-teal-900', soft: 'text-teal-700/80' }
       : { border: 'border-amber-200', bg: 'bg-amber-50', strong: 'text-amber-900', soft: 'text-amber-700/80' }
 
-  const label = mode === 'claude' ? 'Interpolação IA (Gemini)' : 'Interpolação linear'
+  const label = mode === 'claude' ? 'Interpolação IA' : 'Interpolação linear'
   const status = loading
-    ? ' — Gemini preenchendo lacunas…'
+    ? ' — modelo de IA preenchendo lacunas…'
     : error
     ? ' — Erro na chamada IA, usando linear como fallback.'
     : filledCount > 0
@@ -236,7 +238,7 @@ interface ForecastBannerProps {
 function ForecastBanner({ mode, loading, error, forecastedCount }: ForecastBannerProps) {
   if (mode === 'off') return null
   const status = loading
-    ? ' — Gemini gerando previsão…'
+    ? ' — modelo de IA gerando projeção…'
     : error
     ? ' — Erro na chamada IA. Tente novamente.'
     : forecastedCount > 0
@@ -244,7 +246,7 @@ function ForecastBanner({ mode, loading, error, forecastedCount }: ForecastBanne
     : ' — Aguardando dados suficientes (≥7 dias reais).'
   return (
     <div className="mb-4 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm text-violet-900">
-      <span className="font-semibold">🔮 Projeção Gemini</span>
+      <span className="font-semibold">🔮 Projeção IA</span>
       <span className="text-violet-700/80">{status}</span>
     </div>
   )
@@ -257,11 +259,14 @@ export default function App() {
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [interpolation, setInterpolationState] = useState<InterpolationMode>(() => {
     const saved = localStorage.getItem('roocode-interpolation')
-    return saved === 'linear' || saved === 'claude' ? saved : 'off'
+    if (saved === 'off' || saved === 'linear') return saved
+    if (saved === 'claude' && AI_INTERPOLATION_ENABLED) return saved
+    return 'linear'
   })
   const setInterpolation = (mode: InterpolationMode) => {
-    setInterpolationState(mode)
-    localStorage.setItem('roocode-interpolation', mode)
+    const nextMode = mode === 'claude' && !AI_INTERPOLATION_ENABLED ? 'linear' : mode
+    setInterpolationState(nextMode)
+    localStorage.setItem('roocode-interpolation', nextMode)
   }
   const [forecast, setForecastState] = useState<ForecastMode>(() => {
     const saved = localStorage.getItem('roocode-forecast')

@@ -2,7 +2,7 @@
  * useInterpolation — wrapper sobre as três estratégias:
  *   'off'    → passthrough (retorna snapshots originais)
  *   'linear' → interpolateLinear() puro frontend
- *   'claude' → POST /health/api/interpolate + fallback para linear no erro
+ *   'claude' → POST /health/api/interpolate (opcional; desativado por padrão)
  *
  * Design note: o modo 'claude' usa TanStack Query com staleTime Infinity.
  * A queryKey inclui um hash das datas presentes, então a cache invalida
@@ -15,6 +15,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { interpolateLinear } from '@/utils/interpolate'
 
 const BASE = '/health/api'
+const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
 
 export type InterpolationMode = 'off' | 'linear' | 'claude'
 
@@ -65,7 +66,7 @@ export function useInterpolation(
   const query = useQuery<InterpolateResponse>({
     queryKey: ['interpolate', 'claude', hashDates(snapshots)],
     queryFn: () => postInterpolate(snapshots),
-    enabled: mode === 'claude' && snapshots.length >= 2,
+    enabled: mode === 'claude' && AI_INTERPOLATION_ENABLED && snapshots.length >= 2,
     staleTime: Infinity,
     gcTime: 10 * 60 * 1000,
     retry: 1,
@@ -76,6 +77,11 @@ export function useInterpolation(
   }
 
   if (mode === 'linear') {
+    const filled = linearResult.filter((s) => s.interpolated === true).length
+    return { snapshots: linearResult, loading: false, error: false, filledCount: filled }
+  }
+
+  if (!AI_INTERPOLATION_ENABLED) {
     const filled = linearResult.filter((s) => s.interpolated === true).length
     return { snapshots: linearResult, loading: false, error: false, filledCount: filled }
   }

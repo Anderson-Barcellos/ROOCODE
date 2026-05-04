@@ -15,6 +15,7 @@ import asyncio
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -26,8 +27,21 @@ router = APIRouter()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 
-GEMINI_MODEL = "gemini-2.5-flash"
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
 ENV_YAML_PATH = Path("/root/GEMINI_API/env.yml")
+CACHE_TTL_SECONDS = _env_int("INTERPOLATE_CACHE_TTL_SECONDS", 3600)
+CACHE_MAX_ITEMS = _env_int("INTERPOLATE_CACHE_MAX_ITEMS", 256)
 
 _cache: dict[str, dict[str, Any]] = {}
 
@@ -45,6 +59,31 @@ def _load_api_key() -> str:
         except Exception:
             return ""
     return ""
+
+
+def _cache_get(key: str) -> Optional[dict[str, Any]]:
+    hit = _cache.get(key)
+    if not hit:
+        return None
+    now = time.time()
+    created_at = float(hit.get("_created_at", 0))
+    if now - created_at > CACHE_TTL_SECONDS:
+        _cache.pop(key, None)
+        return None
+    return hit
+
+
+def _cache_set(key: str, payload: dict[str, Any]) -> None:
+    if len(_cache) >= CACHE_MAX_ITEMS:
+        oldest_key = min(
+            _cache,
+            key=lambda cache_key: float(_cache[cache_key].get("_created_at", 0)),
+        )
+        _cache.pop(oldest_key, None)
+    _cache[key] = {
+        "_created_at": time.time(),
+        **payload,
+    }
 
 
 # ─── Modelos ──────────────────────────────────────────────────────────────────
@@ -300,8 +339,8 @@ async def interpolate(body: InterpolateRequest) -> JSONResponse:
         json.dumps({"s": body.snapshots, "strategy": body.strategy}, sort_keys=True, default=str).encode()
     ).hexdigest()
 
-    if cache_key in _cache:
-        hit = _cache[cache_key]
+    hit = _cache_get(cache_key)
+    if hit:
         return JSONResponse(content={
             "snapshots": hit["snapshots"],
             "meta": {**hit["meta"], "cached": True},
@@ -317,7 +356,7 @@ async def interpolate(body: InterpolateRequest) -> JSONResponse:
             raise ValueError(f"Gemini retornou {type(filled).__name__}, esperado list")
         merged = _apply_filled(body.snapshots, filled)
         meta = {"cached": False, "error": None, "filled_dates": [e.get("date") for e in filled if e.get("date")]}
-        _cache[cache_key] = {"snapshots": merged, "meta": meta}
+        _cache_set(cache_key, {"snapshots": merged, "meta": meta})
         return JSONResponse(content={"snapshots": merged, "meta": meta})
     except Exception as exc:
         return JSONResponse(content={

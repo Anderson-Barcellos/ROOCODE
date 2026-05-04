@@ -1,14 +1,15 @@
 """
-Forecast — projeção Gemini de 5 dias futuros sobre DailySnapshot[].
+Forecast — projeção IA de 5 dias futuros sobre DailySnapshot[].
 
 Endpoint único: POST /forecast
-- Recebe snapshots recentes + valid_real_days (pra cap de confiança).
+- Recebe contexto compacto (últimos dias úteis) + resumo de médias recentes.
 - Retorna APENAS os 5 dias futuros (não merged com originais).
-- Cache md5 do payload em dict módulo-level (single-user, sem Redis).
-- Gemini call sync embrulhado em asyncio.to_thread.
+- Cache md5 em dict módulo-level (single-user, sem Redis).
+- IA call sync embrulhado em asyncio.to_thread.
 
-Reusa helpers de Interpolate/router.py (copiados verbatim): _load_api_key,
-_call_gemini, _strip_fences, _classify_valence.
+Provider configurável por env:
+- `FORECAST_AI_PROVIDER=gemini|openai` (default: gemini)
+- `GEMINI_API_KEY` ou `OPENAI_API_KEY`
 """
 from __future__ import annotations
 
@@ -16,6 +17,9 @@ import asyncio
 import hashlib
 import json
 import os
+import time
+import urllib.error
+import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Optional
@@ -26,35 +30,63 @@ from pydantic import BaseModel, Field
 
 router = APIRouter()
 
-GEMINI_MODEL = "gemini-2.5-flash"
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+AI_PROVIDER = os.environ.get("FORECAST_AI_PROVIDER", "gemini").strip().lower()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5-mini").strip() or "gpt-5-mini"
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 ENV_YAML_PATH = Path("/root/GEMINI_API/env.yml")
 FORECAST_HORIZON = 5
+FORECAST_CONTEXT_MAX_DAYS = 45
+CACHE_TTL_SECONDS = _env_int("FORECAST_CACHE_TTL_SECONDS", 3600)
+CACHE_MAX_ITEMS = _env_int("FORECAST_CACHE_MAX_ITEMS", 256)
 
 _cache: dict[str, dict[str, Any]] = {}
 
 
-# ─── Helpers (verbatim de Interpolate/router.py) ─────────────────────────────
+# ─── Helpers de provider ─────────────────────────────────────────────────────
 
-def _load_api_key() -> str:
+def _load_key_from_yaml(key_name: str) -> str:
+    if not ENV_YAML_PATH.exists():
+        return ""
+    try:
+        import yaml
+        with ENV_YAML_PATH.open(encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return str(cfg.get(key_name) or "").strip()
+    except Exception:
+        return ""
+
+
+def _load_gemini_api_key() -> str:
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if key:
         return key
-    if ENV_YAML_PATH.exists():
-        try:
-            import yaml
-            with ENV_YAML_PATH.open(encoding="utf-8") as f:
-                cfg = yaml.safe_load(f) or {}
-            return (cfg.get("GEMINI_API_KEY") or "").strip()
-        except Exception:
-            return ""
-    return ""
+    return _load_key_from_yaml("GEMINI_API_KEY")
+
+
+def _load_openai_api_key() -> str:
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if key:
+        return key
+    return _load_key_from_yaml("OPENAI_API_KEY")
 
 
 def _call_gemini(prompt: str) -> str:
     from google.genai.client import Client as GeminiClient
     from google.genai import types as gtypes
 
-    api_key = _load_api_key()
+    api_key = _load_gemini_api_key()
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY não configurada (env var ou /root/GEMINI_API/env.yml)")
 
@@ -68,6 +100,56 @@ def _call_gemini(prompt: str) -> str:
         config=gtypes.GenerateContentConfig(temperature=0.2),
     )
     return response.text or ""
+
+
+def _call_openai(prompt: str) -> str:
+    api_key = _load_openai_api_key()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY não configurada (env var ou /root/GEMINI_API/env.yml)")
+
+    payload = {
+        "model": OPENAI_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"{OPENAI_API_BASE}/chat/completions",
+        data=data,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"OpenAI HTTP {exc.code}: {body[:300]}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"OpenAI request failed: {exc}") from exc
+
+    parsed = json.loads(raw)
+    choices = parsed.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise ValueError("OpenAI retornou payload sem choices")
+    message = choices[0].get("message") if isinstance(choices[0], dict) else None
+    content = message.get("content") if isinstance(message, dict) else None
+    if isinstance(content, str):
+        return content
+    raise ValueError("OpenAI retornou content vazio ou em formato não suportado")
+
+
+def _call_model(prompt: str) -> str:
+    provider = AI_PROVIDER
+    if provider in ("openai", "gpt"):
+        return _call_openai(prompt)
+    if provider in ("gemini", "google"):
+        return _call_gemini(prompt)
+    raise RuntimeError(f"FORECAST_AI_PROVIDER inválido: {provider}")
 
 
 def _strip_fences(raw: str) -> str:
@@ -97,12 +179,38 @@ def _classify_valence(valence: float) -> str:
     return "Muito Desagradável"
 
 
+def _cache_get(key: str) -> Optional[dict[str, Any]]:
+    hit = _cache.get(key)
+    if not hit:
+        return None
+    now = time.time()
+    created_at = float(hit.get("_created_at", 0))
+    if now - created_at > CACHE_TTL_SECONDS:
+        _cache.pop(key, None)
+        return None
+    return hit
+
+
+def _cache_set(key: str, payload: dict[str, Any]) -> None:
+    if len(_cache) >= CACHE_MAX_ITEMS:
+        oldest_key = min(
+            _cache,
+            key=lambda cache_key: float(_cache[cache_key].get("_created_at", 0)),
+        )
+        _cache.pop(oldest_key, None)
+    _cache[key] = {
+        "_created_at": time.time(),
+        **payload,
+    }
+
+
 # ─── Modelos ─────────────────────────────────────────────────────────────────
 
 class ForecastRequest(BaseModel):
     snapshots: list[dict]
-    horizon: int = Field(default=5)
+    horizon: int = Field(default=5, ge=1, le=14)
     valid_real_days: int = Field(default=0)
+    rolling_summary: Optional[dict[str, Any]] = None
 
 
 class ForecastSignal(BaseModel):
@@ -127,6 +235,57 @@ class ForecastResponse(BaseModel):
 
 WEEKDAY_PT = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira",
               "Sexta-feira", "Sábado", "Domingo"]
+
+FORECAST_SIGNAL_FIELDS = (
+    "sleepTotalHours",
+    "hrvSdnn",
+    "restingHeartRate",
+    "activeEnergyKcal",
+    "exerciseMinutes",
+    "valence",
+)
+
+
+def _to_float_or_none(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _compact_snapshot(snapshot: dict[str, Any]) -> Optional[dict[str, Any]]:
+    d = snapshot.get("date")
+    if not isinstance(d, str) or not d:
+        return None
+
+    values = snapshot.get("values") if isinstance(snapshot.get("values"), dict) else None
+    if values is None:
+        health = snapshot.get("health") if isinstance(snapshot.get("health"), dict) else {}
+        mood = snapshot.get("mood") if isinstance(snapshot.get("mood"), dict) else {}
+        values = {
+            "sleepTotalHours": health.get("sleepTotalHours"),
+            "hrvSdnn": health.get("hrvSdnn"),
+            "restingHeartRate": health.get("restingHeartRate"),
+            "activeEnergyKcal": health.get("activeEnergyKcal"),
+            "exerciseMinutes": health.get("exerciseMinutes"),
+            "valence": mood.get("valence"),
+        }
+
+    compact_values = {field: _to_float_or_none(values.get(field)) for field in FORECAST_SIGNAL_FIELDS}
+    has_signal = any(value is not None for value in compact_values.values())
+    if not has_signal:
+        return None
+
+    return {"date": d, "values": compact_values}
+
+
+def _select_recent_context(snapshots: list[dict[str, Any]], max_days: int = FORECAST_CONTEXT_MAX_DAYS) -> list[dict[str, Any]]:
+    compacted = [_compact_snapshot(snapshot) for snapshot in snapshots]
+    filtered = [snapshot for snapshot in compacted if snapshot is not None]
+    filtered.sort(key=lambda snapshot: snapshot.get("date", ""))
+    return filtered[-max_days:]
 
 
 def _build_future_dates(snapshots: list[dict], horizon: int) -> list[dict[str, str]]:
@@ -155,11 +314,15 @@ def _compute_confidence_cap(valid_real_days: int) -> float:
     return 0.90
 
 
-def _build_prompt(recent: list[dict], future_dates: list[dict[str, str]], cap: float) -> str:
+def _build_prompt(
+    recent: list[dict],
+    future_dates: list[dict[str, str]],
+    cap: float,
+    rolling_summary: Optional[dict[str, Any]] = None,
+) -> str:
     compact = []
     for s in recent:
-        health = s.get("health") or {}
-        mood = s.get("mood") or {}
+        values = s.get("values") if isinstance(s.get("values"), dict) else {}
         d = s.get("date", "")
         try:
             wd = WEEKDAY_PT[date.fromisoformat(d).weekday()] if d else "?"
@@ -168,15 +331,24 @@ def _build_prompt(recent: list[dict], future_dates: list[dict[str, str]], cap: f
         compact.append({
             "date": d,
             "weekday": wd,
-            "sleepTotalHours": health.get("sleepTotalHours"),
-            "hrvSdnn": health.get("hrvSdnn"),
-            "restingHeartRate": health.get("restingHeartRate"),
-            "activeEnergyKcal": health.get("activeEnergyKcal"),
-            "exerciseMinutes": health.get("exerciseMinutes"),
-            "valence": mood.get("valence"),
+            "sleepTotalHours": values.get("sleepTotalHours"),
+            "hrvSdnn": values.get("hrvSdnn"),
+            "restingHeartRate": values.get("restingHeartRate"),
+            "activeEnergyKcal": values.get("activeEnergyKcal"),
+            "exerciseMinutes": values.get("exerciseMinutes"),
+            "valence": values.get("valence"),
         })
 
     future_list = [f"{fd['date']} ({fd['weekday']})" for fd in future_dates]
+    summary_block = json.dumps(
+        rolling_summary or {
+            "window_days": 7,
+            "sample_days": 0,
+            "means": {field: None for field in FORECAST_SIGNAL_FIELDS},
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
 
     return f"""Você é um analista clínico projetando os próximos {len(future_dates)} dias de dados fisiológicos no dashboard de saúde de um paciente específico. Sua saída alimenta um sistema de visualização; precisão e humildade são obrigatórias.
 
@@ -193,6 +365,9 @@ REGIME FARMACOLÓGICO (steady-state atingido em todas as drogas contínuas)
 
 DADOS RECENTES ({len(compact)} dias, incluindo dia-da-semana)
 {json.dumps(compact, ensure_ascii=False, indent=2)}
+
+MÉDIAS MÓVEIS RECENTES (âncora de 5-7 dias)
+{summary_block}
 
 DATAS A PROJETAR ({len(future_dates)} dias futuros)
 {json.dumps(future_list, ensure_ascii=False)}
@@ -224,7 +399,7 @@ RETORNO — JSON com duas chaves:
 }}
 
 DIRETRIZES DE PROJEÇÃO
-1. Privilegie tendências dos últimos 7 dias reais sobre médias de longo prazo.
+1. Use as médias móveis fornecidas (janela 5-7 dias) como âncora e ajuste fino pelas tendências dos últimos dias reais.
 2. WEEKDAY EFFECT é real: fim de semana (Sábado, Domingo) tipicamente aumenta sleepTotalHours e reduz exerciseMinutes/activeEnergyKcal. Dias úteis tendem ao oposto.
 3. Como o regime está em steady-state, não introduza variação atribuível a medicação — as drogas são parte do baseline.
 4. valence é escala -1 (muito desagradável) a +1 (muito agradável); zero é neutro. Padrões de humor são autocorrelacionados dia-a-dia.
@@ -276,7 +451,7 @@ def _apply_forecasted(entries: list[dict], cap: float) -> list[dict]:
                 "restingEnergyKcal": None, "heartRateMin": None,
                 "heartRateMax": None, "heartRateMean": None,
                 "spo2": None, "respiratoryRate": None,
-                "pulseTemperatureC": None, "movementMinutes": None,
+                "pulseTemperatureC": None,
                 "standingMinutes": None, "daylightMinutes": None,
                 "recordCount": 0, "placeholderRestingEnergyRows": 0,
             }
@@ -313,7 +488,8 @@ def _apply_forecasted(entries: list[dict], cap: float) -> list[dict]:
 
 @router.post("")
 async def forecast(body: ForecastRequest) -> JSONResponse:
-    future_dates = _build_future_dates(body.snapshots, body.horizon)
+    context = _select_recent_context(body.snapshots)
+    future_dates = _build_future_dates(context, body.horizon)
     if not future_dates:
         return JSONResponse(content={
             "forecasted_snapshots": [],
@@ -323,26 +499,31 @@ async def forecast(body: ForecastRequest) -> JSONResponse:
         })
 
     cap = _compute_confidence_cap(body.valid_real_days)
+    recent = context[-30:]
+    rolling_summary = body.rolling_summary if isinstance(body.rolling_summary, dict) else None
 
     cache_key = hashlib.md5(
         json.dumps({
-            "s": body.snapshots, "horizon": body.horizon, "cap": cap,
+            "recent": recent,
+            "future": future_dates,
+            "horizon": body.horizon,
+            "cap": cap,
+            "summary": rolling_summary,
         }, sort_keys=True, default=str).encode()
     ).hexdigest()
 
-    if cache_key in _cache:
-        hit = _cache[cache_key]
+    hit = _cache_get(cache_key)
+    if hit:
         return JSONResponse(content={
             "forecasted_snapshots": hit["forecasted_snapshots"],
             "meta": {**hit["meta"], "cached": True},
             "signals": hit["signals"],
         })
 
-    recent = sorted(body.snapshots, key=lambda s: s.get("date", ""))[-30:]
-    prompt = _build_prompt(recent, future_dates, cap)
+    prompt = _build_prompt(recent, future_dates, cap, rolling_summary)
 
     try:
-        raw = await asyncio.to_thread(_call_gemini, prompt)
+        raw = await asyncio.to_thread(_call_model, prompt)
         clean = _strip_fences(raw)
         parsed = json.loads(clean)
         if not isinstance(parsed, dict):
@@ -367,7 +548,7 @@ async def forecast(body: ForecastRequest) -> JSONResponse:
             "forecasted_dates": [f["date"] for f in forecasted],
             "max_confidence": cap,
         }
-        _cache[cache_key] = {"forecasted_snapshots": forecasted, "meta": meta, "signals": signals}
+        _cache_set(cache_key, {"forecasted_snapshots": forecasted, "meta": meta, "signals": signals})
         return JSONResponse(content={"forecasted_snapshots": forecasted, "meta": meta, "signals": signals})
     except Exception as exc:
         return JSONResponse(content={

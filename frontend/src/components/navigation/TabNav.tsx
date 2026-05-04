@@ -9,11 +9,18 @@ export type TabKey = 'panorama' | 'sono' | 'coracao' | 'atividade' | 'farmaco' |
 export const rangeOptions = ['7d', '30d', '90d', '1y', 'all'] as const
 export type RangeOption = (typeof rangeOptions)[number]
 
-const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = [
-  { key: 'off', label: 'Off' },
-  { key: 'linear', label: 'Linear' },
-  { key: 'claude', label: 'IA' },
-]
+const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
+
+const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = AI_INTERPOLATION_ENABLED
+  ? [
+      { key: 'off', label: 'Off' },
+      { key: 'linear', label: 'Linear' },
+      { key: 'claude', label: 'IA' },
+    ]
+  : [
+      { key: 'off', label: 'Off' },
+      { key: 'linear', label: 'Linear' },
+    ]
 
 const forecastOptions: Array<{ key: ForecastMode; label: string }> = [
   { key: 'off', label: 'Off' },

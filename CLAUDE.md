@@ -38,6 +38,8 @@ npm run test:unit
 # Backend tests
 cd /root/RooCode
 /root/RooCode/bin/python -m unittest tests.test_farma -v
+/root/RooCode/bin/python -m unittest tests.test_forecast -v
+/root/RooCode/bin/python -m unittest tests.test_mood -v
 git diff --check
 ```
 
@@ -65,13 +67,18 @@ git diff --check
 
 ## Achados abertos de regularização
 
-1. `frontend/src/utils/roocode-adapter.ts`: heurística `detectMoodDataQuality` ainda com TODO/stub.
-2. Slice antigo de charts estacionado em stash (`stash@{0}`), aguardando decisão de absorver ou descartar.
+1. Slice antigo de charts estacionado em stash (`stash@{0}`), com decisão de tratar em sprint dedicada numa sessão fresh (redução de cache/contexto).
+2. Worktree local segue com fatias misturadas (backend/frontend/testes/docs), com recorte já mapeado em 4 fatias de commit e aguardando execução.
+
+## Notas operacionais recentes
+
+- Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
+- Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
 ## Status local validado (2026-05-04)
 
 - Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint`, `npm run build` ✅
-- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v` ✅
+- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v`, `/root/RooCode/bin/python -m unittest tests.test_forecast -v`, `/root/RooCode/bin/python -m unittest tests.test_mood -v` ✅
 - Diff hygiene: `git diff --check` ✅
 
 ## Fresh start (obrigatório)

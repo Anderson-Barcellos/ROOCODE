@@ -34,14 +34,18 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 
 ## Achados abertos (alto valor)
 
-1. TODO/stub de qualidade de humor em `frontend/src/utils/roocode-adapter.ts`.
-2. Slice antigo de charts foi estacionado em stash (`stash@{0}`) e precisa destino final (absorver ou descartar).
+1. Slice antigo de charts foi estacionado em stash (`stash@{0}`) e fica **adiado para sprint dedicada em sessão fresh** (decisão explícita para reduzir cache de contexto). Conteúdo principal: expansão de charts de marcha/atividade (`walking-heart-rate`, `physical-effort`, `energy-balance`, `walkingStepLengthCm`).
+2. Worktree local está com múltiplas fatias de regularização misturadas (backend/frontend/testes/docs) e precisa recorte explícito para commit limpo.
 
 ## Status local de regularização (2026-05-04)
 
 - REG-0 fechado localmente: WIP antigo retirado do worktree e estacionado em stash.
 - REG-1 fechado localmente: `npm run test:unit` verde.
 - REG-2 fechado localmente: `npm run lint` verde.
+- REG-3 fechado localmente: heurística `detectMoodDataQuality` objetiva + ingestão de mood robusta (AutoExport v1/v2).
+- REG-4 fechado localmente: documentação (`AGENTS.md`/`ROADMAP.md`/`CLAUDE.md`) alinhada ao estado real do código/validações.
+- Hardening adicional fechado localmente: forecast (dedupe/ordem/erro HTTP), correlação PK×humor (filtro de concentração) e p-value via Fisher z.
+- Decisão operacional: tratamento do `stash@{0}` será feito em sprint dedicada numa sessão fresh.
 
 ## Sequência fresh obrigatória
 
@@ -58,6 +62,8 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
    - `npm run test:unit`
    - `cd /root/RooCode`
    - `/root/RooCode/bin/python -m unittest tests.test_farma -v`
+   - `/root/RooCode/bin/python -m unittest tests.test_forecast -v`
+   - `/root/RooCode/bin/python -m unittest tests.test_mood -v`
    - `git diff --check`
 
 ## Gate de regularização (antes de nova feature)
@@ -67,6 +73,7 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 3. `lint` frontend verde.
 4. Heurística de qualidade de humor sem TODO/stub.
 5. Docs atualizados apenas com status real.
+6. Recorte explícito do worktree em fatias de commit limpas.
 
 ## Protocolo `/regularizar`
 

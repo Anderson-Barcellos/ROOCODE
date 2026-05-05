@@ -7,6 +7,10 @@
 dose_log.json
 # Backups / exports manuais
 *.backup
+.opencode/
+Previous_Mood.csv
+Mood/Previous_Mood.csv
+Mood/test.py
 data/
 
 # ─── Node / Vite ──────────────────────────────────────────────────────────────

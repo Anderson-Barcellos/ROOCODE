@@ -19,8 +19,8 @@ Homogeneizar documentação, fechar implementações incompletas e recuperar con
 | REG-0 | Baseline + decisão de WIP | CONCLUÍDA (LOCAL) | WIP antigo retirado do worktree e estacionado em stash (`stash@{0}`). |
 | REG-1 | Frontend unit tests | CONCLUÍDA (LOCAL) | `npm run test:unit` verde sem bypass. |
 | REG-2 | Frontend lint/purity | CONCLUÍDA (LOCAL) | `npm run lint` verde (hooks/purity resolvidos). |
-| REG-3 | Heurística de qualidade de humor | PENDENTE | `detectMoodDataQuality` sem TODO/stub e com regra objetiva. |
-| REG-4 | Documentação homogênea | EM ANDAMENTO | `AGENTS.md`/`ROADMAP.md`/`CLAUDE.md` refletindo só estado real. |
+| REG-3 | Heurística de qualidade de humor | CONCLUÍDA (LOCAL) | `detectMoodDataQuality` objetivo + ingestão mood robusta para AutoExport v1/v2. |
+| REG-4 | Documentação homogênea | CONCLUÍDA (LOCAL) | `AGENTS.md`/`ROADMAP.md`/`CLAUDE.md` refletindo estado real do código e validações. |
 | REG-5 | Reabertura de roadmap de features | BLOQUEADA | Próxima sprint definida somente após gate fechado. |
 
 ## Backlog executável por trilha
@@ -48,12 +48,9 @@ Homogeneizar documentação, fechar implementações incompletas e recuperar con
 
 ### REG-3 — Heurística de qualidade de humor
 
-1. Substituir stub de `detectMoodDataQuality` por regra explícita e testável.
-2. Cobrir casos:
-   - payload válido,
-   - payload vazio,
-   - payload corrompido por colunas de sono/métricas.
-3. Evitar falso positivo que bloqueie mood válido.
+1. Stub substituído por regra explícita e testável em `frontend/src/utils/roocode-adapter.ts`.
+2. Cobertura aplicada para payload válido/vazio/corrompido por assinatura de sono.
+3. Ingestão de datas do mood endurecida para formatos legado (dd/mm) e v2 (ISO-like).
 
 ### REG-4 — Documentação homogênea
 
@@ -74,13 +71,15 @@ npm run test:unit
 
 cd /root/RooCode
 /root/RooCode/bin/python -m unittest tests.test_farma -v
+/root/RooCode/bin/python -m unittest tests.test_forecast -v
+/root/RooCode/bin/python -m unittest tests.test_mood -v
 git diff --check
 ```
 
 Status local 2026-05-04:
 
 - Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint`, `npm run build` ✅
-- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v` ✅
+- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v`, `/root/RooCode/bin/python -m unittest tests.test_forecast -v`, `/root/RooCode/bin/python -m unittest tests.test_mood -v` ✅
 - Integridade de diff: `git diff --check` ✅
 
 ## Critério para voltar a sprint de feature
@@ -90,3 +89,11 @@ Só abrir nova sprint quando:
 1. Gate acima estiver fechado;
 2. docs estiverem consistentes com o commit em `main`;
 3. WIP parcial tiver destino resolvido.
+
+## Pendência final de desbloqueio
+
+- Decidir destino de `stash@{0}` (absorver ou descartar) e executar recorte de commits em fatias limpas antes de reabrir sprint de feature.
+
+Decisão atual (2026-05-04):
+
+- O tratamento de `stash@{0}` será executado em **sprint dedicada numa sessão fresh**, para reduzir cache/contexto acumulado.

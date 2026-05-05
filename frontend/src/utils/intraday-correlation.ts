@@ -17,6 +17,7 @@ import type { MoodEntryRow } from '@/types/apple-health'
 import {
   calculateConcentration,
   DEFAULT_PK_BODY_WEIGHT_KG,
+  PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML,
   type PKDose,
   type PKMedication,
 } from './pharmacokinetics'
@@ -114,7 +115,7 @@ export function buildPKMoodPairs(
   for (const event of events) {
     const t = event.timestamp - lagMs
     const conc = calculateConcentration(med, doses, t, weightKg)
-    if (!Number.isFinite(conc) || conc < 0) continue
+    if (!Number.isFinite(conc) || conc <= PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML) continue
     pairs.push({
       timestamp: event.timestamp,
       concentration: conc,

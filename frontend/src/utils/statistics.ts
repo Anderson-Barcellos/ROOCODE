@@ -53,6 +53,19 @@ function correlationStrength(r: number): CorrelationResult['strength'] {
   return 'negligible'
 }
 
+function pValueFromCorrelation(r: number, n: number): number {
+  if (!Number.isFinite(r) || n < 4) return Number.NaN
+
+  // Aproximação de Fisher z (bilateral).
+  // Mais estável que usar distribuição normal diretamente no estatístico t.
+  const clampedR = Math.max(-0.999999, Math.min(0.999999, r))
+  const z = 0.5 * Math.log((1 + clampedR) / (1 - clampedR))
+  const se = 1 / Math.sqrt(n - 3)
+  const zScore = Math.abs(z / se)
+  const raw = 2 * (1 - cumulativeStdNormalProbability(zScore))
+  return Math.max(0, Math.min(1, raw))
+}
+
 export function pearson(
   xs: Array<number | null | undefined>,
   ys: Array<number | null | undefined>,
@@ -75,8 +88,7 @@ export function pearson(
   if (!Number.isFinite(r)) return null
 
   const n = pairs.length
-  const t = (r * Math.sqrt(n - 2)) / Math.sqrt(1 - r * r)
-  const pValue = 2 * (1 - cumulativeStdNormalProbability(Math.abs(t)))
+  const pValue = pValueFromCorrelation(r, n)
 
   return {
     r,

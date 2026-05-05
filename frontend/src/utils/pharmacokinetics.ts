@@ -60,6 +60,7 @@ const AUTOINDUCTION_DRUGS = ['lamotrigine', 'lamictal', 'lamotrigina', 'lamictal
 const AUTOINDUCTION_DAYS = 21
 const AUTOINDUCTION_HL_REDUCTION = 0.2
 export const DEFAULT_PK_BODY_WEIGHT_KG = 91
+export const PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML = 0.01
 
 function getKa(med: PKMedication): number {
   if (Number.isFinite(med.absorptionRate) && med.absorptionRate > 0) return med.absorptionRate
@@ -267,11 +268,11 @@ export function getTrendWindowMs(med: PKMedication): number {
   return Math.round(hours * 60 * 60 * 1000)
 }
 
-// Janela 4×t½ — observação clínica de Anders: quedas na concentração refletem
+// Janela 2×t½ — observação clínica de Anders: quedas na concentração refletem
 // no humor com magnitude similar ao atraso da SMA dessa janela. Janela uniforme
 // pra todas as substâncias (não diferencia crônica/aguda como getTrendWindowMs).
 export function getMoodCorrelationWindowMs(med: PKMedication): number {
-  return Math.round(4 * med.halfLife * 60 * 60 * 1000)
+  return Math.round(2 * med.halfLife * 60 * 60 * 1000)
 }
 
 export function computeTrendFromSamples(

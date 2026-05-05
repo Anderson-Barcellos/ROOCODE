@@ -3,6 +3,8 @@
  * Transforma as linhas parsadas em medicamentos + doses com timestamps.
  */
 
+import { format } from 'date-fns'
+
 import type { MedicationRow } from '../types/apple-health'
 import {
   buildPKMedication,
@@ -11,6 +13,7 @@ import {
   findPresetKey,
   getTrendWindowMs,
   mgFromCount,
+  PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML,
   type PKDose,
   type PKMedication,
 } from './pharmacokinetics'
@@ -79,7 +82,7 @@ export function buildMedGroups(rows: MedicationRow[]): MedGroup[] {
   for (const group of groups.values()) {
     const dedupMap = new Map<string, PKDose>()
     for (const dose of group.doses) {
-      const dateKey = new Date(dose.timestamp).toISOString().slice(0, 10)
+      const dateKey = format(new Date(dose.timestamp), 'yyyy-MM-dd')
       const existing = dedupMap.get(dateKey)
       if (!existing) {
         dedupMap.set(dateKey, { ...dose })
@@ -113,7 +116,7 @@ export function buildDailyConcentrations(
       const relevantDoses = doses.filter((d) => d.timestamp <= noon)
       if (!relevantDoses.length) return null
       const conc = calculateConcentration(medication, relevantDoses, noon, bodyWeight)
-      return conc > 0.01 ? conc : null
+      return conc > PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML ? conc : null
     })
     const trendSeries = computeTrendFromSamples(
       timestamps,

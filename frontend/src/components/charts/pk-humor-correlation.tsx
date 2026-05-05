@@ -16,6 +16,7 @@ import {
   calculateConcentration,
   DEFAULT_PK_BODY_WEIGHT_KG,
   getMoodCorrelationWindowMs,
+  PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML,
   type PKDose,
   type PKMedication,
 } from '@/utils/pharmacokinetics'
@@ -48,7 +49,7 @@ function buildDailySMASamples(
     for (let i = 0; i < numPoints; i++) {
       const t = eod - i * hourMs
       const conc = calculateConcentration(med, doses, t, weightKg)
-      if (Number.isFinite(conc) && conc >= 0) {
+      if (Number.isFinite(conc) && conc > PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML) {
         sum += conc
         count++
       }
@@ -191,10 +192,10 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           Correlação SMA × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          PK suavizada (4×t½) × valência diária
+          PK suavizada (2×t½) × valência diária
         </h3>
         <p className="mt-1 text-xs text-slate-500">
-          Pearson r entre média móvel de concentração (janela 4×meia-vida) e valência. Lag +1d compara SMA do dia anterior com humor de hoje.
+          Pearson r entre média móvel de concentração (janela 2×meia-vida) e valência. Lag +1d compara SMA do dia anterior com humor de hoje.
         </p>
       </div>
 

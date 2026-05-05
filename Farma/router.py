@@ -440,6 +440,14 @@ async def getRegimen():
 @router.post("/doses")
 async def logDose(entry: DoseEntry):
     """Registra uma dose manual com timestamp. Valida contra catálogo merged (built-in + custom)."""
+    if entry.dose_mg <= 0:
+        raise HTTPException(status_code=422, detail="dose_mg deve ser maior que zero")
+
+    try:
+        _validate_iso_timestamp(entry.taken_at)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     try:
         canonical_key, _ = _resolve_substance_any(entry.substance)
     except KeyError:

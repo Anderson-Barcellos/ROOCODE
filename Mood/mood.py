@@ -1,5 +1,7 @@
 import pandas as pd
 from pathlib import Path
+import os
+import re
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pandas.errors import EmptyDataError
@@ -7,12 +9,39 @@ from pandas.errors import EmptyDataError
 router = APIRouter()
 path = Path(__file__).parent / "mood.csv"
 path.parent.mkdir(parents=True, exist_ok=True)
+debug_snapshot_path = Path(__file__).resolve().parent.parent / ".tmp" / "mood" / "Previous_Mood.csv"
+slash_date_prefix_re = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}")
 
 def _scalingValence(value: int | float) -> float:
     """
     Scales the valence value to a range of 0 to 100.
     """
     return round((value + 100) / 2)
+
+
+def _is_debug_snapshot_enabled() -> bool:
+    raw = os.environ.get("MOOD_DEBUG_SNAPSHOT", "true").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
+def _save_debug_snapshot(dataframe: pd.DataFrame) -> None:
+    if not _is_debug_snapshot_enabled():
+        return
+    debug_snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    dataframe.to_csv(debug_snapshot_path, index=False)
+
+
+def _parse_mood_datetime(value: object) -> pd.Timestamp:
+    text = str(value).strip()
+    if not text:
+        raise ValueError("Iniciar vazio")
+
+    # AutoExport legado usa DD/MM/YYYY; v2 costuma chegar em ISO-like.
+    # Para datas com barra, fixamos dayfirst=True para evitar inversão mês/dia.
+    if slash_date_prefix_re.match(text):
+        return pd.to_datetime(text, format="mixed", dayfirst=True, errors="raise")  # type: ignore
+
+    return pd.to_datetime(text, format="mixed", errors="raise")  # type: ignore
 
 
 def _format_mood_date(value: object) -> str:
@@ -27,7 +56,7 @@ def _format_mood_date(value: object) -> str:
     as linhas, impossibilitando análise intraday PK×humor. Agora formatamos
     com hora quando o parse detectar componente temporal não-zero.
     """
-    parsed = pd.to_datetime(value, format="mixed", dayfirst=True, errors="raise")  # type: ignore
+    parsed = _parse_mood_datetime(value)
     has_time = parsed.hour != 0 or parsed.minute != 0 or parsed.second != 0  # type: ignore
     return parsed.strftime("%d/%m/%Y %H:%M:%S" if has_time else "%d/%m/%Y")  # type: ignore
 
@@ -49,6 +78,7 @@ def _organizeMood() -> bool:
     try:
         #Loading the CSV file
         dataframe = pd.read_csv(path)
+        _save_debug_snapshot(dataframe)
         #Converting the "Iniciar" column to a standardized format
         dataframe["Iniciar"] = dataframe["Iniciar"].apply(_format_mood_date)
 

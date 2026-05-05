@@ -7,9 +7,10 @@ Endpoint único: POST /forecast
 - Cache md5 em dict módulo-level (single-user, sem Redis).
 - IA call sync embrulhado em asyncio.to_thread.
 
-Provider configurável por env:
-- `FORECAST_AI_PROVIDER=gemini|openai` (default: gemini)
-- `GEMINI_API_KEY` ou `OPENAI_API_KEY`
+Provider:
+- `FORECAST_AI_PROVIDER=openai` (OpenAI-only; outros providers falham explicitamente)
+- OpenAI (Chat Completions) com modelo default `gpt-5.4-mini`
+- `OPENAI_API_KEY` via env (fallback opcional para `/root/RooCode/.env.yml`)
 """
 from __future__ import annotations
 
@@ -41,76 +42,81 @@ def _env_int(name: str, default: int) -> int:
     return value if value > 0 else default
 
 
-AI_PROVIDER = os.environ.get("FORECAST_AI_PROVIDER", "gemini").strip().lower()
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5-mini").strip() or "gpt-5-mini"
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in ("0", "false", "no", "off")
+
+
+AI_PROVIDER = os.environ.get("FORECAST_AI_PROVIDER", "openai").strip().lower() or "openai"
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4-mini").strip() or "gpt-5.4-mini"
+OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "high").strip().lower() or "high"
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
-ENV_YAML_PATH = Path("/root/GEMINI_API/env.yml")
+ENV_YAML_PATHS = (Path("/root/RooCode/.env.yml"), Path("/root/RooCode/env.yml"))
 FORECAST_HORIZON = 5
 FORECAST_CONTEXT_MAX_DAYS = 45
 CACHE_TTL_SECONDS = _env_int("FORECAST_CACHE_TTL_SECONDS", 3600)
-CACHE_MAX_ITEMS = _env_int("FORECAST_CACHE_MAX_ITEMS", 256)
+_cache_max_items_raw = _env_int("FORECAST_CACHE_MAX_ITEMS", 256)
+CACHE_MAX_ITEMS = _cache_max_items_raw if _cache_max_items_raw > 0 else 1
+FORECAST_DEBUG = _env_bool("FORECAST_DEBUG", False)
+
+FORECAST_FIELD_BOUNDS: dict[str, tuple[float, float]] = {
+    "sleepTotalHours": (0.0, 16.0),
+    "hrvSdnn": (0.0, 250.0),
+    "restingHeartRate": (30.0, 220.0),
+    "activeEnergyKcal": (0.0, 8000.0),
+    "exerciseMinutes": (0.0, 1440.0),
+    "valence": (-1.0, 1.0),
+}
 
 _cache: dict[str, dict[str, Any]] = {}
 
 
+class ForecastBadRequest(ValueError):
+    """Forecast payload validation error."""
+
+
+def _trace(message: str) -> None:
+    if FORECAST_DEBUG:
+        print(f"[forecast]: {message}")
+
+
 # ─── Helpers de provider ─────────────────────────────────────────────────────
 
-def _load_key_from_yaml(key_name: str) -> str:
-    if not ENV_YAML_PATH.exists():
+def _load_key_from_yaml(key_name: str, yaml_path: Path) -> str:
+    if not yaml_path.exists():
         return ""
     try:
         import yaml
-        with ENV_YAML_PATH.open(encoding="utf-8") as f:
+        with yaml_path.open(encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
         return str(cfg.get(key_name) or "").strip()
     except Exception:
         return ""
 
 
-def _load_gemini_api_key() -> str:
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if key:
-        return key
-    return _load_key_from_yaml("GEMINI_API_KEY")
-
-
 def _load_openai_api_key() -> str:
     key = os.environ.get("OPENAI_API_KEY", "").strip()
     if key:
         return key
-    return _load_key_from_yaml("OPENAI_API_KEY")
-
-
-def _call_gemini(prompt: str) -> str:
-    from google.genai.client import Client as GeminiClient
-    from google.genai import types as gtypes
-
-    api_key = _load_gemini_api_key()
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY não configurada (env var ou /root/GEMINI_API/env.yml)")
-
-    client = GeminiClient(api_key=api_key)
-    response = client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=[gtypes.Content(
-            role="user",
-            parts=[gtypes.Part.from_text(text=prompt)],
-        )],
-        config=gtypes.GenerateContentConfig(temperature=0.2),
-    )
-    return response.text or ""
+    for yaml_path in ENV_YAML_PATHS:
+        loaded = _load_key_from_yaml("OPENAI_API_KEY", yaml_path)
+        if loaded:
+            return loaded
+    return ""
 
 
 def _call_openai(prompt: str) -> str:
     api_key = _load_openai_api_key()
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY não configurada (env var ou /root/GEMINI_API/env.yml)")
+        raise RuntimeError("OPENAI_API_KEY não configurada (env var ou /root/RooCode/.env.yml)")
 
     payload = {
         "model": OPENAI_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.2,
+        "reasoning_effort": OPENAI_REASONING_EFFORT,
+        "response_format": {"type": "json_object"},
     }
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -144,12 +150,9 @@ def _call_openai(prompt: str) -> str:
 
 
 def _call_model(prompt: str) -> str:
-    provider = AI_PROVIDER
-    if provider in ("openai", "gpt"):
-        return _call_openai(prompt)
-    if provider in ("gemini", "google"):
-        return _call_gemini(prompt)
-    raise RuntimeError(f"FORECAST_AI_PROVIDER inválido: {provider}")
+    if AI_PROVIDER not in ("openai", "gpt"):
+        raise RuntimeError(f"FORECAST_AI_PROVIDER inválido para forecast OpenAI-only: {AI_PROVIDER}")
+    return _call_openai(prompt)
 
 
 def _strip_fences(raw: str) -> str:
@@ -314,65 +317,128 @@ def _compute_confidence_cap(valid_real_days: int) -> float:
     return 0.90
 
 
+def _mean(values: list[float]) -> Optional[float]:
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def _round_or_none(value: Optional[float], digits: int = 2) -> Optional[float]:
+    if value is None:
+        return None
+    return round(float(value), digits)
+
+
+def _build_recent_summary(
+    recent: list[dict[str, Any]],
+    rolling_summary: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    rows = recent[-21:]
+    if not rows:
+        return {
+            "context_days": 0,
+            "context_range": {"from": None, "to": None},
+            "rolling_summary": rolling_summary or {},
+            "field_trends": {},
+            "weekday_effect": {},
+            "recent_trace": [],
+        }
+
+    weekend_flags: list[bool] = []
+    series_by_field: dict[str, list[Optional[float]]] = {field: [] for field in FORECAST_SIGNAL_FIELDS}
+    recent_trace: list[dict[str, Any]] = []
+
+    for snapshot in rows:
+        d = str(snapshot.get("date") or "")
+        try:
+            wd_idx = date.fromisoformat(d).weekday()
+            wd_name = WEEKDAY_PT[wd_idx]
+            is_weekend = wd_idx >= 5
+        except ValueError:
+            wd_name = "?"
+            is_weekend = False
+
+        weekend_flags.append(is_weekend)
+        values = snapshot.get("values") if isinstance(snapshot.get("values"), dict) else {}
+
+        trace_row: dict[str, Any] = {"date": d, "weekday": wd_name}
+        for field in FORECAST_SIGNAL_FIELDS:
+            value = _to_float_or_none(values.get(field))
+            series_by_field[field].append(value)
+            trace_row[field] = _round_or_none(value)
+        recent_trace.append(trace_row)
+
+    field_trends: dict[str, Any] = {}
+    weekday_effect: dict[str, Any] = {}
+    for field in FORECAST_SIGNAL_FIELDS:
+        series = series_by_field[field]
+        last_value = next((v for v in reversed(series) if v is not None), None)
+        last7_vals = [v for v in series[-7:] if v is not None]
+        prev7_vals = [v for v in series[-14:-7] if v is not None]
+        weekend_vals = [v for v, is_weekend in zip(series, weekend_flags) if is_weekend and v is not None]
+        weekday_vals = [v for v, is_weekend in zip(series, weekend_flags) if (not is_weekend) and v is not None]
+
+        mean_last7 = _mean(last7_vals)
+        mean_prev7 = _mean(prev7_vals)
+        field_trends[field] = {
+            "available_days": len([v for v in series if v is not None]),
+            "last_value": _round_or_none(last_value),
+            "mean_last7": _round_or_none(mean_last7),
+            "mean_prev7": _round_or_none(mean_prev7),
+            "delta_last7_vs_prev7": _round_or_none(
+                (mean_last7 - mean_prev7) if (mean_last7 is not None and mean_prev7 is not None) else None
+            ),
+        }
+
+        weekend_mean = _mean(weekend_vals)
+        weekday_mean = _mean(weekday_vals)
+        weekday_effect[field] = {
+            "weekend_mean": _round_or_none(weekend_mean),
+            "weekday_mean": _round_or_none(weekday_mean),
+            "weekend_minus_weekday": _round_or_none(
+                (weekend_mean - weekday_mean) if (weekend_mean is not None and weekday_mean is not None) else None
+            ),
+        }
+
+    return {
+        "context_days": len(rows),
+        "context_range": {"from": rows[0].get("date"), "to": rows[-1].get("date")},
+        "rolling_summary": rolling_summary or {},
+        "field_trends": field_trends,
+        "weekday_effect": weekday_effect,
+        # Mantém só traço curto recente para reduzir tokens.
+        "recent_trace": recent_trace[-10:],
+    }
+
+
 def _build_prompt(
     recent: list[dict],
     future_dates: list[dict[str, str]],
     cap: float,
     rolling_summary: Optional[dict[str, Any]] = None,
 ) -> str:
-    compact = []
-    for s in recent:
-        values = s.get("values") if isinstance(s.get("values"), dict) else {}
-        d = s.get("date", "")
-        try:
-            wd = WEEKDAY_PT[date.fromisoformat(d).weekday()] if d else "?"
-        except ValueError:
-            wd = "?"
-        compact.append({
-            "date": d,
-            "weekday": wd,
-            "sleepTotalHours": values.get("sleepTotalHours"),
-            "hrvSdnn": values.get("hrvSdnn"),
-            "restingHeartRate": values.get("restingHeartRate"),
-            "activeEnergyKcal": values.get("activeEnergyKcal"),
-            "exerciseMinutes": values.get("exerciseMinutes"),
-            "valence": values.get("valence"),
-        })
+    future_list = [{"date": fd["date"], "weekday": fd["weekday"]} for fd in future_dates]
+    summary_payload = _build_recent_summary(recent, rolling_summary)
 
-    future_list = [f"{fd['date']} ({fd['weekday']})" for fd in future_dates]
-    summary_block = json.dumps(
-        rolling_summary or {
-            "window_days": 7,
-            "sample_days": 0,
-            "means": {field: None for field in FORECAST_SIGNAL_FIELDS},
-        },
-        ensure_ascii=False,
-        indent=2,
-    )
+    return f"""Você é um analista clínico e deve projetar {len(future_dates)} dias futuros para um dashboard fisiológico.
 
-    return f"""Você é um analista clínico projetando os próximos {len(future_dates)} dias de dados fisiológicos no dashboard de saúde de um paciente específico. Sua saída alimenta um sistema de visualização; precisão e humildade são obrigatórias.
+Use SOMENTE o resumo abaixo (sem inventar contexto externo). O regime farmacológico do paciente está estável (steady-state), então a projeção deve priorizar tendência recente e efeito de dia-da-semana.
 
-PROJEÇÃO: você está estimando dias **futuros** a partir de hoje. Não há dados reais para estes dias. A incerteza cresce com o horizonte temporal — cada dia adicional deve ter `confidence` menor ou igual ao dia anterior.
+RESUMO_ESTRUTURADO_JSON
+{json.dumps(summary_payload, ensure_ascii=False, separators=(",", ":"))}
 
-PACIENTE
-Masculino, 39 anos, 91 kg, Santa Cruz do Sul/RS. Neuropsiquiatra em atividade, com TDAH + TOC desde a infância. Perfil cardiometabólico sem comorbidades relevantes.
+DATAS_A_PROJETAR_JSON
+{json.dumps(future_list, ensure_ascii=False, separators=(",", ":"))}
 
-REGIME FARMACOLÓGICO (steady-state atingido em todas as drogas contínuas)
-- Escitalopram 40 mg/dia (ISRS; t½ ~30 h; steady-state em ~2 semanas; dose-resposta estável; efeito em HRV pode ser leve supressão ~5-10 %; efeito em valence basal já atingiu platô).
-- Lisdexanfetamina 200 mg/dia matinal (pró-droga de d-anfetamina; Tmax ~3-4 h após ingesta; duração de efeito ~12-14 h; decay vespertino previsível; impacta exerciseMinutes e activeEnergyKcal no período diurno; mínimo efeito em HRV noturno).
-- Lamotrigina 200 mg/dia (estabilizador; t½ ~25 h; steady-state atingido; sem picos intradia clinicamente relevantes; efeito crônico em valence basal).
-- Clonazepam PRN (benzodiazepínico; uso esporádico, não diário; pode reduzir HRV e energia ativa no dia de uso — assuma ausência salvo sinal contrário nos dados).
+REGRAS
+1. Projete sinais plausíveis e coerentes entre si (HRV x FC de repouso anticorrelacionados quando fizer sentido).
+2. Preserve autocorrelação temporal: não crie saltos abruptos sem justificativa.
+3. Use `field_trends`, `rolling_summary` e `weekday_effect` como âncoras principais.
+4. Incerteza cresce no horizonte: `confidence` não pode aumentar do dia T+1 para T+5.
+5. `confidence` deve ficar entre 0 e {cap:.2f}.
+6. Tom descritivo e prudente; sem recomendação médica.
 
-DADOS RECENTES ({len(compact)} dias, incluindo dia-da-semana)
-{json.dumps(compact, ensure_ascii=False, indent=2)}
-
-MÉDIAS MÓVEIS RECENTES (âncora de 5-7 dias)
-{summary_block}
-
-DATAS A PROJETAR ({len(future_dates)} dias futuros)
-{json.dumps(future_list, ensure_ascii=False)}
-
-RETORNO — JSON com duas chaves:
+RETORNO (JSON válido, sem markdown, sem texto fora do JSON):
 {{
   "forecasts": [
     {{
@@ -386,64 +452,64 @@ RETORNO — JSON com duas chaves:
         "exerciseMinutes": number | null,
         "valence": number | null
       }},
-      "confidence": 0.0–{cap:.2f},
-      "rationale": "justificativa clínica curta em PT-BR"
+      "confidence": 0.0-{cap:.2f},
+      "rationale": "justificativa curta em PT-BR"
     }}
   ],
   "signals": [
     {{
       "field": "campo_relevante",
-      "observation": "observação descritiva em PT-BR sobre tendência ou sinal a vigiar"
+      "observation": "observação descritiva em PT-BR sobre tendência/sinal"
     }}
   ]
 }}
-
-DIRETRIZES DE PROJEÇÃO
-1. Use as médias móveis fornecidas (janela 5-7 dias) como âncora e ajuste fino pelas tendências dos últimos dias reais.
-2. WEEKDAY EFFECT é real: fim de semana (Sábado, Domingo) tipicamente aumenta sleepTotalHours e reduz exerciseMinutes/activeEnergyKcal. Dias úteis tendem ao oposto.
-3. Como o regime está em steady-state, não introduza variação atribuível a medicação — as drogas são parte do baseline.
-4. valence é escala -1 (muito desagradável) a +1 (muito agradável); zero é neutro. Padrões de humor são autocorrelacionados dia-a-dia.
-5. HRV (hrvSdnn) e restingHeartRate são anticorrelacionados; mantenha coerência.
-6. A incerteza CRESCE com o horizonte: dia T+1 pode ter confidence mais alta que T+5.
-
-CAP DE CONFIANÇA
-Nenhum valor de `confidence` deve exceder {cap:.2f}. Este cap reflete a quantidade de dados históricos disponíveis ({len(compact)} dias recentes).
-
-SIGNALS
-Identifique 2-4 sinais observáveis a vigiar nos próximos dias. Exemplos:
-- Risco de queda de HRV se padrão de exercício continuar
-- Tendência de melhora/piora de valência baseada nos últimos dias
-- Efeito esperado de fim-de-semana sobre exercício
-Tom DESCRITIVO, não prescritivo. Sem recomendações médicas diretas.
-
-IMPORTANTE: retorne APENAS um JSON válido. SEM markdown fences, SEM preâmbulo, SEM explicações fora do JSON.
 """
 
 
-def _apply_forecasted(entries: list[dict], cap: float) -> list[dict]:
-    result = []
+def _apply_forecasted(entries: list[dict], cap: float, expected_dates: list[str]) -> list[dict]:
+    expected_set = set(expected_dates)
+    by_date: dict[str, dict[str, Any]] = {}
     for entry in entries:
         d = entry.get("date")
-        if not d:
+        if not isinstance(d, str) or not d:
+            continue
+        if d not in expected_set:
+            continue
+        if d in by_date:
             continue
         values = entry.get("values") or {}
-        raw_conf = float(entry.get("confidence") or 0.3)
-        conf = min(raw_conf, cap)
+        clamped_values: dict[str, Optional[float]] = {}
+        for field, bounds in FORECAST_FIELD_BOUNDS.items():
+            numeric_value = _to_float_or_none(values.get(field))
+            if numeric_value is None:
+                clamped_values[field] = None
+                continue
+            lower_bound, upper_bound = bounds
+            clamped_values[field] = max(lower_bound, min(numeric_value, upper_bound))
+        raw_conf = _to_float_or_none(entry.get("confidence"))
+        conf = max(0.0, min(raw_conf if raw_conf is not None else 0.3, cap))
 
         health_fields = {
-            "sleepTotalHours": values.get("sleepTotalHours"),
-            "hrvSdnn": values.get("hrvSdnn"),
-            "restingHeartRate": values.get("restingHeartRate"),
-            "activeEnergyKcal": values.get("activeEnergyKcal"),
-            "exerciseMinutes": values.get("exerciseMinutes"),
+            "sleepTotalHours": clamped_values.get("sleepTotalHours"),
+            "hrvSdnn": clamped_values.get("hrvSdnn"),
+            "restingHeartRate": clamped_values.get("restingHeartRate"),
+            "activeEnergyKcal": clamped_values.get("activeEnergyKcal"),
+            "exerciseMinutes": clamped_values.get("exerciseMinutes"),
         }
         has_health = any(v is not None for v in health_fields.values())
         health_block = None
         if has_health:
+            health_payload: dict[str, Optional[float]] = {}
+            for key, value in health_fields.items():
+                if value is None:
+                    health_payload[key] = None
+                    continue
+                health_payload[key] = float(value)
+
             health_block = {
                 "date": d,
                 "interpolated": False,
-                **{k: (None if v is None else float(v)) for k, v in health_fields.items()},
+                **health_payload,
                 "sleepAsleepHours": None, "sleepInBedHours": None,
                 "sleepCoreHours": None, "sleepDeepHours": None,
                 "sleepRemHours": None, "sleepAwakeHours": None,
@@ -456,7 +522,7 @@ def _apply_forecasted(entries: list[dict], cap: float) -> list[dict]:
                 "recordCount": 0, "placeholderRestingEnergyRows": 0,
             }
 
-        mood_valence = values.get("valence")
+        mood_valence = clamped_values.get("valence")
         mood_block = None
         if mood_valence is not None:
             valence_num = float(mood_valence)
@@ -470,7 +536,7 @@ def _apply_forecasted(entries: list[dict], cap: float) -> list[dict]:
                 "associations": [],
             }
 
-        result.append({
+        by_date[d] = {
             "date": d,
             "health": health_block,
             "mood": mood_block,
@@ -479,24 +545,86 @@ def _apply_forecasted(entries: list[dict], cap: float) -> list[dict]:
             "forecasted": True,
             "forecastConfidence": conf,
             "forecastRationale": str(entry.get("rationale") or ""),
-        })
+        }
 
-    return sorted(result, key=lambda s: s.get("date", ""))
+    result = [by_date[d] for d in expected_dates if d in by_date]
+    last_conf = cap
+    for snapshot in result:
+        conf = _to_float_or_none(snapshot.get("forecastConfidence"))
+        bounded = max(0.0, min(conf if conf is not None else 0.3, last_conf))
+        snapshot["forecastConfidence"] = bounded
+        last_conf = bounded
+
+    return result
+
+
+def _validate_horizon(horizon: int) -> None:
+    if horizon != FORECAST_HORIZON:
+        raise ForecastBadRequest(f"horizon deve ser {FORECAST_HORIZON} dias")
+
+
+def _validate_valid_real_days(valid_real_days: int) -> None:
+    if valid_real_days < 0:
+        raise ForecastBadRequest("valid_real_days não pode ser negativo")
+
+
+def _validate_snapshots_payload(snapshots: Any) -> list[dict[str, Any]]:
+    if not isinstance(snapshots, list):
+        raise ForecastBadRequest("snapshots deve ser uma lista")
+    if not snapshots:
+        raise ForecastBadRequest("snapshots vazio; envie dias reais com sinais")
+
+    validated: list[dict[str, Any]] = []
+    index = 0
+    for snapshot in snapshots:
+        if not isinstance(snapshot, dict):
+            raise ForecastBadRequest(f"snapshots[{index}] deve ser um objeto")
+        date_value = snapshot.get("date")
+        if not isinstance(date_value, str) or not date_value:
+            raise ForecastBadRequest(f"snapshots[{index}].date deve ser string YYYY-MM-DD")
+        try:
+            date.fromisoformat(date_value)
+        except ValueError as exc:
+            raise ForecastBadRequest(f"snapshots[{index}].date inválida (YYYY-MM-DD)") from exc
+        validated.append(snapshot)
+        index += 1
+    return validated
+
+
+def _error_response(message: str, status_code: int, cap: float) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "forecasted_snapshots": [],
+            "meta": {
+                "cached": False,
+                "error": message,
+                "forecasted_dates": [],
+                "max_confidence": cap,
+            },
+            "signals": [],
+        },
+    )
 
 
 # ─── Endpoint ────────────────────────────────────────────────────────────────
 
 @router.post("")
 async def forecast(body: ForecastRequest) -> JSONResponse:
-    context = _select_recent_context(body.snapshots)
-    future_dates = _build_future_dates(context, body.horizon)
+    try:
+        _validate_horizon(body.horizon)
+        _validate_valid_real_days(body.valid_real_days)
+        validated_snapshots = _validate_snapshots_payload(body.snapshots)
+    except ForecastBadRequest as exc:
+        return _error_response(str(exc), 400, 0.0)
+
+    context = _select_recent_context(validated_snapshots)
+    if not context:
+        return _error_response("Sem snapshots válidos com sinais para projeção", 400, 0.0)
+
+    future_dates = _build_future_dates(context, FORECAST_HORIZON)
     if not future_dates:
-        return JSONResponse(content={
-            "forecasted_snapshots": [],
-            "meta": {"cached": False, "error": "Sem snapshots para derivar datas futuras",
-                     "forecasted_dates": [], "max_confidence": 0.0},
-            "signals": [],
-        })
+        return _error_response("Sem datas futuras derivadas do contexto", 400, 0.0)
 
     cap = _compute_confidence_cap(body.valid_real_days)
     recent = context[-30:]
@@ -506,7 +634,7 @@ async def forecast(body: ForecastRequest) -> JSONResponse:
         json.dumps({
             "recent": recent,
             "future": future_dates,
-            "horizon": body.horizon,
+            "horizon": FORECAST_HORIZON,
             "cap": cap,
             "summary": rolling_summary,
         }, sort_keys=True, default=str).encode()
@@ -514,46 +642,66 @@ async def forecast(body: ForecastRequest) -> JSONResponse:
 
     hit = _cache_get(cache_key)
     if hit:
+        _trace("cache hit")
         return JSONResponse(content={
             "forecasted_snapshots": hit["forecasted_snapshots"],
             "meta": {**hit["meta"], "cached": True},
             "signals": hit["signals"],
         })
 
+    _trace("cache miss")
     prompt = _build_prompt(recent, future_dates, cap, rolling_summary)
 
+    provider_started_at = time.perf_counter()
     try:
         raw = await asyncio.to_thread(_call_model, prompt)
         clean = _strip_fences(raw)
         parsed = json.loads(clean)
         if not isinstance(parsed, dict):
-            raise ValueError(f"Gemini retornou {type(parsed).__name__}, esperado dict")
+            raise ValueError(f"Modelo retornou {type(parsed).__name__}, esperado dict")
 
-        forecasts = parsed.get("forecasts", [])
-        if not isinstance(forecasts, list):
-            raise ValueError(f"'forecasts' é {type(forecasts).__name__}, esperado list")
+        forecasts_raw = parsed.get("forecasts", [])
+        if not isinstance(forecasts_raw, list):
+            raise ValueError(f"'forecasts' é {type(forecasts_raw).__name__}, esperado list")
 
         signals_raw = parsed.get("signals", [])
         if not isinstance(signals_raw, list):
             signals_raw = []
 
-        forecasted = _apply_forecasted(forecasts, cap)
-        signals = [
-            {"field": s.get("field", ""), "observation": s.get("observation", "")}
-            for s in signals_raw if isinstance(s, dict) and s.get("observation")
-        ]
+        expected_dates: list[str] = [str(item.get("date")) for item in future_dates if item.get("date")]
+
+        filtered_forecasts: list[dict[str, Any]] = []
+        for entry in forecasts_raw:
+            if not isinstance(entry, dict):
+                continue
+            filtered_forecasts.append(entry)
+
+        forecasted = _apply_forecasted(filtered_forecasts, cap, expected_dates)
+
+        signals = []
+        for signal in signals_raw:
+            if not isinstance(signal, dict):
+                continue
+            observation = signal.get("observation")
+            if not observation:
+                continue
+            signals.append({"field": signal.get("field", ""), "observation": observation})
+
+        meta_forecasted_dates = []
+        for item in forecasted:
+            meta_forecasted_dates.append(item.get("date"))
 
         meta = {
-            "cached": False, "error": None,
-            "forecasted_dates": [f["date"] for f in forecasted],
+            "cached": False,
+            "error": None,
+            "forecasted_dates": meta_forecasted_dates,
             "max_confidence": cap,
         }
         _cache_set(cache_key, {"forecasted_snapshots": forecasted, "meta": meta, "signals": signals})
+        provider_elapsed_ms = (time.perf_counter() - provider_started_at) * 1000.0
+        _trace(f"provider latency {provider_elapsed_ms:.1f} ms")
         return JSONResponse(content={"forecasted_snapshots": forecasted, "meta": meta, "signals": signals})
+    except ForecastBadRequest as exc:
+        return _error_response(str(exc), 400, cap)
     except Exception as exc:
-        return JSONResponse(content={
-            "forecasted_snapshots": [],
-            "meta": {"cached": False, "error": f"{type(exc).__name__}: {exc}",
-                     "forecasted_dates": [], "max_confidence": cap},
-            "signals": [],
-        })
+        return _error_response(f"{type(exc).__name__}: {exc}", 502, cap)

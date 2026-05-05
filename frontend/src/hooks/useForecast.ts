@@ -26,6 +26,7 @@ export interface ForecastResult {
   forecastedSnapshots: DailySnapshot[]
   loading: boolean
   error: boolean
+  errorMessage: string | null
   forecastedCount: number
   signals: ForecastSignal[]
   maxConfidence: number
@@ -42,6 +43,11 @@ interface ForecastResponse {
   signals: ForecastSignal[]
 }
 
+interface ForecastApiError extends Error {
+  status?: number
+  response?: ForecastResponse
+}
+
 export interface ForecastCompactSnapshot {
   date: string
   values: Record<ForecastField, number | null>
@@ -53,7 +59,7 @@ export interface ForecastRollingSummary {
   means: Record<ForecastField, number | null>
 }
 
-interface ForecastPayload {
+export interface ForecastPayload {
   snapshots: ForecastCompactSnapshot[]
   horizon: number
   valid_real_days: number
@@ -146,14 +152,38 @@ function hashForecastPayload(payload: ForecastPayload): string {
   ].join('::')
 }
 
-async function postForecast(payload: ForecastPayload): Promise<ForecastResponse> {
+export async function postForecast(payload: ForecastPayload): Promise<ForecastResponse> {
   const res = await fetch(`${BASE}/forecast`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+
+  const rawBody = await res.text()
+  let parsed: ForecastResponse | null = null
+  if (rawBody) {
+    try {
+      parsed = JSON.parse(rawBody) as ForecastResponse
+    } catch {
+      parsed = null
+    }
+  }
+
+  if (!parsed || !parsed.meta) {
+    const parseError: ForecastApiError = new Error(res.ok ? 'Invalid forecast response JSON' : `HTTP ${res.status}`)
+    parseError.status = res.status
+    throw parseError
+  }
+
+  if (!res.ok) {
+    const message = parsed.meta?.error ?? `HTTP ${res.status}`
+    const httpError: ForecastApiError = new Error(message)
+    httpError.status = res.status
+    httpError.response = parsed
+    throw httpError
+  }
+
+  return parsed
 }
 
 export function useForecast(
@@ -180,10 +210,13 @@ export function useForecast(
     forecastedSnapshots: [],
     loading: false,
     error: false,
+    errorMessage: null,
     forecastedCount: 0,
     signals: [],
     maxConfidence: 0,
   }
+
+  const response = query.data ?? (query.error as ForecastApiError | undefined)?.response ?? null
 
   if (mode === 'off') return empty
 
@@ -193,18 +226,24 @@ export function useForecast(
     return { ...empty, loading: true }
   }
 
-  if (query.error || query.data?.meta?.error) {
-    return { ...empty, error: true }
+  if (response?.meta?.error) {
+    return { ...empty, error: true, errorMessage: response.meta.error }
   }
 
-  if (query.data) {
+  if (query.error) {
+    const message = query.error instanceof Error ? query.error.message : 'Forecast request failed'
+    return { ...empty, error: true, errorMessage: message }
+  }
+
+  if (response) {
     return {
-      forecastedSnapshots: query.data.forecasted_snapshots,
+      forecastedSnapshots: response.forecasted_snapshots,
       loading: false,
       error: false,
-      forecastedCount: query.data.meta.forecasted_dates.length,
-      signals: query.data.signals,
-      maxConfidence: query.data.meta.max_confidence,
+      errorMessage: null,
+      forecastedCount: response.meta.forecasted_dates.length,
+      signals: response.signals,
+      maxConfidence: response.meta.max_confidence,
     }
   }
 

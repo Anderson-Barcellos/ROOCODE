@@ -1,5 +1,6 @@
 import './date-range.test'
 import './forecast-payload.test'
+import './forecast-http.test'
 import './mood-lag-hypothesis.test'
 import './pk-convolution.test'
 import './roocode-adapter.test'

@@ -13,18 +13,29 @@ interface ForecastSignalsPanelProps {
   signals: ForecastSignal[]
   loading: boolean
   error: boolean
+  errorMessage: string | null
   maxConfidence: number
 }
 
-export function ForecastSignalsPanel({ signals, loading, error, maxConfidence }: ForecastSignalsPanelProps) {
+export function ForecastSignalsPanel({ signals, loading, error, errorMessage, maxConfidence }: ForecastSignalsPanelProps) {
   if (loading) {
     return (
       <div className="rounded-[1.5rem] border border-violet-200 bg-violet-50/60 p-5">
-        <p className="text-sm text-violet-700 animate-pulse">🔮 Gemini gerando sinais…</p>
+        <p className="text-sm text-violet-700 animate-pulse">🔮 Modelo IA gerando sinais…</p>
       </div>
     )
   }
-  if (error || !signals.length) return null
+
+  if (error) {
+    return (
+      <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50/70 p-5">
+        <p className="text-sm font-semibold text-rose-800">Não foi possível gerar sinais de projeção.</p>
+        <p className="mt-1 text-xs text-rose-700/80">{errorMessage ?? 'Erro inesperado no provedor de forecast.'}</p>
+      </div>
+    )
+  }
+
+  if (!signals.length) return null
 
   return (
     <div className="rounded-[1.5rem] border border-violet-200/80 bg-white/80 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">

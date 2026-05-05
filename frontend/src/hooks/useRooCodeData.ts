@@ -39,6 +39,7 @@ export interface RooCodeData {
   forecastMode: ForecastMode
   forecastLoading: boolean
   forecastError: boolean
+  forecastErrorMessage: string | null
   forecastedCount: number
   forecastedSnapshots: DailySnapshot[]
   forecastSignals: ForecastSignal[]
@@ -163,6 +164,7 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off', forecas
     forecastMode: forecast,
     forecastLoading: fc.loading,
     forecastError: fc.error,
+    forecastErrorMessage: fc.errorMessage,
     forecastedCount: fc.forecastedCount,
     forecastedSnapshots: fc.forecastedSnapshots,
     forecastSignals: fc.signals,

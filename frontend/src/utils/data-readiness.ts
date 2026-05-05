@@ -42,6 +42,22 @@ function countValidMoodDays(snapshots: DailySnapshot[]): number {
   return snapshots.filter((s) => !s.interpolated && !s.forecasted && s.mood?.valence != null).length
 }
 
+function dayOfWeekFromIsoDate(isoDate: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null
+
+  // Usa construtor local (ano, mês-1, dia) para evitar deslocamento por UTC
+  // em strings YYYY-MM-DD.
+  const localDate = new Date(year, month - 1, day)
+  if (!Number.isFinite(localDate.getTime())) return null
+  return localDate.getDay()
+}
+
 function countDowCoverage(
   snapshots: DailySnapshot[],
   minSamplesPerDow: number,
@@ -49,7 +65,8 @@ function countDowCoverage(
   const bucket: Record<number, number> = {}
   for (const s of snapshots) {
     if (s.interpolated || s.forecasted || !s.health) continue
-    const dow = new Date(s.date).getDay()
+    const dow = dayOfWeekFromIsoDate(s.date)
+    if (dow == null) continue
     bucket[dow] = (bucket[dow] ?? 0) + 1
   }
   const coveredDows = Object.values(bucket).filter((n) => n >= minSamplesPerDow).length

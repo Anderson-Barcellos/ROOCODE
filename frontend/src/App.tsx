@@ -232,15 +232,16 @@ interface ForecastBannerProps {
   mode: ForecastMode
   loading: boolean
   error: boolean
+  errorMessage: string | null
   forecastedCount: number
 }
 
-function ForecastBanner({ mode, loading, error, forecastedCount }: ForecastBannerProps) {
+function ForecastBanner({ mode, loading, error, errorMessage, forecastedCount }: ForecastBannerProps) {
   if (mode === 'off') return null
   const status = loading
     ? ' — modelo de IA gerando projeção…'
     : error
-    ? ' — Erro na chamada IA. Tente novamente.'
+    ? ` — ${errorMessage ?? 'Erro na chamada IA. Tente novamente.'}`
     : forecastedCount > 0
     ? ` — ${forecastedCount} dias projetados. Pontos pontilhados indicam estimativas futuras.`
     : ' — Aguardando dados suficientes (≥7 dias reais).'
@@ -375,6 +376,7 @@ export default function App() {
             mode={data.forecastMode}
             loading={data.forecastLoading}
             error={data.forecastError}
+            errorMessage={data.forecastErrorMessage}
             forecastedCount={data.forecastedCount}
           />
 
@@ -407,6 +409,7 @@ export default function App() {
                       signals={data.forecastSignals}
                       loading={data.forecastLoading}
                       error={data.forecastError}
+                      errorMessage={data.forecastErrorMessage}
                       maxConfidence={data.forecastMaxConfidence}
                     />
                   )}

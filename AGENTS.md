@@ -34,7 +34,7 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 
 ## Achados abertos (alto valor)
 
-1. Slice antigo de charts foi estacionado em stash (`stash@{0}`) e fica **adiado para sprint dedicada em sessão fresh** (decisão explícita para reduzir cache de contexto). Conteúdo principal: expansão de charts de marcha/atividade (`walking-heart-rate`, `physical-effort`, `energy-balance`, `walkingStepLengthCm`).
+1. Stash original de charts de marcha (`walking-heart-rate`, `physical-effort`, `walkingStepLengthCm`) foi verificado vazio em 2026-05-06 (`git stash list` sem entradas) — não há WIP residual. Expansão dessas viz volta ao backlog livre, sem fatia parcial pendente.
 2. Worktree local está com múltiplas fatias de regularização misturadas (backend/frontend/testes/docs) e precisa recorte explícito para commit limpo.
 
 ## Status local de regularização (2026-05-04)
@@ -45,7 +45,7 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 - REG-3 fechado localmente: heurística `detectMoodDataQuality` objetiva + ingestão de mood robusta (AutoExport v1/v2).
 - REG-4 fechado localmente: documentação (`AGENTS.md`/`ROADMAP.md`/`CLAUDE.md`) alinhada ao estado real do código/validações.
 - Hardening adicional fechado localmente: forecast (dedupe/ordem/erro HTTP), correlação PK×humor (filtro de concentração) e p-value via Fisher z.
-- Decisão operacional: tratamento do `stash@{0}` será feito em sprint dedicada numa sessão fresh.
+- Decisão operacional: stash@{0} verificado vazio em 2026-05-06 — sem WIP residual a tratar.
 
 ## Sequência fresh obrigatória
 

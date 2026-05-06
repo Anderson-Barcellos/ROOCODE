@@ -705,3 +705,28 @@ async def forecast(body: ForecastRequest) -> JSONResponse:
         return _error_response(str(exc), 400, cap)
     except Exception as exc:
         return _error_response(f"{type(exc).__name__}: {exc}", 502, cap)
+
+
+# ─── Endpoint /summary (sem chamar IA) ──────────────────────────────────────
+
+class ForecastSummaryRequest(BaseModel):
+    snapshots: list[dict]
+    rolling_summary: Optional[dict[str, Any]] = None
+
+
+@router.post("/summary")
+async def forecast_summary(body: ForecastSummaryRequest) -> JSONResponse:
+    """Retorna agregados (field_trends, weekday_effect, recent_trace) sem chamar IA.
+
+    Reusa _build_recent_summary do pipeline principal — útil para cards/dashboards
+    que querem o snapshot estatístico sem o custo/latência da projeção.
+    """
+    try:
+        validated = _validate_snapshots_payload(body.snapshots)
+    except ForecastBadRequest as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+
+    context = _select_recent_context(validated)
+    rolling = body.rolling_summary if isinstance(body.rolling_summary, dict) else None
+    summary = _build_recent_summary(context, rolling)
+    return JSONResponse(content=summary)

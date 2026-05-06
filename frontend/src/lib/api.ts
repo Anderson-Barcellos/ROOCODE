@@ -153,6 +153,63 @@ export const useMood = () =>
 export const useMetrics = () =>
   useQuery<MetricsRecord[]>({ queryKey: ['metrics'], queryFn: () => get<MetricsRecord[]>('/metrics') })
 
+// ─── Forecast summary (agregados sem IA) ────────────────────────────────────
+
+export interface ForecastFieldTrend {
+  available_days: number
+  last_value: number | null
+  mean_last7: number | null
+  mean_prev7: number | null
+  delta_last7_vs_prev7: number | null
+}
+
+export interface ForecastWeekdayEffect {
+  weekend_mean: number | null
+  weekday_mean: number | null
+  weekend_minus_weekday: number | null
+}
+
+export interface ForecastSummary {
+  context_days: number
+  context_range: { from: string | null; to: string | null }
+  rolling_summary: Record<string, unknown>
+  field_trends: Record<string, ForecastFieldTrend>
+  weekday_effect: Record<string, ForecastWeekdayEffect>
+  recent_trace: Array<Record<string, unknown>>
+}
+
+export interface ForecastSummaryInputSnapshot {
+  date: string
+  values: {
+    sleepTotalHours: number | null
+    hrvSdnn: number | null
+    restingHeartRate: number | null
+    activeEnergyKcal: number | null
+    exerciseMinutes: number | null
+    valence: number | null
+  }
+}
+
+export const useForecastSummary = (snapshots: ForecastSummaryInputSnapshot[]) => {
+  // Cache key compacta: count + first/last date — captura mudança de janela
+  // sem custo de hash do payload completo (~150 dias).
+  const cacheKey =
+    snapshots.length === 0
+      ? 'empty'
+      : `${snapshots.length}:${snapshots[0].date}:${snapshots[snapshots.length - 1].date}`
+  return useQuery<ForecastSummary>({
+    queryKey: ['forecast-summary', cacheKey],
+    queryFn: () =>
+      fetch(`${BASE}/forecast/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshots }),
+      }).then((response) => readJson<ForecastSummary>(response)),
+    staleTime: 5 * 60 * 1000,
+    enabled: snapshots.length >= 7,
+  })
+}
+
 export const useLogDose = () => {
   const qc = useQueryClient()
   return useMutation({

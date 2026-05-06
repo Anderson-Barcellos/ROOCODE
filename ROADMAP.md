@@ -92,8 +92,4 @@ Só abrir nova sprint quando:
 
 ## Pendência final de desbloqueio
 
-- Decidir destino de `stash@{0}` (absorver ou descartar) e executar recorte de commits em fatias limpas antes de reabrir sprint de feature.
-
-Decisão atual (2026-05-04):
-
-- O tratamento de `stash@{0}` será executado em **sprint dedicada numa sessão fresh**, para reduzir cache/contexto acumulado.
+Resolvido em 2026-05-06: `git stash list` verificado vazio — não há WIP residual a tratar. Gate de regularização (REG-0..REG-4) fechado; reabertura de sprint de feature autorizada (Cross-Domain Insights iniciada nesta data).

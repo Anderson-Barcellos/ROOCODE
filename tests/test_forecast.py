@@ -155,5 +155,47 @@ class ForecastEndpointTests(unittest.TestCase):
         self.assertEqual(data["forecasted_snapshots"], [])
 
 
+class ForecastSummaryEndpointTests(unittest.TestCase):
+    def setUp(self) -> None:
+        app = FastAPI()
+        app.include_router(forecast_router.router, prefix="/forecast")
+        self.client = TestClient(app)
+
+    def test_summary_returns_field_trends_and_weekday_effect(self) -> None:
+        response = self.client.post("/forecast/summary", json={"snapshots": _build_snapshots()})
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("field_trends", data)
+        self.assertIn("weekday_effect", data)
+        self.assertEqual(data["context_days"], 7)
+        self.assertEqual(data["context_range"]["from"], "2026-04-01")
+        self.assertEqual(data["context_range"]["to"], "2026-04-07")
+
+        sleep_trends = data["field_trends"]["sleepTotalHours"]
+        self.assertIsNotNone(sleep_trends["mean_last7"])
+        self.assertEqual(sleep_trends["available_days"], 7)
+        # 7 dias = só last7, sem prev7
+        self.assertIsNone(sleep_trends["mean_prev7"])
+        self.assertIsNone(sleep_trends["delta_last7_vs_prev7"])
+
+        weekday_sleep = data["weekday_effect"]["sleepTotalHours"]
+        self.assertIsNotNone(weekday_sleep["weekday_mean"])
+        self.assertIsNotNone(weekday_sleep["weekend_mean"])
+        self.assertIsNotNone(weekday_sleep["weekend_minus_weekday"])
+
+    def test_summary_rejects_empty_snapshots(self) -> None:
+        response = self.client.post("/forecast/summary", json={"snapshots": []})
+        self.assertEqual(response.status_code, 400)
+
+    def test_summary_does_not_call_model(self) -> None:
+        with patch("Forecast.router._call_model") as mock_call:
+            response = self.client.post(
+                "/forecast/summary", json={"snapshots": _build_snapshots()}
+            )
+            self.assertEqual(response.status_code, 200)
+            mock_call.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

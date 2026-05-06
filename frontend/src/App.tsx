@@ -28,6 +28,7 @@ import { HRRangeChart } from '@/components/charts/hr-range-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { TimelineChart } from '@/components/charts/timeline-chart'
+import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
@@ -84,6 +85,7 @@ function buildExecutiveMetrics(
   days: { validRealDays: number; validMoodDays: number },
   activity: { steps7d: number | null; vo2Max7d: number | null; walkingSpeed7d: number | null },
   physiology: { respiratoryRate7d: number | null; pulseTemperatureC7d: number | null },
+  cardio: { recoveryScore: number | null },
 ): MetricCluster[] {
   // Fase 5d: KPIs de média-7d só fazem sentido com 7+ dias reais.
   // Abaixo disso, value vira null → MetricGrid mostra "Sem dados".
@@ -93,6 +95,9 @@ function buildExecutiveMetrics(
   const hrv = enoughReal ? ov.hrv7d : null
   const rhr = enoughReal ? ov.restingHeartRate7d : null
   const mood = enoughMood ? ov.mood7d : null
+  // Score composto HRV(40%) + FC(30%) + Sono(30%) já calculado em useCardioAnalysis;
+  // resgatado aqui pra encabeçar o cluster como métrica consolidada.
+  const recovery = enoughReal ? cardio.recoveryScore : null
   const moodPct = mood != null ? Math.round(mood * 100) : null
   const kcal = enoughReal ? ov.activeEnergy7dKcal : null
   const exMin = enoughReal ? ov.exercise7dMinutes : null
@@ -107,6 +112,7 @@ function buildExecutiveMetrics(
     {
       title: 'Sono e Recuperação',
       metrics: [
+        { label: 'Recuperação 7d', value: recovery, unit: '', tone: toneFor(recovery, 70, 40) },
         { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
         { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
         { label: 'FC Repouso 7d', value: rhr, unit: 'bpm', tone: toneFor(rhr, 60, 70, true) },
@@ -318,8 +324,16 @@ export default function App() {
         },
         activitySummary,
         physiologySummary,
+        { recoveryScore: cardio.recoveryScore?.score ?? null },
       ),
-    [data.overview, data.validRealDays, data.validMoodDays, activitySummary, physiologySummary],
+    [
+      data.overview,
+      data.validRealDays,
+      data.validMoodDays,
+      activitySummary,
+      physiologySummary,
+      cardio.recoveryScore,
+    ],
   )
   const timelineData = useMemo(() => buildTimelineSeries(rangedWithForecast, EXEC_SERIES), [rangedWithForecast])
   const timelineReadiness = useMemo(
@@ -402,6 +416,8 @@ export default function App() {
                     </div>
                   ))}
 
+                  <WeekdayWeekendCard snapshots={ranged} />
+
                   <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                   {forecast === 'on' && (
@@ -411,6 +427,7 @@ export default function App() {
                       error={data.forecastError}
                       errorMessage={data.forecastErrorMessage}
                       maxConfidence={data.forecastMaxConfidence}
+                      forecastedSnapshots={data.forecastedSnapshots}
                     />
                   )}
                 </div>

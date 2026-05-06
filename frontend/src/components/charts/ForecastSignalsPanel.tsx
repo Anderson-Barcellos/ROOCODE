@@ -1,4 +1,7 @@
-import type { ForecastSignal } from '@/types/apple-health'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+import type { DailySnapshot, ForecastSignal } from '@/types/apple-health'
 
 const FIELD_LABELS: Record<string, string> = {
   sleepTotalHours: 'Sono',
@@ -15,9 +18,17 @@ interface ForecastSignalsPanelProps {
   error: boolean
   errorMessage: string | null
   maxConfidence: number
+  forecastedSnapshots?: DailySnapshot[]
 }
 
-export function ForecastSignalsPanel({ signals, loading, error, errorMessage, maxConfidence }: ForecastSignalsPanelProps) {
+export function ForecastSignalsPanel({
+  signals,
+  loading,
+  error,
+  errorMessage,
+  maxConfidence,
+  forecastedSnapshots = [],
+}: ForecastSignalsPanelProps) {
   if (loading) {
     return (
       <div className="rounded-[1.5rem] border border-violet-200 bg-violet-50/60 p-5">
@@ -61,6 +72,35 @@ export function ForecastSignalsPanel({ signals, loading, error, errorMessage, ma
           </li>
         ))}
       </ul>
+
+      {forecastedSnapshots.some((s) => s.forecastRationale) && (
+        <details className="group mt-4 rounded-xl bg-violet-50/40 px-3 py-2 open:pb-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-wider text-violet-700 transition-colors hover:text-violet-900">
+            <span className="inline-flex items-center gap-1">
+              <span className="transition-transform group-open:rotate-90">▸</span>
+              Ver justificativa por dia
+            </span>
+          </summary>
+          <ul className="mt-2 space-y-1.5">
+            {forecastedSnapshots.map((snap) => {
+              const conf = snap.forecastConfidence ?? 0
+              const rationale = snap.forecastRationale ?? ''
+              if (!rationale) return null
+              return (
+                <li key={snap.date} className="rounded-lg bg-white/70 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="font-mono">
+                      {format(parseISO(snap.date), "d 'de' MMM (EEE)", { locale: ptBR })}
+                    </span>
+                    <span className="text-violet-600">conf {(conf * 100).toFixed(0)}%</span>
+                  </div>
+                  <p className="mt-1 leading-5 text-slate-700">{rationale}</p>
+                </li>
+              )
+            })}
+          </ul>
+        </details>
+      )}
     </div>
   )
 }

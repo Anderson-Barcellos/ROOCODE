@@ -25,6 +25,7 @@ const HEATMAP_ROWS: MetricKey[] = [
   'sleepEfficiencyPct',
   'hrvSdnn',
   'restingHeartRate',
+  'cardioRecoveryBpm',
   'spo2',
   'activeEnergyKcal',
   'exerciseMinutes',

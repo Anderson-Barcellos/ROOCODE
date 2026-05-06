@@ -1,9 +1,10 @@
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -73,7 +74,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
         </h3>
         <p className="mt-1 text-sm leading-6 text-slate-500">
           {hasStages
-            ? 'Profundo + Núcleo + REM + Acordado. Linha tracejada = 7h de referência.'
+            ? 'Profundo + Núcleo + REM + Acordado (eixo esquerdo, h). Linha de eficiência (eixo direito, %) com alvo de 85%.'
             : 'Total de sono e REM disponíveis. Estágios detalhados aparecem quando o Apple Watch registra.'}
         </p>
       </div>
@@ -81,7 +82,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
       <DataReadinessGate readiness={readiness}>
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 0 }} barSize={data.length > 60 ? 4 : data.length > 30 ? 6 : 10}>
+          <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 0 }} barSize={data.length > 60 ? 4 : data.length > 30 ? 6 : 10}>
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
             <XAxis
               dataKey="label"
@@ -91,15 +92,30 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
               minTickGap={20}
             />
             <YAxis
+              yAxisId="left"
               tick={{ fill: '#475569', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               width={36}
               tickFormatter={(v: number) => `${v}h`}
             />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={[0, 100]}
+              tick={{ fill: '#0ea5e9', fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              width={40}
+              tickFormatter={(v: number) => `${v}%`}
+            />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name, item) => {
+                if (name === 'Eficiência') {
+                  const text = typeof value === 'number' ? `${value.toFixed(0)}%` : '—'
+                  return [text, name]
+                }
                 const suffix = getInterpolationSuffix(item)
                 const text = typeof value === 'number' ? `${value.toFixed(1)}h${suffix}` : '—'
                 return [text, name]
@@ -110,33 +126,44 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
                 <span style={{ fontSize: 12, color: '#475569' }}>{value}</span>
               )}
             />
-            <ReferenceLine y={7} stroke="#10b981" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: '7h', position: 'right', fill: '#10b981', fontSize: 11 }} />
+            <ReferenceLine yAxisId="left" y={7} stroke="#10b981" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: '7h', position: 'right', fill: '#10b981', fontSize: 11 }} />
+            <ReferenceLine yAxisId="right" y={85} stroke="#0ea5e9" strokeDasharray="2 2" strokeWidth={1.2} label={{ value: '85%', position: 'right', fill: '#0ea5e9', fontSize: 11 }} />
             {hasStages ? (
               <>
-                <Bar dataKey="deep" stackId="sleep" fill="#1e3a5f" name="Profundo" radius={[0, 0, 0, 0]}>
+                <Bar yAxisId="left" dataKey="deep" stackId="sleep" fill="#1e3a5f" name="Profundo" radius={[0, 0, 0, 0]}>
                   {data.map((entry, i) => <Cell key={`d-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
                 </Bar>
-                <Bar dataKey="rem" stackId="sleep" fill="#7c3aed" name="REM">
+                <Bar yAxisId="left" dataKey="rem" stackId="sleep" fill="#7c3aed" name="REM">
                   {data.map((entry, i) => <Cell key={`r-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
                 </Bar>
-                <Bar dataKey="core" stackId="sleep" fill="#3b82f6" name="Núcleo">
+                <Bar yAxisId="left" dataKey="core" stackId="sleep" fill="#3b82f6" name="Núcleo">
                   {data.map((entry, i) => <Cell key={`c-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
                 </Bar>
-                <Bar dataKey="awake" stackId="sleep" fill="#94a3b8" name="Acordado" radius={[3, 3, 0, 0]}>
+                <Bar yAxisId="left" dataKey="awake" stackId="sleep" fill="#94a3b8" name="Acordado" radius={[3, 3, 0, 0]}>
                   {data.map((entry, i) => <Cell key={`a-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
                 </Bar>
               </>
             ) : (
               <>
-                <Bar dataKey="total" fill="#0f766e" name="Total" radius={[3, 3, 0, 0]}>
+                <Bar yAxisId="left" dataKey="total" fill="#0f766e" name="Total" radius={[3, 3, 0, 0]}>
                   {data.map((entry, i) => <Cell key={`t-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
                 </Bar>
-                <Bar dataKey="rem" fill="#7c3aed" name="REM" radius={[3, 3, 0, 0]}>
+                <Bar yAxisId="left" dataKey="rem" fill="#7c3aed" name="REM" radius={[3, 3, 0, 0]}>
                   {data.map((entry, i) => <Cell key={`r2-${i}`} fillOpacity={entry.interpolated ? 0.4 : 1} />)}
                 </Bar>
               </>
             )}
-          </BarChart>
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="efficiency"
+              stroke="#0ea5e9"
+              strokeWidth={2}
+              dot={false}
+              name="Eficiência"
+              connectNulls
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
       </DataReadinessGate>

@@ -76,11 +76,12 @@ cd /root/RooCode
 git diff --check
 ```
 
-Status local 2026-05-04:
+Status local 2026-05-06 (após Fatia B):
 
-- Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint`, `npm run build` ✅
-- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v`, `/root/RooCode/bin/python -m unittest tests.test_forecast -v`, `/root/RooCode/bin/python -m unittest tests.test_mood -v` ✅
+- Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint` ✅
+- Backend: 19/19 tests OK (farma + forecast + mood)
 - Integridade de diff: `git diff --check` ✅
+- ⚠ `npm run build` tem 1 erro pré-existente em `pk-standard-dose-comparison.tsx:263` (Codex WIP, intocado nesta sessão).
 
 ## Critério para voltar a sprint de feature
 
@@ -93,3 +94,13 @@ Só abrir nova sprint quando:
 ## Pendência final de desbloqueio
 
 Resolvido em 2026-05-06: `git stash list` verificado vazio — não há WIP residual a tratar. Gate de regularização (REG-0..REG-4) fechado; reabertura de sprint de feature autorizada (Cross-Domain Insights iniciada nesta data).
+
+## Sprint Cross-Domain Insights — execução
+
+| Fatia | Status | Resultado |
+|---|---|---|
+| Fatia A — Free Wins | ✅ commit `59b133e` | RecoveryScore + WeekdayWeekend + forecastRationale |
+| Fatia B — Cross-Domain Frontend | ✅ este commit | HRR no heatmap, sleep debt cumulativo, eficiência no SleepStages, card sleepDebt × HRV, adapter v2 hardening |
+| Fatia C — Backend-heavy | backlog | Endpoint PK + Forecast Accuracy backtest (sprint dedicada) |
+
+Plano completo: `/root/.claude/plans/oi-claude-eu-valiant-boole.md`.

@@ -12,12 +12,15 @@ import DoseCalendarView from '@/components/DoseCalendarView'
 import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
 import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
+import { SleepDebtHrvCard } from '@/components/charts/sleep-debt-hrv-card'
 import { HeartRateBands } from '@/components/charts/heart-rate-bands'
 import { HrvAnalysis } from '@/components/charts/hrv-analysis'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
+import { PKStandardDoseComparison } from '@/components/charts/pk-standard-dose-comparison'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
+import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
@@ -461,6 +464,8 @@ export default function App() {
 
                 <PKMedicationGrid hoursWindow={168} />
 
+                <PKStandardDoseComparison regimen={data.regimen} />
+
                 <PKHumorCorrelation snapshots={ranged} />
 
                 <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
@@ -489,6 +494,8 @@ export default function App() {
               ) : (
                 <div className="space-y-4">
                   <SleepStagesChart snapshots={ranged} />
+
+                  <SleepDebtChart snapshots={ranged} />
 
                   <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
@@ -577,6 +584,7 @@ export default function App() {
                 {ranged.length > 0 && (
                   <>
                     <CorrelationHeatmap snapshots={ranged} />
+                    <SleepDebtHrvCard snapshots={ranged} />
                     <ScatterCorrelation snapshots={ranged} />
                   </>
                 )}

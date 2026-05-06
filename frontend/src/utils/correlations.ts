@@ -10,6 +10,7 @@ export const METRIC_KEYS = [
   'sleepEfficiencyPct',
   'hrvSdnn',
   'restingHeartRate',
+  'cardioRecoveryBpm',
   'spo2',
   'activeEnergyKcal',
   'exerciseMinutes',
@@ -30,6 +31,7 @@ export const METRIC_LABELS: Record<MetricKey, string> = {
   sleepEfficiencyPct: 'Eficiência sono',
   hrvSdnn: 'HRV',
   restingHeartRate: 'FC repouso',
+  cardioRecoveryBpm: 'Recuperação cardíaca',
   spo2: 'SpO2',
   activeEnergyKcal: 'Energia ativa',
   exerciseMinutes: 'Exercício',
@@ -80,7 +82,7 @@ export interface CorrelationPair {
 
 const HEALTH_KEYS: MetricKey[] = [
   'sleepTotalHours', 'sleepDeepHours', 'sleepRemHours', 'sleepCoreHours',
-  'sleepEfficiencyPct', 'hrvSdnn', 'restingHeartRate', 'spo2',
+  'sleepEfficiencyPct', 'hrvSdnn', 'restingHeartRate', 'cardioRecoveryBpm', 'spo2',
   'activeEnergyKcal', 'exerciseMinutes', 'daylightMinutes', 'pulseTemperatureC',
 ]
 

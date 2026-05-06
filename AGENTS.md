@@ -47,6 +47,13 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 - Hardening adicional fechado localmente: forecast (dedupe/ordem/erro HTTP), correlação PK×humor (filtro de concentração) e p-value via Fisher z.
 - Decisão operacional: stash@{0} verificado vazio em 2026-05-06 — sem WIP residual a tratar.
 
+## Sprint Cross-Domain Insights (2026-05-06)
+
+- **Fatia A** (commit `59b133e`): RecoveryScore na aba Panorama, WeekdayWeekend (endpoint + card), accordion de `forecastRationale`.
+- **Fatia B** (este commit): `cardioRecoveryBpm` no `correlation-heatmap`, sleep debt cumulativo (util + chart na aba Sono), card cross-domain `sleepDebt × HRV` em Insights, segunda Y-axis com linha de eficiência em `SleepStagesChart`, adapter v2 hardening (fallback `[Mínimo]/[Máx]/[Média]` ↔ legado `[Min]/[Max]/[Avg]`).
+- **Fatia C**: backlog — endpoint `/farma/concentration-series`, `pk-rem-suppression` chart, `Forecast/storage.py` + accuracy backtest. Sprint dedicada quando reabrir.
+- Plano completo: `/root/.claude/plans/oi-claude-eu-valiant-boole.md`.
+
 ## Sequência fresh obrigatória
 
 1. Ler `ROADMAP.md` e `CLAUDE.md`.

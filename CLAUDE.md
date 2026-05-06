@@ -75,11 +75,12 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-04)
+## Status local validado (2026-05-06 — após Fatia B Cross-Domain Insights)
 
-- Frontend: `npx tsc --noEmit`, `npm run test:unit`, `npm run lint`, `npm run build` ✅
-- Backend: `/root/RooCode/bin/python -m unittest tests.test_farma -v`, `/root/RooCode/bin/python -m unittest tests.test_forecast -v`, `/root/RooCode/bin/python -m unittest tests.test_mood -v` ✅
-- Diff hygiene: `git diff --check` ✅
+- Frontend: tsc/lint/test:unit ✅
+- Backend: farma + forecast + mood tests 19/19 OK
+- Diff hygiene: ✅
+- ⚠ `npm run build` flagra 1 erro pré-existente em `pk-standard-dose-comparison.tsx:263` (Codex WIP, intocado nesta sessão).
 
 ## Fresh start (obrigatório)
 

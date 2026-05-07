@@ -2,13 +2,14 @@ import type { DailyHealthMetrics, DailySnapshot } from '@/types/apple-health'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-export type ReadinessStatus = 'ready' | 'partial' | 'pending'
+export type ReadinessStatus = 'standby' | 'collecting' | 'exploratory' | 'robust'
 
 export interface DataReadiness {
   status: ReadinessStatus
   current: number
-  required: number
-  partial: number
+  robustMin: number
+  exploratoryMin: number
+  collectingMin: number
   label: string
   pendingMessage: string
 }
@@ -17,12 +18,19 @@ type HealthField = keyof DailyHealthMetrics
 type MoodField = 'mood.valence'
 
 export type ReadinessRequirement =
-  | { type: 'days'; readyMin: number; partialMin: number; field?: HealthField | MoodField }
-  | { type: 'pairs'; readyMin: number; partialMin: number }
+  | {
+      type: 'days'
+      robustMin: number
+      exploratoryMin: number
+      collectingMin: number
+      field?: HealthField | MoodField
+    }
+  | { type: 'pairs'; robustMin: number; exploratoryMin: number; collectingMin: number }
   | {
       type: 'dow_coverage'
-      readyMin: number
-      partialMin: number
+      robustMin: number
+      exploratoryMin: number
+      collectingMin: number
       minDows: number
       minSamplesPerDow: number
     }
@@ -91,11 +99,19 @@ function buildPendingMessage(
   _chartName: string,
   current: number,
   required: number,
+  exploratoryMin: number,
   unit: 'dias' | 'pares',
 ): string {
   const missing = Math.max(0, required - current)
-  const descriptor = unit === 'pares' ? 'Correlação requer' : 'Análise requer'
-  return `${descriptor} ${required} ${unit} · ${current}/${required} · faltam ${missing}`
+  const descriptor = unit === 'pares' ? 'Standby estatístico' : 'Standby de série'
+  return `${descriptor} · mínimo robusto ${required} ${unit} · exploratório ${exploratoryMin} · atual ${current}/${required} · faltam ${missing}`
+}
+
+function classifyReadiness(current: number, req: Pick<ReadinessRequirement, 'robustMin' | 'exploratoryMin' | 'collectingMin'>): ReadinessStatus {
+  if (current >= req.robustMin) return 'robust'
+  if (current >= req.exploratoryMin) return 'exploratory'
+  if (current >= req.collectingMin) return 'collecting'
+  return 'standby'
 }
 
 // ─── API pública ─────────────────────────────────────────────────────────────
@@ -108,33 +124,29 @@ export function evaluateReadiness(
 ): DataReadiness {
   if (req.type === 'pairs') {
     const current = extras?.pairCount ?? 0
-    const status: ReadinessStatus =
-      current >= req.readyMin ? 'ready' : current >= req.partialMin ? 'partial' : 'pending'
+    const status = classifyReadiness(current, req)
     return {
       status,
       current,
-      required: req.readyMin,
-      partial: req.partialMin,
-      label: `${current}/${req.readyMin} pares`,
-      pendingMessage: buildPendingMessage(chartName, current, req.readyMin, 'pares'),
+      robustMin: req.robustMin,
+      exploratoryMin: req.exploratoryMin,
+      collectingMin: req.collectingMin,
+      label: `${current}/${req.robustMin} pares`,
+      pendingMessage: buildPendingMessage(chartName, current, req.robustMin, req.exploratoryMin, 'pares'),
     }
   }
 
   if (req.type === 'dow_coverage') {
     const { coveredDows, totalDays } = countDowCoverage(snapshots, req.minSamplesPerDow)
-    const status: ReadinessStatus =
-      totalDays >= req.readyMin && coveredDows >= req.minDows
-        ? 'ready'
-        : totalDays >= req.partialMin
-          ? 'partial'
-          : 'pending'
+    const status = coveredDows >= req.minDows ? classifyReadiness(totalDays, req) : 'standby'
     return {
       status,
       current: totalDays,
-      required: req.readyMin,
-      partial: req.partialMin,
-      label: `${totalDays}/${req.readyMin} dias`,
-      pendingMessage: buildPendingMessage(chartName, totalDays, req.readyMin, 'dias'),
+      robustMin: req.robustMin,
+      exploratoryMin: req.exploratoryMin,
+      collectingMin: req.collectingMin,
+      label: `${totalDays}/${req.robustMin} dias`,
+      pendingMessage: buildPendingMessage(chartName, totalDays, req.robustMin, req.exploratoryMin, 'dias'),
     }
   }
 
@@ -146,45 +158,45 @@ export function evaluateReadiness(
   } else {
     current = countValidHealthDays(snapshots)
   }
-  const status: ReadinessStatus =
-    current >= req.readyMin ? 'ready' : current >= req.partialMin ? 'partial' : 'pending'
+  const status = classifyReadiness(current, req)
   return {
     status,
     current,
-    required: req.readyMin,
-    partial: req.partialMin,
-    label: `${current}/${req.readyMin} dias`,
-    pendingMessage: buildPendingMessage(chartName, current, req.readyMin, 'dias'),
+    robustMin: req.robustMin,
+    exploratoryMin: req.exploratoryMin,
+    collectingMin: req.collectingMin,
+    label: `${current}/${req.robustMin} dias`,
+    pendingMessage: buildPendingMessage(chartName, current, req.robustMin, req.exploratoryMin, 'dias'),
   }
 }
 
 // ─── Config central — fonte única de thresholds ──────────────────────────────
 
 export const CHART_REQUIREMENTS = {
-  timelineChart: { type: 'days', readyMin: 3, partialMin: 1 },
-  hrvAnalysis: { type: 'days', readyMin: 7, partialMin: 3, field: 'hrvSdnn' },
-  heartRateBands: { type: 'days', readyMin: 7, partialMin: 3, field: 'restingHeartRate' },
-  activityBars: { type: 'days', readyMin: 3, partialMin: 1 },
-  sleepStagesChart: { type: 'days', readyMin: 3, partialMin: 1, field: 'sleepTotalHours' },
-  spo2Chart: { type: 'days', readyMin: 3, partialMin: 1, field: 'spo2' },
-  moodTimeline: { type: 'days', readyMin: 7, partialMin: 3, field: 'mood.valence' },
-  correlationHeatmap: { type: 'pairs', readyMin: 20, partialMin: 10 },
-  scatterCorrelation: { type: 'pairs', readyMin: 20, partialMin: 10 },
+  timelineChart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3 },
+  hrvAnalysis: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'hrvSdnn' },
+  heartRateBands: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'restingHeartRate' },
+  activityBars: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3 },
+  sleepStagesChart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3, field: 'sleepTotalHours' },
+  spo2Chart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3, field: 'spo2' },
+  moodTimeline: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'mood.valence' },
+  correlationHeatmap: { type: 'pairs', robustMin: 35, exploratoryMin: 20, collectingMin: 10 },
+  scatterCorrelation: { type: 'pairs', robustMin: 35, exploratoryMin: 20, collectingMin: 10 },
   // Fase 8A — Activity/Physiology
   // VO2 Máx é baseline crônico (atualiza com 48-72h de dados acumulados). Usamos threshold mais alto.
-  vo2MaxChart: { type: 'days', readyMin: 14, partialMin: 7, field: 'vo2Max' },
+  vo2MaxChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'vo2Max' },
   // Walking vitality combina speed + asymmetry. Velocidade muda dia a dia, mas é marcador estável.
-  walkingVitalityChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'walkingSpeedKmh' },
+  walkingVitalityChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'walkingSpeedKmh' },
   // Steps é o sinal mais denso — quase sempre presente se o watch foi usado.
-  stepsTimelineChart: { type: 'days', readyMin: 3, partialMin: 1, field: 'steps' },
+  stepsTimelineChart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3, field: 'steps' },
   // Fase 8B — Descritivo e Insights
   // Scatter PK×humor: cada par = 1 emoção momentânea. Pearson r com n<10 é ruído.
-  pkMoodScatter: { type: 'pairs', readyMin: 20, partialMin: 10 },
+  pkMoodScatter: { type: 'pairs', robustMin: 30, exploratoryMin: 15, collectingMin: 8 },
   // Lag correlation: mesma base de pares, threshold ligeiramente maior pra estabilidade.
-  lagCorrelation: { type: 'pairs', readyMin: 25, partialMin: 12 },
+  lagCorrelation: { type: 'pairs', robustMin: 30, exploratoryMin: 15, collectingMin: 8 },
   // Fase 10D — charts clínicos novos
-  respiratoryDisturbancesChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'respiratoryDisturbances' },
-  vitalSignsTimelineChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'respiratoryRate' },
-  cardioRecoveryChart: { type: 'days', readyMin: 14, partialMin: 7, field: 'cardioRecoveryBpm' },
-  hrRangeChart: { type: 'days', readyMin: 7, partialMin: 3, field: 'heartRateMean' },
+  respiratoryDisturbancesChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'respiratoryDisturbances' },
+  vitalSignsTimelineChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'respiratoryRate' },
+  cardioRecoveryChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'cardioRecoveryBpm' },
+  hrRangeChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'heartRateMean' },
 } as const satisfies Record<string, ReadinessRequirement>

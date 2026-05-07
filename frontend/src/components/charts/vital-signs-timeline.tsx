@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import {
   CartesianGrid,
-  ComposedChart,
   Line,
+  LineChart,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -121,8 +121,7 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
         )}
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        <span style={{ color: COLOR_RR }}>━</span> FR (rpm, eixo esq.) ·{' '}
-        <span style={{ color: COLOR_TEMP }}>━</span> Temperatura (°C, eixo dir.) · bandas de referência por sinal
+        Painéis sincronizados: FR (rpm) e temperatura (°C). Cada sinal com escala própria e mesmas marcações de tempo.
       </p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
@@ -136,85 +135,116 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
       </details>
 
       <DataReadinessGate readiness={readiness}>
-        <div className="mt-4 h-[260px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 8, right: 44, bottom: 4, left: 0 }}>
-              {/* Bandas FR no eixo esquerdo */}
-              {RESPIRATORY_RATE_BANDS.map((band) => (
-                <ReferenceArea
-                  key={`rr-${band.label}`}
-                  yAxisId="left"
-                  y1={band.min}
-                  y2={band.max}
-                  fill={band.color}
-                  fillOpacity={0.10}
-                  stroke="none"
-                  ifOverflow="hidden"
-                />
-              ))}
-              <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: '#475569', fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={20}
-              />
-              <YAxis
-                yAxisId="left"
-                tick={{ fill: COLOR_RR, fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                width={36}
-                domain={[8, 28]}
-                tickFormatter={(v: number) => `${v}`}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tick={{ fill: COLOR_TEMP, fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                width={40}
-                domain={[35.5, 38.5]}
-                tickFormatter={(v: number) => `${v.toFixed(1)}`}
-              />
-              {/* Linhas de referência clínica para temperatura */}
-              <ReferenceLine yAxisId="right" y={37.0} stroke={COLOR_TEMP} strokeDasharray="3 3" strokeOpacity={0.4} strokeWidth={1} />
-              <ReferenceLine yAxisId="right" y={38.0} stroke="#dc2626" strokeDasharray="3 3" strokeOpacity={0.5} strokeWidth={1} />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                formatter={(v, name, item) => {
-                  if (['rr_real', 'rr_interp', 'rr_forecast', 'temp_real', 'temp_interp', 'temp_forecast'].includes(name as string))
-                    return [null, null]
-                  const suffix = getDataSuffix(item)
-                  if (name === 'rr')
-                    return [typeof v === 'number' ? `${v.toFixed(0)} rpm${suffix} · ${getRespiratoryRateCategory(v)?.label ?? ''}` : '—', 'FR']
-                  if (name === 'temp')
-                    return [typeof v === 'number' ? `${v.toFixed(1)}°C${suffix} · ${getPulseTempCategory(v)?.label ?? ''}` : '—', 'Temperatura']
-                  return [typeof v === 'number' ? `${v.toFixed(1)}` : '—', name]
-                }}
-                itemSorter={() => 0}
-              />
-              {/* FR — azul */}
-              <Line yAxisId="left" type="monotone" dataKey="rr_real" stroke={COLOR_RR} strokeWidth={1.8} dot={{ r: 3, fill: COLOR_RR, stroke: '#fff', strokeWidth: 1 }} connectNulls={false} name="rr" legendType="none" />
-              <Line yAxisId="left" type="monotone" dataKey="rr_interp" stroke={COLOR_RR} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} dot={false} connectNulls name="rr (estim.)" legendType="none" />
-              <Line yAxisId="left" type="monotone" dataKey="rr_forecast" stroke={COLOR_RR} strokeWidth={1.4} strokeDasharray="2 3" strokeOpacity={0.55} dot={false} connectNulls name="rr (projeção)" legendType="none" />
-              {/* Temperatura — âmbar */}
-              <Line yAxisId="right" type="monotone" dataKey="temp_real" stroke={COLOR_TEMP} strokeWidth={1.8} dot={{ r: 3, fill: COLOR_TEMP, stroke: '#fff', strokeWidth: 1 }} connectNulls={false} name="temp" legendType="none" />
-              <Line yAxisId="right" type="monotone" dataKey="temp_interp" stroke={COLOR_TEMP} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} dot={false} connectNulls name="temp (estim.)" legendType="none" />
-              <Line yAxisId="right" type="monotone" dataKey="temp_forecast" stroke={COLOR_TEMP} strokeWidth={1.4} strokeDasharray="2 3" strokeOpacity={0.55} dot={false} connectNulls name="temp (projeção)" legendType="none" />
-              {forecastStartDate && (
-                <ReferenceLine
-                  yAxisId="left"
-                  x={dayLabel(forecastStartDate)}
-                  stroke="#7c3aed"
-                  strokeDasharray="4 3"
-                  strokeWidth={1.5}
-                />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
+        <div className="mt-4 space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Frequência respiratória</p>
+            <div className="h-[180px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart syncId="vital-signs" data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                  {RESPIRATORY_RATE_BANDS.map((band) => (
+                    <ReferenceArea
+                      key={`rr-${band.label}`}
+                      y1={band.min}
+                      y2={band.max}
+                      fill={band.color}
+                      fillOpacity={0.10}
+                      stroke="none"
+                      ifOverflow="hidden"
+                    />
+                  ))}
+                  <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    hide
+                  />
+                  <YAxis
+                    tick={{ fill: COLOR_RR, fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={36}
+                    domain={[8, 28]}
+                    tickFormatter={(v: number) => `${v}`}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v, name, item) => {
+                      if (['rr_real', 'rr_interp', 'rr_forecast'].includes(name as string)) return [null, null]
+                      const suffix = getDataSuffix(item)
+                      if (name === 'rr') {
+                        const category = typeof v === 'number' ? getRespiratoryRateCategory(v)?.label ?? '' : ''
+                        return [typeof v === 'number' ? `${v.toFixed(0)} rpm${suffix} · ${category}` : '—', 'FR']
+                      }
+                      return [typeof v === 'number' ? `${v.toFixed(1)}` : '—', String(name)]
+                    }}
+                    itemSorter={() => 0}
+                  />
+                  <Line yAxisId={0} type="monotone" dataKey="rr_real" stroke={COLOR_RR} strokeWidth={1.8} dot={{ r: 3, fill: COLOR_RR, stroke: '#fff', strokeWidth: 1 }} connectNulls={false} name="rr" legendType="none" />
+                  <Line yAxisId={0} type="monotone" dataKey="rr_interp" stroke={COLOR_RR} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} dot={false} connectNulls name="rr (estim.)" legendType="none" />
+                  <Line yAxisId={0} type="monotone" dataKey="rr_forecast" stroke={COLOR_RR} strokeWidth={1.4} strokeDasharray="2 3" strokeOpacity={0.55} dot={false} connectNulls name="rr (projeção)" legendType="none" />
+                  {forecastStartDate && (
+                    <ReferenceLine
+                      x={dayLabel(forecastStartDate)}
+                      stroke="#7c3aed"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Temperatura de pulso</p>
+            <div className="h-[190px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart syncId="vital-signs" data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
+                  <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: '#475569', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={20}
+                  />
+                  <YAxis
+                    tick={{ fill: COLOR_TEMP, fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                    domain={[35.5, 38.5]}
+                    tickFormatter={(v: number) => `${v.toFixed(1)}`}
+                  />
+                  <ReferenceLine y={37.0} stroke={COLOR_TEMP} strokeDasharray="3 3" strokeOpacity={0.4} strokeWidth={1} />
+                  <ReferenceLine y={38.0} stroke="#dc2626" strokeDasharray="3 3" strokeOpacity={0.5} strokeWidth={1} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v, name, item) => {
+                      if (['temp_real', 'temp_interp', 'temp_forecast'].includes(name as string)) return [null, null]
+                      const suffix = getDataSuffix(item)
+                      if (name === 'temp') {
+                        const category = typeof v === 'number' ? getPulseTempCategory(v)?.label ?? '' : ''
+                        return [typeof v === 'number' ? `${v.toFixed(1)}°C${suffix} · ${category}` : '—', 'Temperatura']
+                      }
+                      return [typeof v === 'number' ? `${v.toFixed(1)}` : '—', String(name)]
+                    }}
+                    itemSorter={() => 0}
+                  />
+                  <Line type="monotone" dataKey="temp_real" stroke={COLOR_TEMP} strokeWidth={1.8} dot={{ r: 3, fill: COLOR_TEMP, stroke: '#fff', strokeWidth: 1 }} connectNulls={false} name="temp" legendType="none" />
+                  <Line type="monotone" dataKey="temp_interp" stroke={COLOR_TEMP} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} dot={false} connectNulls name="temp (estim.)" legendType="none" />
+                  <Line type="monotone" dataKey="temp_forecast" stroke={COLOR_TEMP} strokeWidth={1.4} strokeDasharray="2 3" strokeOpacity={0.55} dot={false} connectNulls name="temp (projeção)" legendType="none" />
+                  {forecastStartDate && (
+                    <ReferenceLine
+                      x={dayLabel(forecastStartDate)}
+                      stroke="#7c3aed"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
       </DataReadinessGate>
     </div>

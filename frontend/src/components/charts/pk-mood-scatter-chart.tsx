@@ -20,8 +20,10 @@ import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import {
   buildMoodEvents,
   buildPKMoodPairs,
+  inferIntradayCorrelation,
+  type IntradayCorrelationMethod,
   linearRegression,
-  pearson,
+  normalizeIntradayValence,
   substanceToPKMedication,
   toPKDoses,
   type MoodEvent,
@@ -36,11 +38,7 @@ function normalizeMoodRecords(rows: MoodRecord[]): ReturnType<typeof buildMoodEv
     type: r.Fim ?? null,
     labels: [],
     associations: [],
-    // MoodRecord.Associações vem 0-100 do backend; buildMoodEvents espera -1..1.
-    valence:
-      typeof r.Associações === 'number'
-        ? (r.Associações - 50) / 50
-        : null,
+    valence: normalizeIntradayValence(r.Associações),
     valenceClass: r.Valência ?? null,
   }))
   return buildMoodEvents(entries)
@@ -54,6 +52,20 @@ const TOOLTIP_STYLE = {
 }
 
 const LAG_OPTIONS = [0, 1, 2, 4, 6, 8]
+const METHOD_OPTIONS: IntradayCorrelationMethod[] = ['pearson', 'spearman']
+
+function formatPValue(value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return 'sem dado'
+  if (value < 0.001) return '<0.001'
+  return value.toFixed(3)
+}
+
+function formatCi95(lower: number | null, upper: number | null, digits = 2): string {
+  if (lower == null || upper == null || !Number.isFinite(lower) || !Number.isFinite(upper)) {
+    return 'sem dado'
+  }
+  return `[${lower.toFixed(digits)}, ${upper.toFixed(digits)}]`
+}
 
 export function PKMoodScatterChart() {
   const { data: substances = [] } = useSubstances()
@@ -61,24 +73,32 @@ export function PKMoodScatterChart() {
   const { data: moodRows = [] } = useMood()
   const [selectedMedId, setSelectedMedId] = useState<string>('lexapro')
   const [lagHours, setLagHours] = useState(0)
+  const [correlationMethod, setCorrelationMethod] = useState<IntradayCorrelationMethod>('pearson')
 
   const events: MoodEvent[] = useMemo(() => normalizeMoodRecords(moodRows), [moodRows])
 
   const selectedSub = substances.find((s) => s.id === selectedMedId)
   const med = selectedSub ? substanceToPKMedication(selectedSub) : null
 
-  const { pairs, r, regression, xMax } = (() => {
-    if (!med) return { pairs: [], r: NaN, regression: null as null | { slope: number; intercept: number }, xMax: 0 }
+  const { pairs, inference, regression, xMax } = (() => {
+    if (!med) {
+      return {
+        pairs: [],
+        inference: null,
+        regression: null as null | { slope: number; intercept: number },
+        xMax: 0,
+      }
+    }
     const dosesForMed = allDoses.filter((d) => d.substance === med.id)
     const pkDoses = toPKDoses(dosesForMed)
     const pairs = buildPKMoodPairs(events, med, pkDoses, 91, lagHours)
-    if (pairs.length < 3) return { pairs, r: NaN, regression: null, xMax: 0 }
+    if (pairs.length < 3) return { pairs, inference: null, regression: null, xMax: 0 }
     const xs = pairs.map((p) => p.concentration)
     const ys = pairs.map((p) => p.valence)
-    const r = pearson(xs, ys)
+    const inference = inferIntradayCorrelation(pairs, { method: correlationMethod })
     const regression = linearRegression(xs, ys)
     const xMax = Math.max(...xs, 1)
-    return { pairs, r, regression, xMax }
+    return { pairs, inference, regression, xMax }
   })()
 
   const readiness = evaluateReadiness([], CHART_REQUIREMENTS.pkMoodScatter, 'Scatter PK×Humor', {
@@ -86,7 +106,7 @@ export function PKMoodScatterChart() {
   })
 
   const regressionLine =
-    regression && pairs.length >= 3
+    correlationMethod === 'pearson' && regression && pairs.length >= 3
       ? [
           { concentration: 0, valence: regression.intercept },
           { concentration: xMax, valence: regression.intercept + regression.slope * xMax },
@@ -112,9 +132,9 @@ export function PKMoodScatterChart() {
         <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
           Concentração × Valência (emoções momentâneas)
         </h3>
-        {Number.isFinite(r) && (
+        {inference && (
           <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700">
-            Pearson r = {r.toFixed(2)} · n = {pairs.length}
+            {correlationMethod === 'pearson' ? 'Pearson r' : 'Spearman ρ'} = {inference.r.toFixed(2)} · p_perm = {formatPValue(inference.pValuePermutation)} · n = {inference.n}
           </span>
         )}
       </div>
@@ -150,6 +170,23 @@ export function PKMoodScatterChart() {
             </button>
           ))}
         </div>
+        <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider ml-2">Método</label>
+        <div className="flex gap-1">
+          {METHOD_OPTIONS.map((method) => (
+            <button
+              key={method}
+              type="button"
+              onClick={() => setCorrelationMethod(method)}
+              className={`rounded-full px-2 py-0.5 text-xs font-semibold transition ${
+                correlationMethod === method
+                  ? 'bg-teal-700 text-white'
+                  : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {method === 'pearson' ? 'Pearson' : 'Spearman'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <details className="mt-2">
@@ -160,6 +197,15 @@ export function PKMoodScatterChart() {
           Lag positivo = concentração HÁ X horas vs humor agora.
         </p>
       </details>
+
+      {inference && (
+        <p className="mt-2 text-xs text-slate-500">
+          IC95%({correlationMethod === 'pearson' ? 'r' : 'ρ'}) {formatCi95(inference.ci95Lower, inference.ci95Upper, 2)}
+          {correlationMethod === 'pearson' && (
+            <> · slope {inference.slope?.toFixed(4) ?? 'sem dado'} · IC95%(slope) {formatCi95(inference.slopeCi95Lower, inference.slopeCi95Upper, 4)}</>
+          )}
+        </p>
+      )}
 
       <DataReadinessGate readiness={readiness}>
         <div className="mt-4 h-[300px] w-full">

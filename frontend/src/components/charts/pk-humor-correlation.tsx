@@ -1,14 +1,4 @@
-import { useMemo, useState } from 'react'
-import {
-  CartesianGrid,
-  ResponsiveContainer,
-  Scatter,
-  ScatterChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-  ZAxis,
-} from 'recharts'
+import { useMemo } from 'react'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { useDoses, useSubstances } from '@/lib/api'
@@ -23,42 +13,44 @@ import {
 import { pearson, substanceToPKMedication, toPKDoses } from '@/utils/intraday-correlation'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
-interface DailySMASample {
+interface DailyEmaSample {
   date: string
-  sma: number
+  ema: number
   valence: number | null
 }
 
-function buildDailySMASamples(
+function buildDailyEmaSamples(
   med: PKMedication,
   doses: PKDose[],
   snapshots: DailySnapshot[],
   weightKg: number,
-): DailySMASample[] {
+): DailyEmaSample[] {
   const windowMs = getMoodCorrelationWindowMs(med)
   const hourMs = 60 * 60 * 1000
   const numPoints = Math.max(6, Math.round(windowMs / hourMs))
 
-  const samples: DailySMASample[] = []
+  const samples: DailyEmaSample[] = []
   for (const snap of snapshots) {
     const eod = new Date(`${snap.date}T23:59:59`).getTime()
     if (!Number.isFinite(eod)) continue
 
-    let sum = 0
-    let count = 0
+    let weightedSum = 0
+    let weightSum = 0
     for (let i = 0; i < numPoints; i++) {
       const t = eod - i * hourMs
       const conc = calculateConcentration(med, doses, t, weightKg)
       if (Number.isFinite(conc) && conc > PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML) {
-        sum += conc
-        count++
+        const ageMs = i * hourMs
+        const weight = Math.exp(-ageMs / Math.max(windowMs, hourMs))
+        weightedSum += conc * weight
+        weightSum += weight
       }
     }
 
-    if (count >= 3) {
+    if (weightSum > 0) {
       samples.push({
         date: snap.date,
-        sma: sum / count,
+        ema: weightedSum / weightSum,
         valence: snap.mood?.valence ?? null,
       })
     }
@@ -92,13 +84,24 @@ function pValueFromR(r: number, n: number): number {
 interface CorrelationRow {
   subId: string
   subName: string
-  med: PKMedication
-  r0: number
-  p0: number
-  r1: number
-  p1: number
+  lag0: CorrelationEstimate
+  lag1: CorrelationEstimate | null
+}
+
+interface CorrelationRawRow {
+  subId: string
+  subName: string
+  lag0Base: Omit<CorrelationEstimate, 'qFdr'>
+  lag1Base: Omit<CorrelationEstimate, 'qFdr'> | null
+}
+
+interface CorrelationEstimate {
+  r: number
+  p: number
+  qFdr: number | null
   n: number
-  nLag: number
+  ciLower: number | null
+  ciUpper: number | null
 }
 
 interface Props {
@@ -109,77 +112,106 @@ interface Props {
 export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const { data: doses = [] } = useDoses(168 * 6)
   const { data: substances = [] } = useSubstances()
-  const [selectedSubId, setSelectedSubId] = useState<string | null>(null)
 
   const rows = useMemo<CorrelationRow[]>(() => {
     if (!substances.length || !doses.length) return []
 
-    return substances
-      .map<CorrelationRow | null>((sub) => {
+    const raw = substances
+      .map<CorrelationRawRow | null>((sub) => {
         const med = substanceToPKMedication(sub)
         if (!med) return null
 
         const subDoses = toPKDoses(doses.filter((d) => d.substance === sub.id))
         if (subDoses.length < 3) return null
 
-        const samples = buildDailySMASamples(med, subDoses, snapshots, weightKg)
-        const valid = samples.filter((s) => s.valence != null) as Array<DailySMASample & { valence: number }>
-        if (valid.length < 7) return null
+        const samples = buildDailyEmaSamples(med, subDoses, snapshots, weightKg)
+        const valid = samples.filter((s) => s.valence != null) as Array<DailyEmaSample & { valence: number }>
+        if (valid.length < 5) return null
 
-        const xs0 = valid.map((s) => s.sma)
+        const xs0 = valid.map((s) => s.ema)
         const ys0 = valid.map((s) => s.valence)
         const r0 = pearson(xs0, ys0)
         const p0 = pValueFromR(r0, valid.length)
+        const ci0 = fisherCi95(r0, valid.length)
 
         const lagXs: number[] = []
         const lagYs: number[] = []
         for (let i = 1; i < samples.length; i++) {
           const prev = samples[i - 1]
           const cur = samples[i]
-          if (cur.valence != null && Number.isFinite(prev.sma)) {
-            lagXs.push(prev.sma)
+          if (cur.valence != null && Number.isFinite(prev.ema)) {
+            lagXs.push(prev.ema)
             lagYs.push(cur.valence)
           }
         }
-        const r1 = lagXs.length >= 7 ? pearson(lagXs, lagYs) : Number.NaN
-        const p1 = lagXs.length >= 7 ? pValueFromR(r1, lagXs.length) : Number.NaN
+        const r1 = lagXs.length >= 5 ? pearson(lagXs, lagYs) : Number.NaN
+        const p1 = lagXs.length >= 5 ? pValueFromR(r1, lagXs.length) : Number.NaN
+        const ci1 = lagXs.length >= 5 ? fisherCi95(r1, lagXs.length) : null
+
+        const lag1Base = Number.isFinite(r1)
+          ? {
+              r: r1,
+              p: p1,
+              n: lagXs.length,
+              ciLower: ci1?.lower ?? null,
+              ciUpper: ci1?.upper ?? null,
+            }
+          : null
 
         return {
           subId: sub.id,
           subName: sub.display_name.split(' ')[0],
-          med,
-          r0,
-          p0,
-          r1,
-          p1,
-          n: valid.length,
-          nLag: lagXs.length,
+          lag0Base: {
+            r: r0,
+            p: p0,
+            n: valid.length,
+            ciLower: ci0?.lower ?? null,
+            ciUpper: ci0?.upper ?? null,
+          },
+          lag1Base,
         }
       })
-      .filter((row): row is CorrelationRow => row != null)
+
+      .filter((row): row is CorrelationRawRow => row != null)
+
+    const pTargets: Array<{ idx: number; lag: 'lag0' | 'lag1'; p: number }> = []
+    raw.forEach((row, idx) => {
+      if (Number.isFinite(row.lag0Base.p)) pTargets.push({ idx, lag: 'lag0', p: row.lag0Base.p })
+      if (row.lag1Base && Number.isFinite(row.lag1Base.p)) pTargets.push({ idx, lag: 'lag1', p: row.lag1Base.p })
+    })
+
+    const qValues = benjaminiHochbergFdr(pTargets.map((target) => target.p))
+
+    return raw.map((row, idx) => {
+      const q0 = qValues[pTargets.findIndex((target) => target.idx === idx && target.lag === 'lag0')] ?? null
+      const q1 = qValues[pTargets.findIndex((target) => target.idx === idx && target.lag === 'lag1')] ?? null
+      return {
+        subId: row.subId,
+        subName: row.subName,
+        lag0: { ...row.lag0Base, qFdr: q0 },
+        lag1: row.lag1Base ? { ...row.lag1Base, qFdr: q1 } : null,
+      }
+    })
   }, [substances, doses, snapshots, weightKg])
 
-  const selected = rows.find((r) => r.subId === selectedSubId) ?? rows[0] ?? null
-
-  const scatterData = useMemo(() => {
-    if (!selected) return []
-    const subDoses = toPKDoses(doses.filter((d) => d.substance === selected.subId))
-    return buildDailySMASamples(selected.med, subDoses, snapshots, weightKg)
-      .filter((s) => s.valence != null)
-      .map((s) => ({ sma: s.sma, valence: s.valence as number, date: s.date }))
-  }, [selected, doses, snapshots, weightKg])
+  const significantCount = useMemo(() => {
+    return rows
+      .flatMap((row) => [row.lag0, row.lag1])
+      .filter((estimate): estimate is CorrelationEstimate => estimate != null)
+      .filter((estimate) => estimate.qFdr != null && estimate.qFdr < 0.05).length
+  }, [rows])
 
   if (rows.length === 0) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
         <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
-          Correlação SMA × Humor
+          Correlação EMA × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
           PK suavizada × valência diária
         </h3>
         <p className="mt-4 text-sm text-slate-500">
-          Sem substâncias com ≥3 doses + ≥7 dias de humor no período. Aumente a janela de visualização ou logue mais doses.
+          Sem substâncias com ≥3 doses + ≥5 dias de humor no período. Aumente a janela de visualização ou logue mais doses.
         </p>
       </div>
     )
@@ -189,94 +221,34 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div>
         <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
-          Correlação SMA × Humor
+          Correlação EMA × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          PK suavizada (2×t½) × valência diária
+          Coeficientes diários PK×humor (lag 0 e +1d)
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
-          Pearson r entre média móvel de concentração (janela 2×meia-vida) e valência. Lag +1d compara SMA do dia anterior com humor de hoje.
+        <p className="mt-1 text-xs text-slate-500 leading-5">
+          Pearson r entre EMA de concentração (janela 2×t½) e valência. A barra mostra IC95% (Fisher z). `q_fdr` corrige múltiplos testes no painel.
+        </p>
+        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+          <span>Sinais com q_fdr &lt; 0.05:</span>
+          <span>{significantCount}</span>
         </p>
       </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[420px] text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
-              <th className="pb-2 font-semibold">Substância</th>
-              <th className="pb-2 font-semibold">r (lag 0)</th>
-              <th className="pb-2 font-semibold">r (lag +1d)</th>
-              <th className="pb-2 font-semibold">p (lag 0)</th>
-              <th className="pb-2 font-semibold">n</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const isSelected = selected?.subId === row.subId
-              const dotColor = SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6'
-              return (
-                <tr
-                  key={row.subId}
-                  onClick={() => setSelectedSubId(row.subId)}
-                  className={`cursor-pointer border-t border-slate-100 transition ${
-                    isSelected ? 'bg-slate-50' : 'hover:bg-slate-50/60'
-                  }`}
-                >
-                  <td className="py-2 font-medium">
-                    <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ background: dotColor }} />
-                    {row.subName}
-                  </td>
-                  <td className="py-2 font-mono">{formatR(row.r0)}</td>
-                  <td className="py-2 font-mono">{formatR(row.r1)}</td>
-                  <td className="py-2 font-mono">{formatP(row.p0)}</td>
-                  <td className="py-2 font-mono text-slate-500">{row.n}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {selected && scatterData.length > 0 && (
-        <div className="mt-5">
-          <p className="mb-2 text-xs text-slate-500">
-            Scatter <span className="font-semibold text-slate-700">{selected.subName}</span> · clique outra linha pra trocar
-          </p>
-          <div className="h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 8, right: 12, bottom: 24, left: 0 }}>
-                <CartesianGrid stroke="rgba(100,116,139,0.1)" />
-                <XAxis
-                  type="number"
-                  dataKey="sma"
-                  name="SMA conc"
-                  tick={{ fill: '#475569', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  label={{ value: 'SMA conc (ng/mL)', position: 'insideBottom', offset: -10, fontSize: 11, fill: '#64748b' }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="valence"
-                  name="Valência"
-                  domain={[-1, 1]}
-                  ticks={[-1, -0.5, 0, 0.5, 1]}
-                  tick={{ fill: '#475569', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={36}
-                />
-                <ZAxis range={[40, 40]} />
-                <Tooltip
-                  cursor={{ strokeDasharray: '3 3' }}
-                  contentStyle={{ borderRadius: 12, fontSize: 12 }}
-                />
-                <Scatter data={scatterData} fill={SUBSTANCE_COLORS[selected.subId] ?? '#8b5cf6'} fillOpacity={0.7} />
-              </ScatterChart>
-            </ResponsiveContainer>
+      <div className="mt-4 space-y-3">
+        {rows.map((row) => (
+          <div key={row.subId} className="rounded-xl border border-slate-200/80 bg-white px-4 py-3">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6' }} />
+              {row.subName}
+            </div>
+            <div className="space-y-2">
+              <CoefficientStrip label="Lag 0" estimate={row.lag0} />
+              <CoefficientStrip label="Lag +1d" estimate={row.lag1} />
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   )
 }
@@ -291,4 +263,93 @@ function formatP(p: number): string {
   if (p < 0.001) return '<0.001'
   if (p < 0.01) return p.toFixed(3)
   return p.toFixed(2)
+}
+
+function fisherCi95(r: number, n: number): { lower: number; upper: number } | null {
+  if (!Number.isFinite(r) || n < 4 || Math.abs(r) >= 1) return null
+  const z = 0.5 * Math.log((1 + r) / (1 - r))
+  const se = 1 / Math.sqrt(n - 3)
+  return {
+    lower: Math.tanh(z - 1.959963984540054 * se),
+    upper: Math.tanh(z + 1.959963984540054 * se),
+  }
+}
+
+function benjaminiHochbergFdr(pValues: number[]): Array<number | null> {
+  if (pValues.length === 0) return []
+  const indexed = pValues
+    .map((p, i) => ({ p, i }))
+    .filter((item) => Number.isFinite(item.p) && item.p >= 0 && item.p <= 1)
+    .sort((a, b) => a.p - b.p)
+
+  const result: Array<number | null> = new Array(pValues.length).fill(null)
+  const m = indexed.length
+  if (m === 0) return result
+
+  const raw = indexed.map((item, rank) => (item.p * m) / (rank + 1))
+  let minSoFar = 1
+  for (let idx = raw.length - 1; idx >= 0; idx--) {
+    minSoFar = Math.min(minSoFar, raw[idx])
+    result[indexed[idx].i] = Math.max(0, Math.min(1, minSoFar))
+  }
+  return result
+}
+
+function formatCi(lower: number | null, upper: number | null): string {
+  if (lower == null || upper == null || !Number.isFinite(lower) || !Number.isFinite(upper)) return 'sem IC95%'
+  return `[${lower.toFixed(2)}, ${upper.toFixed(2)}]`
+}
+
+function toTrackPercent(value: number): number {
+  const clamped = Math.max(-1, Math.min(1, value))
+  return ((clamped + 1) / 2) * 100
+}
+
+function CoefficientStrip({
+  label,
+  estimate,
+}: {
+  label: string
+  estimate: CorrelationEstimate | null
+}) {
+  if (!estimate) {
+    return (
+      <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+        {label}: dados insuficientes
+      </div>
+    )
+  }
+
+  const center = toTrackPercent(0)
+  const dot = toTrackPercent(estimate.r)
+  const ciLeft = estimate.ciLower == null ? null : toTrackPercent(estimate.ciLower)
+  const ciRight = estimate.ciUpper == null ? null : toTrackPercent(estimate.ciUpper)
+  const significant = estimate.qFdr != null && estimate.qFdr < 0.05
+
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+        <span className="font-semibold text-slate-600">{label}</span>
+        <span className="font-mono text-slate-500">
+          r {formatR(estimate.r)} · IC95% {formatCi(estimate.ciLower, estimate.ciUpper)} · p {formatP(estimate.p)} · q {formatP(estimate.qFdr ?? Number.NaN)} · n {estimate.n}
+        </span>
+      </div>
+      <div className="relative h-5 rounded-full bg-slate-200/70">
+        <span className="absolute inset-y-0 w-px bg-slate-400" style={{ left: `${center}%` }} />
+        {ciLeft != null && ciRight != null && (
+          <span
+            className={`absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full ${significant ? 'bg-amber-500' : 'bg-slate-500'}`}
+            style={{
+              left: `${Math.min(ciLeft, ciRight)}%`,
+              width: `${Math.max(1, Math.abs(ciRight - ciLeft))}%`,
+            }}
+          />
+        )}
+        <span
+          className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow ${significant ? 'bg-amber-500' : 'bg-teal-700'}`}
+          style={{ left: `${dot}%` }}
+        />
+      </div>
+    </div>
+  )
 }

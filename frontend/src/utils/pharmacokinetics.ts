@@ -269,7 +269,7 @@ export function getTrendWindowMs(med: PKMedication): number {
 }
 
 // Janela 2×t½ — observação clínica de Anders: quedas na concentração refletem
-// no humor com magnitude similar ao atraso da SMA dessa janela. Janela uniforme
+// no humor com magnitude similar ao atraso da EMA dessa janela. Janela uniforme
 // pra todas as substâncias (não diferencia crônica/aguda como getTrendWindowMs).
 export function getMoodCorrelationWindowMs(med: PKMedication): number {
   return Math.round(2 * med.halfLife * 60 * 60 * 1000)
@@ -282,26 +282,29 @@ export function computeTrendFromSamples(
   minPoints = 3,
 ): Array<number | null> {
   const result: Array<number | null> = new Array(values.length).fill(null)
-  const window: Array<{ t: number; v: number }> = []
-  let sum = 0
+  let ema: number | null = null
+  let validCount = 0
+  let lastTimestamp: number | null = null
+  const effectiveWindowMs = Math.max(windowMs, 1)
 
   for (let i = 0; i < timestamps.length; i++) {
     const t = timestamps[i]
     const v = values[i]
 
     if (typeof v === 'number' && Number.isFinite(v)) {
-      window.push({ t, v })
-      sum += v
+      if (ema == null) {
+        ema = v
+      } else {
+        const dt = lastTimestamp == null ? effectiveWindowMs : Math.max(1, t - lastTimestamp)
+        const alpha = 1 - Math.exp(-dt / effectiveWindowMs)
+        ema = alpha * v + (1 - alpha) * ema
+      }
+      validCount += 1
+      lastTimestamp = t
     }
 
-    const cutoff = t - windowMs
-    while (window.length > 0 && window[0].t < cutoff) {
-      const removed = window.shift()!
-      sum -= removed.v
-    }
-
-    if (window.length >= minPoints) {
-      result[i] = sum / window.length
+    if (validCount >= minPoints && ema != null) {
+      result[i] = ema
     }
   }
 

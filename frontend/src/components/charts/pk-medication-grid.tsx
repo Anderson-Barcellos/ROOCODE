@@ -36,8 +36,8 @@ type GridPoint = {
   timestamp: number
   pct: number | null
   conc_ng_ml: number | null
-  sma_pct: number | null
-  sma_ng_ml: number | null
+  ema_pct: number | null
+  ema_ng_ml: number | null
   label: string
 }
 
@@ -165,18 +165,18 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
       concs.push(conc)
     }
 
-    const smaWindowMs = getMoodCorrelationWindowMs(med)
-    const smaSeries = computeTrendFromSamples(timestamps, concs, smaWindowMs, 3)
+    const emaWindowMs = getMoodCorrelationWindowMs(med)
+    const emaSeries = computeTrendFromSamples(timestamps, concs, emaWindowMs, 3)
 
     const series: GridPoint[] = timestamps.map((t, i) => {
       const conc = concs[i]
-      const smaVal = smaSeries[i]
+      const emaVal = emaSeries[i]
       return {
         timestamp: t,
         conc_ng_ml: conc,
         pct: range ? (conc / range.max) * 100 : null,
-        sma_ng_ml: smaVal,
-        sma_pct: smaVal != null && range ? (smaVal / range.max) * 100 : null,
+        ema_ng_ml: emaVal,
+        ema_pct: emaVal != null && range ? (emaVal / range.max) * 100 : null,
         label: format(t, "d MMM · HH:mm", { locale: ptBR }),
       }
     })
@@ -200,7 +200,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
 
   // Key da série e domínio do Y axis dependem do modo.
   const seriesKey = hasRange ? 'pct' : 'conc_ng_ml'
-  const smaKey = hasRange ? 'sma_pct' : 'sma_ng_ml'
+  const emaKey = hasRange ? 'ema_pct' : 'ema_ng_ml'
   const yDomain: [number, number] = hasRange ? [0, 150] : [0, Math.max(maxConc * 1.2, 1)]
   const yTicks = hasRange ? [0, 50, 100, 150] : undefined
   const yTickFormatter = hasRange
@@ -316,7 +316,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
             />
             <Line
               type="monotone"
-              dataKey={smaKey}
+              dataKey={emaKey}
               stroke={color}
               strokeWidth={2.4}
               dot={false}

@@ -21,13 +21,15 @@ import os
 import time
 import urllib.error
 import urllib.request
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from Forecast import storage as forecast_storage
 
 router = APIRouter()
 
@@ -700,6 +702,13 @@ async def forecast(body: ForecastRequest) -> JSONResponse:
         _cache_set(cache_key, {"forecasted_snapshots": forecasted, "meta": meta, "signals": signals})
         provider_elapsed_ms = (time.perf_counter() - provider_started_at) * 1000.0
         _trace(f"provider latency {provider_elapsed_ms:.1f} ms")
+        # Persistência best-effort: nunca pode quebrar a request principal
+        try:
+            forecast_storage.record_forecast(
+                forecasted, datetime.now(timezone.utc).isoformat()
+            )
+        except Exception as storage_exc:  # pragma: no cover - log defensivo
+            _trace(f"forecast_storage.record_forecast failed: {type(storage_exc).__name__}: {storage_exc}")
         return JSONResponse(content={"forecasted_snapshots": forecasted, "meta": meta, "signals": signals})
     except ForecastBadRequest as exc:
         return _error_response(str(exc), 400, cap)
@@ -730,3 +739,26 @@ async def forecast_summary(body: ForecastSummaryRequest) -> JSONResponse:
     rolling = body.rolling_summary if isinstance(body.rolling_summary, dict) else None
     summary = _build_recent_summary(context, rolling)
     return JSONResponse(content=summary)
+
+
+# ─── Endpoint /accuracy (backtest predicted vs actual) ──────────────────────
+
+class ForecastAccuracyRequest(BaseModel):
+    snapshots: list[dict]
+    days_back: int = Field(default=30, ge=1, le=365)
+
+
+@router.post("/accuracy")
+async def forecast_accuracy(body: ForecastAccuracyRequest) -> JSONResponse:
+    """Computa MAPE/MAE/RMSE por field comparando snapshots reais com history persistido.
+
+    Cliente envia snapshots reais (com `date` + values). Backend lê history filtrado por
+    `days_back` e pareia por (target_date, field). Endpoint é stateless além do history
+    file — tolerante a history vazio (retorna `accuracy_by_field: {}` + warning).
+    """
+    snapshots = body.snapshots if isinstance(body.snapshots, list) else []
+    history = forecast_storage.load_history(days_back=body.days_back)
+    result = forecast_storage.compute_accuracy(
+        snapshots, history, days_back=body.days_back
+    )
+    return JSONResponse(content=result)

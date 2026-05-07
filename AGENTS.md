@@ -51,7 +51,7 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 
 - **Fatia A** (commit `59b133e`): RecoveryScore na aba Panorama, WeekdayWeekend (endpoint + card), accordion de `forecastRationale`.
 - **Fatia B** (commit `aaccd55`): `cardioRecoveryBpm` no `correlation-heatmap`, sleep debt cumulativo (util + chart na aba Sono), card cross-domain `sleepDebt × HRV` em Insights, segunda Y-axis com linha de eficiência em `SleepStagesChart`, adapter v2 hardening (fallback `[Mínimo]/[Máx]/[Média]` ↔ legado `[Min]/[Max]/[Avg]`).
-- **Fatia C**: backlog — endpoint `/farma/concentration-series`, `pk-rem-suppression` chart, `Forecast/storage.py` + accuracy backtest. Sprint dedicada quando reabrir. **Kickoff colável em `ROADMAP.md` na seção `KICKOFF — Fatia C`**.
+- **Fatia C** (este commit): `GET /farma/concentration-series` (loop daily 24h reusando `concentration_at_time` + fallback regimen sintético), chart `pk-rem-suppression.tsx` (Cmax × REM next-night com Pearson r + permutation p), módulo `Forecast/storage.py` (persistência atômica de forecasts com schema versioning), endpoint `POST /forecast/accuracy` (MAPE/MAE/RMSE por field), card `forecast-accuracy-card.tsx` na aba Panorama. Tipos PT-BR completos no `MetricsRecord` para destravar build (fix dívida Fatia B). **Próximo: Sprint Codex Cleanup — kickoff em `ROADMAP.md`.**
 - Plano completo: `/root/.claude/plans/oi-claude-eu-valiant-boole.md`.
 
 ## Sequência fresh obrigatória

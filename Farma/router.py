@@ -2,15 +2,17 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import json
 import re
 import uuid
 
 from Farma.math import (
+    concentration_at_time,
     get_substance_profile,
     load_medication_database,
+    _profile_volume_of_distribution,
 )
 
 router = APIRouter()
@@ -315,6 +317,104 @@ def _save_regimen(regimen: list[dict]) -> None:
         json.dump(regimen, f, ensure_ascii=False, indent=2)
 
 
+def _parse_dose_event(record: dict) -> Optional[tuple[datetime, float]]:
+    """Converte registro do dose_log em (datetime tz-aware, dose_mg). None se inválido."""
+    try:
+        taken = datetime.fromisoformat(record["taken_at"])
+        if taken.tzinfo is None:
+            taken = taken.replace(tzinfo=timezone.utc)
+        return taken, float(record["dose_mg"])
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
+def _expand_regimen_to_doses(
+    regimen: list[dict],
+    canonical_key: str,
+    range_start: datetime,
+    range_end: datetime,
+) -> list[tuple[datetime, float]]:
+    """Expande regimen ativo em lista de eventos sintéticos (taken_at, dose_mg) dentro do range."""
+    events: list[tuple[datetime, float]] = []
+    for entry in regimen:
+        if entry.get("substance") != canonical_key or not entry.get("active"):
+            continue
+        dose_mg = float(entry.get("dose_mg") or 0.0)
+        if dose_mg <= 0:
+            continue
+        dow_set = set(int(d) for d in entry.get("days_of_week") or [])
+        if not dow_set:
+            continue
+        times = entry.get("times") or []
+        cur = range_start.date()
+        end_date = range_end.date()
+        while cur <= end_date:
+            # days_of_week segue convenção JS: Sun=0..Sat=6
+            js_dow = cur.isoweekday() % 7
+            if js_dow in dow_set:
+                for time_str in times:
+                    try:
+                        hh, mm = (int(part) for part in time_str.split(":"))
+                    except (ValueError, AttributeError):
+                        continue
+                    taken_dt = datetime(
+                        cur.year, cur.month, cur.day, hh, mm, tzinfo=timezone.utc
+                    )
+                    if range_start <= taken_dt <= range_end:
+                        events.append((taken_dt, dose_mg))
+            cur += timedelta(days=1)
+    return events
+
+
+def _compute_daily_pk_series(
+    dose_events: list[tuple[datetime, float]],
+    from_date,
+    to_date,
+    *,
+    ka: float,
+    ke: float,
+    vd: float,
+    bioavailability: float,
+) -> list[dict]:
+    """Computa série diária de cmax/cmin/auc somando contribuições de cada dose real.
+
+    Para cada dia D no range, amostra concentração em h=0..23 (24 pontos):
+      C(t) = Σ concentration_at_time(d, ka, ke, vd, t - dose_time, F) para cada dose
+    Reduz: cmax = max(C), cmin = min(C), auc ≈ Σ C(t) · 1h (aproximação rectangular).
+    """
+    sorted_events = sorted(dose_events, key=lambda x: x[0])
+    series: list[dict] = []
+    cur_date = from_date
+    while cur_date <= to_date:
+        c_values: list[float] = []
+        for hour in range(24):
+            query_dt = datetime(
+                cur_date.year, cur_date.month, cur_date.day, hour, 0, tzinfo=timezone.utc
+            )
+            concentration = 0.0
+            for taken_dt, dose_mg in sorted_events:
+                t_hours = (query_dt - taken_dt).total_seconds() / 3600.0
+                if t_hours <= 0:
+                    continue
+                concentration += concentration_at_time(
+                    dose=dose_mg,
+                    ka=ka,
+                    ke=ke,
+                    vd=vd,
+                    t=t_hours,
+                    bioavailability=bioavailability,
+                )
+            c_values.append(concentration)
+        series.append({
+            "date": cur_date.isoformat(),
+            "cmax_est": max(c_values) if c_values else 0.0,
+            "cmin_est": min(c_values) if c_values else 0.0,
+            "auc_est": sum(c_values),  # Δt = 1h, aproximação rectangular
+        })
+        cur_date += timedelta(days=1)
+    return series
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/substances")
@@ -542,3 +642,122 @@ async def deleteDose(dose_id: str):
     removed = doses.pop(index)
     _save_doses(doses)
     return JSONResponse(content={"id": removed["id"], "deleted": True}, status_code=200)
+
+
+@router.get("/concentration-series")
+async def concentrationSeries(
+    substance: str = Query(...),
+    from_: str = Query(..., alias="from"),
+    to: str = Query(...),
+    weight_kg: float = Query(default=70.0, gt=0, le=300),
+):
+    """
+    Retorna série diária de cmax/cmin/auc estimados para a substância no range.
+
+    Algoritmo: soma contribuição de cada dose real (`dose_log.json`) usando
+    `concentration_at_time`, amostrando 24 pontos/dia (h=0..23). Se não houver
+    doses logadas no range estendido (com 7 dias de warm-up), faz fallback ao
+    regimen ativo expandido em doses sintéticas.
+
+    Granularidade: daily (1 ponto/dia: cmax, cmin, auc). Range máximo: 90 dias.
+    """
+    try:
+        from_date = datetime.strptime(from_, "%Y-%m-%d").date()
+        to_date = datetime.strptime(to, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="from/to devem ser YYYY-MM-DD"
+        ) from exc
+
+    if to_date < from_date:
+        raise HTTPException(status_code=422, detail="to deve ser >= from")
+
+    span_days = (to_date - from_date).days + 1
+    if span_days > 90:
+        raise HTTPException(
+            status_code=400, detail="range não pode exceder 90 dias"
+        )
+
+    try:
+        canonical_key, profile = _resolve_substance_any(substance)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Substância '{substance}' não encontrada no catálogo",
+        )
+
+    profile_with_id = {**profile, "id": canonical_key}
+    try:
+        vd = _profile_volume_of_distribution(profile_with_id, weight_kg)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        ka = float(profile["ka_per_hour"])
+        ke = float(profile["ke_per_hour"])
+        bioavailability = float(profile["bioavailability"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"perfil PK incompleto para '{canonical_key}'",
+        ) from exc
+
+    if ka <= 0 or ke <= 0 or bioavailability <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail=f"parâmetros PK inválidos para '{canonical_key}'",
+        )
+
+    warm_up_days = 7
+    range_start = datetime.combine(
+        from_date - timedelta(days=warm_up_days),
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
+    range_end = datetime.combine(
+        to_date, datetime.max.time(), tzinfo=timezone.utc
+    )
+
+    real_events: list[tuple[datetime, float]] = []
+    for record in _load_doses():
+        if record.get("substance") != canonical_key:
+            continue
+        parsed = _parse_dose_event(record)
+        if parsed is None:
+            continue
+        if range_start <= parsed[0] <= range_end:
+            real_events.append(parsed)
+
+    used_fallback = False
+    dose_events = real_events
+    if not dose_events:
+        try:
+            regimen = _load_regimen()
+        except (json.JSONDecodeError, ValueError, TypeError):
+            regimen = []
+        synthetic = _expand_regimen_to_doses(
+            regimen, canonical_key, range_start, range_end
+        )
+        if synthetic:
+            used_fallback = True
+            dose_events = synthetic
+
+    series = _compute_daily_pk_series(
+        dose_events,
+        from_date,
+        to_date,
+        ka=ka,
+        ke=ke,
+        vd=vd,
+        bioavailability=bioavailability,
+    )
+
+    return JSONResponse(content={
+        "substance": canonical_key,
+        "from": from_date.isoformat(),
+        "to": to_date.isoformat(),
+        "weight_kg": weight_kg,
+        "source": "regimen_fallback" if used_fallback else "dose_log",
+        "events_count": len(dose_events),
+        "series": series,
+    })

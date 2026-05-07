@@ -1,6 +1,7 @@
+import json
 import unittest
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -116,6 +117,114 @@ class DoseEndpointTests(unittest.TestCase):
         self.assertEqual(payload["dose_mg"], 40)
         self.assertEqual(payload["taken_at"], taken_at)
         self.assertTrue(farma_router.DOSE_LOG_PATH.exists())
+
+
+class ConcentrationSeriesEndpointTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_dose_path = farma_router.DOSE_LOG_PATH
+        self.original_regimen_path = farma_router.REGIMEN_CONFIG_PATH
+        farma_router.DOSE_LOG_PATH = Path(self.temp_dir.name) / "dose_log.json"
+        farma_router.REGIMEN_CONFIG_PATH = Path(self.temp_dir.name) / "regimen.json"
+        app = FastAPI()
+        app.include_router(farma_router.router)
+        self.client = TestClient(app)
+
+    def tearDown(self) -> None:
+        farma_router.DOSE_LOG_PATH = self.original_dose_path
+        farma_router.REGIMEN_CONFIG_PATH = self.original_regimen_path
+        self.temp_dir.cleanup()
+
+    def _seed_doses(self, doses: list[dict]) -> None:
+        farma_router.DOSE_LOG_PATH.write_text(
+            json.dumps(doses, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    def test_returns_daily_series_using_logged_doses(self) -> None:
+        # Seed: 7 daily venvanse doses ending today
+        today = datetime.now(timezone.utc).date()
+        from_date = today - timedelta(days=6)
+        doses = []
+        for offset in range(7):
+            dose_day = from_date + timedelta(days=offset)
+            doses.append({
+                "id": f"d{offset}",
+                "substance": "venvanse",
+                "dose_mg": 200.0,
+                "taken_at": datetime(
+                    dose_day.year, dose_day.month, dose_day.day, 7, 0,
+                    tzinfo=timezone.utc,
+                ).isoformat(),
+                "note": "",
+                "logged_at": datetime.now(timezone.utc).isoformat(),
+            })
+        self._seed_doses(doses)
+
+        response = self.client.get(
+            "/concentration-series",
+            params={
+                "substance": "venvanse",
+                "from": from_date.isoformat(),
+                "to": today.isoformat(),
+                "weight_kg": 70.0,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "dose_log")
+        self.assertEqual(payload["substance"], "venvanse")
+        self.assertEqual(len(payload["series"]), 7)
+        # Cmax must be > Cmin > 0 once at steady state (last day)
+        last = payload["series"][-1]
+        self.assertGreater(last["cmax_est"], last["cmin_est"])
+        self.assertGreater(last["cmin_est"], 0.0)
+        self.assertGreater(last["auc_est"], 0.0)
+
+    def test_falls_back_to_regimen_when_dose_log_empty(self) -> None:
+        # No doses logged; regimen will autoload defaults including venvanse
+        today = datetime.now(timezone.utc).date()
+        from_date = today - timedelta(days=4)
+
+        response = self.client.get(
+            "/concentration-series",
+            params={
+                "substance": "venvanse",
+                "from": from_date.isoformat(),
+                "to": today.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "regimen_fallback")
+        self.assertEqual(len(payload["series"]), 5)
+        self.assertGreater(payload["events_count"], 0)
+
+    def test_rejects_range_exceeding_90_days(self) -> None:
+        response = self.client.get(
+            "/concentration-series",
+            params={
+                "substance": "venvanse",
+                "from": "2026-01-01",
+                "to": "2026-06-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("90 dias", response.json()["detail"])
+
+    def test_rejects_unknown_substance(self) -> None:
+        response = self.client.get(
+            "/concentration-series",
+            params={
+                "substance": "xpto-fake",
+                "from": "2026-04-01",
+                "to": "2026-04-07",
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
 
 
 if __name__ == "__main__":

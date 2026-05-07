@@ -25,6 +25,7 @@ import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
+import { PkRemSuppression } from '@/components/charts/pk-rem-suppression'
 import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
 import { HRRangeChart } from '@/components/charts/hr-range-chart'
@@ -32,6 +33,7 @@ import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { TimelineChart } from '@/components/charts/timeline-chart'
 import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
+import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
@@ -421,6 +423,8 @@ export default function App() {
 
                   <WeekdayWeekendCard snapshots={ranged} />
 
+                  <ForecastAccuracyCard snapshots={ranged} />
+
                   <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 
                   {forecast === 'on' && (
@@ -589,6 +593,7 @@ export default function App() {
                   </>
                 )}
                 <PKMoodScatterChart />
+                <PkRemSuppression />
                 <LagCorrelationChart />
               </div>
             </SurfaceFrame>

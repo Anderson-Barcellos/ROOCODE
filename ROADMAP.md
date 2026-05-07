@@ -105,6 +105,74 @@ Resolvido em 2026-05-06: `git stash list` verificado vazio — não há WIP resi
 
 Plano completo: `/root/.claude/plans/oi-claude-eu-valiant-boole.md`.
 
+## KICKOFF — Sprint Codex Cleanup (próxima sessão fresh)
+
+> Cole este bloco quando voltar de /compact. Claude lê e segue.
+
+```
+# Sprint Codex Cleanup
+
+Estado entrando: Fatias A/B/C da Cross-Domain Insights fechadas no main.
+Worktree tem 11 arquivos do Codex em WIP + 1 untracked com erro TS:
+
+Modified (Codex WIP):
+- frontend/src/components/charts/lag-correlation-chart.tsx
+- frontend/src/components/charts/pk-humor-correlation.tsx
+- frontend/src/components/charts/pk-medication-grid.tsx
+- frontend/src/components/charts/pk-mood-scatter-chart.tsx
+- frontend/src/components/charts/shared/DataReadinessGate.tsx
+- frontend/src/components/charts/vital-signs-timeline.tsx
+- frontend/src/utils/data-readiness.ts
+- frontend/src/utils/intraday-correlation.ts
+- frontend/src/utils/pharmacokinetics.ts
+- frontend/tests/intraday-correlation.test.ts
+
+Untracked (Codex novo):
+- frontend/src/components/charts/pk-standard-dose-comparison.tsx
+  → erro TS conhecido em linha 263 (Recharts Formatter type mismatch:
+    'value: number' incompatível com ValueType | undefined)
+
+## Escopo desta sessão
+
+Auditar e fechar o WIP do Codex de forma defensiva — sem perder contexto
+das edições, sem assumir que o autor (Codex) não voltará.
+
+### Step 1 — Auditoria
+Para cada arquivo Modified do Codex:
+- git diff HEAD -- <arquivo>
+- Avaliar: a edição é parcial (em progresso) ou completa?
+- Categorizar: (a) keep e commitar, (b) keep e deixar uncommitted pro Codex
+  fechar depois, (c) reverter (`git checkout HEAD -- <arquivo>`)
+
+### Step 2 — Fix do erro untracked
+pk-standard-dose-comparison.tsx:263 — fix mínimo:
+  trocar `(value: number, name: NameType | undefined) => ...`
+  por `(value, name) => ...` ou tipar com cast explícito de Recharts ValueType.
+
+### Step 3 — Verification gate
+- npx tsc --noEmit
+- npm run lint
+- npm run test:unit
+- npm run build (DEVE ficar 100% verde)
+- /root/RooCode/bin/python -m unittest tests (todos)
+- git diff --check
+
+### Step 4 — Commit ou stash
+Se categorizou como (a): commit por arquivo ou agrupado por tema.
+Se categorizou como (b): /git stash com message clara, restaurar depois.
+Se (c): commit do revert.
+
+## Backlog menor (após Codex Cleanup)
+- Resgatar walkingStepLengthCm no adapter (1 linha + 2 tipos)
+- pk-rem-suppression: adicionar lag toggle + AUC trapezoidal precisa
+- Considerar Sprint D (próxima feature cross-domain — TBD)
+
+## Não tocar
+- Forecast/storage.py + endpoint /accuracy (estável, Fatia C)
+- Farma/router.py concentration-series (estável, Fatia C)
+- Forecast/forecast_history.json (deve estar gitignored)
+```
+
 ## KICKOFF — Fatia C (próxima sessão fresh)
 
 > Cole este bloco na próxima sessão. Claude lê e sai executando.

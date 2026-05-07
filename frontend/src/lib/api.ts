@@ -99,6 +99,10 @@ export interface MetricsRecord {
   'Frequência Cardíaca [Min] (bpm)'?: number
   'Frequência Cardíaca [Max] (bpm)'?: number
   'Frequência Cardíaca [Avg] (bpm)'?: number
+  // AutoExport v2 (PT-BR completo) — fallback no roocode-adapter:
+  'Frequência Cardíaca [Mínimo] (bpm)'?: number
+  'Frequência Cardíaca [Máx] (bpm)'?: number
+  'Frequência Cardíaca [Média] (bpm)'?: number
   'Frequência Cardíaca em Repouso (bpm)'?: number
   'Média de Frequência Cardíaca ao Caminhar (bpm)'?: number
   'Porcentagem de Assimetria ao Andar (%)'?: number
@@ -131,6 +135,43 @@ export const useSubstances = () =>
     queryKey: ['substances'],
     queryFn: () => get<Substance[]>('/farma/substances?full=true'),
     staleTime: Infinity,
+  })
+
+// ─── Concentration series (PK daily reduction: cmax/cmin/auc) ────────────────
+
+export interface ConcentrationSeriesPoint {
+  date: string
+  cmax_est: number
+  cmin_est: number
+  auc_est: number
+}
+
+export interface ConcentrationSeriesPayload {
+  substance: string
+  from: string
+  to: string
+  weight_kg: number
+  source: 'dose_log' | 'regimen_fallback'
+  events_count: number
+  series: ConcentrationSeriesPoint[]
+}
+
+export const useConcentrationSeries = (
+  substance: string | null,
+  from: string,
+  to: string,
+  weightKg = 70,
+) =>
+  useQuery<ConcentrationSeriesPayload>({
+    queryKey: ['concentration-series', substance, from, to, weightKg],
+    queryFn: () =>
+      get<ConcentrationSeriesPayload>(
+        `/farma/concentration-series?substance=${encodeURIComponent(
+          substance ?? '',
+        )}&from=${from}&to=${to}&weight_kg=${weightKg}`,
+      ),
+    enabled: Boolean(substance && from && to),
+    staleTime: 5 * 60 * 1000,
   })
 
 export const useDoses = (hours = 72) =>
@@ -188,6 +229,43 @@ export interface ForecastSummaryInputSnapshot {
     exerciseMinutes: number | null
     valence: number | null
   }
+}
+
+// ─── Forecast accuracy (backtest predicted vs actual) ──────────────────────
+
+export interface FieldAccuracy {
+  mape: number | null
+  mae: number
+  rmse: number
+  n: number
+}
+
+export interface ForecastAccuracyResponse {
+  accuracy_by_field: Record<string, FieldAccuracy>
+  window_days: number
+  history_size: number
+  warning: string | null
+}
+
+export const useForecastAccuracy = (
+  snapshots: ForecastSummaryInputSnapshot[],
+  daysBack = 30,
+) => {
+  const cacheKey =
+    snapshots.length === 0
+      ? 'empty'
+      : `${snapshots.length}:${daysBack}:${snapshots[0].date}:${snapshots[snapshots.length - 1].date}`
+  return useQuery<ForecastAccuracyResponse>({
+    queryKey: ['forecast-accuracy', cacheKey],
+    queryFn: () =>
+      fetch(`${BASE}/forecast/accuracy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshots, days_back: daysBack }),
+      }).then((response) => readJson<ForecastAccuracyResponse>(response)),
+    staleTime: 5 * 60 * 1000,
+    enabled: snapshots.length >= 1,
+  })
 }
 
 export const useForecastSummary = (snapshots: ForecastSummaryInputSnapshot[]) => {

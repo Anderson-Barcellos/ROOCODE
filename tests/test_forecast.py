@@ -1,5 +1,8 @@
 import json
+import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, List
 
 from fastapi import FastAPI
@@ -7,6 +10,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 import Forecast.router as forecast_router
+import Forecast.storage as forecast_storage
 
 
 def _build_snapshots() -> List[Dict[str, Any]]:
@@ -61,9 +65,17 @@ def _build_payload() -> Dict[str, Any]:
 class ForecastEndpointTests(unittest.TestCase):
     def setUp(self) -> None:
         forecast_router._cache.clear()
+        # Isola persistência do storage pra não poluir Forecast/forecast_history.json real
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_history_path = forecast_storage.HISTORY_PATH
+        forecast_storage.HISTORY_PATH = Path(self.temp_dir.name) / "history.json"
         app = FastAPI()
         app.include_router(forecast_router.router, prefix="/forecast")
         self.client = TestClient(app)
+
+    def tearDown(self) -> None:
+        forecast_storage.HISTORY_PATH = self.original_history_path
+        self.temp_dir.cleanup()
 
     @patch("Forecast.router._call_model")
     def test_returns_clamped_and_monotonic_confidence(self, mock_call_model: Any) -> None:
@@ -195,6 +207,154 @@ class ForecastSummaryEndpointTests(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 200)
             mock_call.assert_not_called()
+
+
+class ForecastStorageTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_path = forecast_storage.HISTORY_PATH
+        forecast_storage.HISTORY_PATH = Path(self.temp_dir.name) / "history.json"
+
+    def tearDown(self) -> None:
+        forecast_storage.HISTORY_PATH = self.original_path
+        self.temp_dir.cleanup()
+
+    def test_record_forecast_persists_each_field_per_target_date(self) -> None:
+        forecasted = [
+            {
+                "date": "2026-04-08",
+                "forecastConfidence": 0.42,
+                "health": {
+                    "sleepTotalHours": 7.2,
+                    "hrvSdnn": 110.0,
+                    "restingHeartRate": 55.0,
+                },
+                "mood": {"valence": 0.3},
+            },
+            {
+                "date": "2026-04-09",
+                "forecastConfidence": 0.4,
+                "health": {"sleepTotalHours": 6.8, "hrvSdnn": 108.0},
+                "mood": {"valence": None},
+            },
+        ]
+        forecast_storage.record_forecast(forecasted, "2026-04-07T20:00:00+00:00")
+
+        self.assertTrue(forecast_storage.HISTORY_PATH.exists())
+        with forecast_storage.HISTORY_PATH.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+        self.assertEqual(data["_schema_version"], forecast_storage.SCHEMA_VERSION)
+        # Day 1: sleep + hrv + rhr + valence = 4. Day 2: sleep + hrv = 2 (valence None pulado). Total 6.
+        self.assertEqual(len(data["entries"]), 6)
+        fields_day_1 = {
+            entry["field"] for entry in data["entries"] if entry["target_date"] == "2026-04-08"
+        }
+        self.assertSetEqual(
+            fields_day_1, {"sleepTotalHours", "hrvSdnn", "restingHeartRate", "valence"}
+        )
+
+    def test_load_history_filters_by_days_back(self) -> None:
+        today = datetime.now(timezone.utc).date()
+        old_date = (today - timedelta(days=60)).isoformat()
+        recent_date = (today - timedelta(days=5)).isoformat()
+        forecasted_old = [{
+            "date": old_date,
+            "forecastConfidence": 0.4,
+            "health": {"sleepTotalHours": 7.0},
+        }]
+        forecasted_recent = [{
+            "date": recent_date,
+            "forecastConfidence": 0.5,
+            "health": {"sleepTotalHours": 7.5},
+        }]
+        forecast_storage.record_forecast(forecasted_old, "2026-01-01T00:00:00+00:00")
+        forecast_storage.record_forecast(forecasted_recent, "2026-04-01T00:00:00+00:00")
+
+        all_entries = forecast_storage.load_history(days_back=None)
+        self.assertEqual(len(all_entries), 2)
+
+        recent_only = forecast_storage.load_history(days_back=30)
+        self.assertEqual(len(recent_only), 1)
+        self.assertEqual(recent_only[0]["target_date"], recent_date)
+
+    def test_compute_accuracy_returns_mape_per_field(self) -> None:
+        history = [
+            {"target_date": "2026-04-08", "field": "sleepTotalHours", "predicted": 7.0, "confidence": 0.4},
+            {"target_date": "2026-04-09", "field": "sleepTotalHours", "predicted": 8.0, "confidence": 0.4},
+            {"target_date": "2026-04-08", "field": "hrvSdnn", "predicted": 100.0, "confidence": 0.4},
+        ]
+        snapshots_real = [
+            {"date": "2026-04-08", "health": {"sleepTotalHours": 7.5, "hrvSdnn": 90.0}},
+            {"date": "2026-04-09", "health": {"sleepTotalHours": 7.0}},
+        ]
+        result = forecast_storage.compute_accuracy(snapshots_real, history, days_back=30)
+        sleep_acc = result["accuracy_by_field"]["sleepTotalHours"]
+        self.assertEqual(sleep_acc["n"], 2)
+        # MAE: (|7-7.5| + |8-7|) / 2 = 0.75
+        self.assertAlmostEqual(sleep_acc["mae"], 0.75, places=4)
+        # MAPE: ((0.5/7.5) + (1.0/7.0)) / 2 * 100 ≈ 10.48
+        self.assertAlmostEqual(sleep_acc["mape"], 10.48, places=1)
+        self.assertEqual(result["window_days"], 30)
+        self.assertIsNotNone(result["warning"])  # history_size = 3 < 14
+
+    def test_compute_accuracy_handles_empty_history(self) -> None:
+        result = forecast_storage.compute_accuracy([], [], days_back=30)
+        self.assertEqual(result["accuracy_by_field"], {})
+        self.assertEqual(result["history_size"], 0)
+        self.assertIsNotNone(result["warning"])
+
+
+class ForecastAccuracyEndpointTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_path = forecast_storage.HISTORY_PATH
+        forecast_storage.HISTORY_PATH = Path(self.temp_dir.name) / "history.json"
+        app = FastAPI()
+        app.include_router(forecast_router.router, prefix="/forecast")
+        self.client = TestClient(app)
+
+    def tearDown(self) -> None:
+        forecast_storage.HISTORY_PATH = self.original_path
+        self.temp_dir.cleanup()
+
+    def test_accuracy_endpoint_with_empty_history_returns_warning(self) -> None:
+        response = self.client.post(
+            "/forecast/accuracy",
+            json={"snapshots": _build_snapshots(), "days_back": 30},
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["accuracy_by_field"], {})
+        self.assertEqual(body["history_size"], 0)
+        self.assertIsNotNone(body["warning"])
+
+    def test_accuracy_endpoint_happy_path(self) -> None:
+        # Seed history with 14 entries pra evitar warning de history-size
+        today = datetime.now(timezone.utc).date()
+        forecasted = []
+        snapshots_real = []
+        for offset in range(14):
+            target = (today - timedelta(days=offset)).isoformat()
+            forecasted.append({
+                "date": target,
+                "forecastConfidence": 0.4,
+                "health": {"sleepTotalHours": 7.0 + offset * 0.05},
+            })
+            snapshots_real.append({
+                "date": target,
+                "health": {"sleepTotalHours": 7.0 + offset * 0.05 + 0.1},
+            })
+        forecast_storage.record_forecast(forecasted, "2026-04-01T00:00:00+00:00")
+
+        response = self.client.post(
+            "/forecast/accuracy",
+            json={"snapshots": snapshots_real, "days_back": 30},
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertIn("sleepTotalHours", body["accuracy_by_field"])
+        self.assertEqual(body["accuracy_by_field"]["sleepTotalHours"]["n"], 14)
+        self.assertIsNone(body["warning"])
 
 
 if __name__ == "__main__":

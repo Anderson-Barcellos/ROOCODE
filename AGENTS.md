@@ -51,8 +51,18 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 
 - **Fatia A** (commit `59b133e`): RecoveryScore na aba Panorama, WeekdayWeekend (endpoint + card), accordion de `forecastRationale`.
 - **Fatia B** (commit `aaccd55`): `cardioRecoveryBpm` no `correlation-heatmap`, sleep debt cumulativo (util + chart na aba Sono), card cross-domain `sleepDebt × HRV` em Insights, segunda Y-axis com linha de eficiência em `SleepStagesChart`, adapter v2 hardening (fallback `[Mínimo]/[Máx]/[Média]` ↔ legado `[Min]/[Max]/[Avg]`).
-- **Fatia C** (este commit): `GET /farma/concentration-series` (loop daily 24h reusando `concentration_at_time` + fallback regimen sintético), chart `pk-rem-suppression.tsx` (Cmax × REM next-night com Pearson r + permutation p), módulo `Forecast/storage.py` (persistência atômica de forecasts com schema versioning), endpoint `POST /forecast/accuracy` (MAPE/MAE/RMSE por field), card `forecast-accuracy-card.tsx` na aba Panorama. Tipos PT-BR completos no `MetricsRecord` para destravar build (fix dívida Fatia B). **Próximo: Sprint Codex Cleanup — kickoff em `ROADMAP.md`.**
+- **Fatia C** (commit `05e5d53`): `GET /farma/concentration-series` (loop daily 24h reusando `concentration_at_time` + fallback regimen sintético), chart `pk-rem-suppression.tsx` (Cmax × REM next-night com Pearson r + permutation p), módulo `Forecast/storage.py` (persistência atômica de forecasts com schema versioning), endpoint `POST /forecast/accuracy` (MAPE/MAE/RMSE por field), card `forecast-accuracy-card.tsx` na aba Panorama. Tipos PT-BR completos no `MetricsRecord` para destravar build (fix dívida Fatia B).
 - Plano completo: `/root/.claude/plans/oi-claude-eu-valiant-boole.md`.
+
+## Sprint Codex Cleanup (2026-05-07)
+
+Concluída em commit `8d35972`. Adotou os 11 arquivos do Codex em WIP como feature coesa: refactor estatístico SMA→EMA + readiness 4 níveis (`standby` → `collecting` → `exploratory` → `robust`) + inferência permutation/bootstrap/Spearman/FDR + chart `pk-standard-dose-comparison`. Fix do erro TS Recharts Formatter na linha 263 destravou o build (era a dívida pré-existente desde a Fatia B). Crédito ao Codex via `Co-Authored-By`.
+
+## Backlog menor (2026-05-07)
+
+- ✅ `walkingStepLengthCm` resgatado no pipeline (commit `8c8128a`): type + adapter + aggregation + interpolation policy `linear_bounded` (±1.5 cm/dia) + fixtures de teste. Sem chart ainda — disponível pra próxima sprint visualizar.
+- ⏳ pk-rem-suppression: adicionar lag toggle + AUC trapezoidal precisa (TBD).
+- ⏳ Sprint D: próxima feature cross-domain (escopo a definir).
 
 ## Sequência fresh obrigatória
 

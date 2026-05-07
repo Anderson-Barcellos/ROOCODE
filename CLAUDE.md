@@ -75,16 +75,17 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-07 — após Fatia C Cross-Domain Insights)
+## Status local validado (2026-05-07 — após Sprint Codex Cleanup + walkingStepLengthCm rescue)
 
-- Frontend: tsc/lint/test:unit ✅
-- Backend: farma + forecast + mood tests 29/29 OK (Fatia C adicionou 4 farma + 6 forecast)
+- Frontend: tsc + lint + test:unit + build ✅ (build 100% verde — dívida Recharts Formatter quitada na Codex Cleanup)
+- Backend: farma + forecast + mood tests 29/29 OK
 - Diff hygiene: ✅
-- ⚠ `npm run build` ainda flagra 1 erro pré-existente em `pk-standard-dose-comparison.tsx:263` (Codex WIP **untracked**, fora do commit). Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) destravado nesta sessão como dependency da Fatia C.
+- Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) consolidado.
+- `walkingStepLengthCm` exposto no pipeline (sem chart ainda — disponível pra próxima sprint visualizar).
 
 ## Próxima sprint planejada
 
-**Sprint Codex Cleanup** — auditar e fechar 11 arquivos modificados em WIP do Codex + 1 untracked com erro TS conhecido. Kickoff colável em `ROADMAP.md` seção `KICKOFF — Sprint Codex Cleanup`.
+Nenhuma travada — gate de regularização e Cross-Domain Insights fechados. Próxima feature aberta a definir (Sprint D TBD).
 
 ## Fresh start (obrigatório)
 

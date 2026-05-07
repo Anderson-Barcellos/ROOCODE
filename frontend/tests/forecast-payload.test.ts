@@ -28,6 +28,7 @@ const BASE_HEALTH: Omit<DailyHealthMetrics, 'date' | 'sleepTotalHours' | 'hrvSdn
   walkingHeartRateAvg: null,
   walkingAsymmetryPct: null,
   walkingSpeedKmh: null,
+  walkingStepLengthCm: null,
   runningSpeedKmh: null,
   vo2Max: null,
   sixMinuteWalkMeters: null,

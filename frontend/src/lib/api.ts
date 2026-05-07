@@ -116,6 +116,7 @@ export interface MetricsRecord {
   'VO2 Máx (ml/(kg·min))'?: number
   'Variabilidade da Frequência Cardíaca (ms)'?: number
   'Velocidade de Caminhada (km/hr)'?: number
+  'Comprimento do Passo ao Caminhar (cm)'?: number
   'Velocidade de Corrida (km/hr)'?: number
   'Recuperação Cardio (contagem/min)'?: number
 }

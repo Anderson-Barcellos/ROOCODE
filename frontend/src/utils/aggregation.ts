@@ -74,6 +74,7 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
     walkingHeartRateAvg: meanFields(rows, 'walkingHeartRateAvg'),
     walkingAsymmetryPct: meanFields(rows, 'walkingAsymmetryPct'),
     walkingSpeedKmh: meanFields(rows, 'walkingSpeedKmh'),
+    walkingStepLengthCm: meanFields(rows, 'walkingStepLengthCm'),
     runningSpeedKmh: meanFields(rows, 'runningSpeedKmh'),
     vo2Max: meanFields(rows, 'vo2Max'),
     sixMinuteWalkMeters: meanFields(rows, 'sixMinuteWalkMeters'),

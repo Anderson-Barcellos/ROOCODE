@@ -111,6 +111,7 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
         walkingHeartRateAvg: +walkingHr.toFixed(1),
         walkingAsymmetryPct: +walkingAsym.toFixed(1),
         walkingSpeedKmh: +walkingSpeed.toFixed(2),
+        walkingStepLengthCm: +(60 + walkingSpeed * 5).toFixed(1),
         runningSpeedKmh: runningSpeed > 0 ? +runningSpeed.toFixed(2) : null,
         vo2Max: +vo2.toFixed(1),
         sixMinuteWalkMeters: null, // teste clínico raro

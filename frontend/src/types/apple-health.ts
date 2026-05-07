@@ -40,6 +40,7 @@ export interface HealthAutoExportRow {
   walkingHeartRateAvg: number | null
   walkingAsymmetryPct: number | null
   walkingSpeedKmh: number | null
+  walkingStepLengthCm: number | null
   runningSpeedKmh: number | null
   vo2Max: number | null
   sixMinuteWalkMeters: number | null
@@ -103,6 +104,7 @@ export interface DailyHealthMetrics {
   walkingHeartRateAvg: number | null
   walkingAsymmetryPct: number | null
   walkingSpeedKmh: number | null
+  walkingStepLengthCm: number | null
   runningSpeedKmh: number | null
   vo2Max: number | null
   sixMinuteWalkMeters: number | null

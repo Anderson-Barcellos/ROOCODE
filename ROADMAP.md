@@ -104,3 +104,97 @@ Resolvido em 2026-05-06: `git stash list` verificado vazio — não há WIP resi
 | Fatia C — Backend-heavy | backlog | Endpoint PK + Forecast Accuracy backtest (sprint dedicada) |
 
 Plano completo: `/root/.claude/plans/oi-claude-eu-valiant-boole.md`.
+
+## KICKOFF — Fatia C (próxima sessão fresh)
+
+> Cole este bloco na próxima sessão. Claude lê e sai executando.
+
+```
+# Sprint Cross-Domain Insights — Fatia C
+
+Dar continuidade à sprint Cross-Domain Insights.
+Plano completo: /root/.claude/plans/oi-claude-eu-valiant-boole.md
+Commit Fatia A: 59b133e
+Commit Fatia B: aaccd55
+
+## Status entrando
+
+- Fatia A fechada e commitada (RecoveryScore + WeekdayWeekend + forecastRationale)
+- Fatia B fechada e commitada (HRR no heatmap, sleep debt cumulativo, eficiência em SleepStages, card sleepDebt × HRV, adapter v2 hardening)
+- Codex pode ainda ter WIP em arquivos de farmaco (lag-correlation-chart, pk-humor-correlation, pk-medication-grid, pk-mood-scatter-chart, DataReadinessGate, vital-signs-timeline, data-readiness, intraday-correlation, pharmacokinetics, intraday-correlation.test) — não tocar
+- pk-standard-dose-comparison.tsx pode ainda estar untracked com erro TS na linha 263 (Recharts Formatter); confirmar com `npm run build` antes de começar
+
+## Escopo desta sessão (Fatia C — backend-heavy)
+
+⚠ Mais risco que A e B: endpoints novos no backend + persistência. Pode virar Sprint 2 dedicada se ficar grande.
+
+### C1 — Endpoint /farma/concentration-series + chart Lisdex × REM
+
+Backend novo:
+- Rota em Farma/router.py que usa concentration_after_multiple_doses() de Farma/math.py
+  - Query: ?substance=venvanse&from=YYYY-MM-DD&to=YYYY-MM-DD&resolution=daily
+  - Returns: [{date, cmax_est, cmin_est, auc_est}] por dia
+  - NÃO mexer em Farma/math.py — só wrappar a função existente
+
+Frontend novo:
+- frontend/src/components/charts/pk-rem-suppression.tsx
+  - Scatter Cmax_estimated (X) × sleepRemHours next-night (Y)
+  - Pearson r com permutation p-value (reusar intraday-correlation.ts)
+  - DataReadinessGate
+
+Hipótese clínica: lisdex peak ~3h post-dose, REM suppression conhecida → r negativo esperado.
+
+### C2 — Forecast Accuracy Backtest
+
+Backend novo módulo:
+- Forecast/storage.py
+  - Persistir cada forecast gerado em Forecast/forecast_history.json com {generated_at, target_date, predicted, confidence}
+  - Função compute_accuracy(snapshots, history, days_back=30) retorna MAPE/MAE por field
+
+Backend novo endpoint:
+- GET /forecast/accuracy?days=30
+
+Frontend novo:
+- frontend/src/components/charts/forecast-accuracy-card.tsx na aba Panorama
+  - Mostra MAPE 7d/30d por field (sleep, hrv, rhr)
+  - Aviso explícito: "histórico começa hoje — dados acumulam ao longo do tempo"
+
+Caveat: backtest só vira útil após ~14 dias de previsões acumuladas. Implementar agora pra começar a coletar.
+
+## Reuso obrigatório
+- Farma/math.py:concentration_after_multiple_doses() — PK estável
+- frontend/src/utils/intraday-correlation.ts — permutation testing
+- frontend/src/components/charts/shared/DataReadinessGate.tsx — gate de readiness
+- frontend/src/components/analytics/shared.tsx:MetricGrid — wrapper de tiles
+
+## NÃO mexer
+- Schema público de /farma/doses, /farma/regimen, /farma/substances
+- Arquivos do Codex WIP (ver lista acima)
+
+## Verification gate
+
+cd /root/RooCode/frontend
+npx tsc --noEmit
+npm run lint
+npm run test:unit
+npm run build
+
+cd /root/RooCode
+/root/RooCode/bin/python -m unittest tests.test_farma -v
+/root/RooCode/bin/python -m unittest tests.test_forecast -v
+/root/RooCode/bin/python -m unittest tests.test_mood -v
+git diff --check
+
+# E2E manual:
+systemctl restart roocode.service
+curl -s 'http://localhost:8011/farma/concentration-series?substance=venvanse&from=2026-04-01&to=2026-05-01' | jq .
+curl -s 'http://localhost:8011/forecast/accuracy?days=30' | jq .
+
+## Commit final esperado
+1 commit atômico (ou 2 separando C1/C2). Mensagem com seção "por que".
+
+## Backlog menor (pós-Fatia C)
+- Resgatar walkingStepLengthCm no adapter (1 linha + ajuste em 2 tipos)
+- Aguardar Codex fechar pk-standard-dose-comparison.tsx
+- Atualizar AGENTS.md / ROADMAP.md / CLAUDE.md com Fatia C fechada
+```

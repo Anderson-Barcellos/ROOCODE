@@ -101,4 +101,13 @@ Recharts Formatter destravou o build. Crédito ao Codex via Co-Authored-By.
   (±1.5 cm/dia) + fixtures. Disponível pra próxima sprint visualizar
   (ainda sem chart).
 - ⏳ pk-rem-suppression: adicionar lag toggle + AUC trapezoidal precisa (TBD).
+- ⏳ Peso corporal hardcoded inconsistente (descoberto em 2026-05-09):
+  - Frontend: `91 kg` em pk-mood-scatter-chart.tsx:94, lag-correlation-chart.tsx:106
+    (e default `DEFAULT_PK_BODY_WEIGHT_KG = 91` em pharmacokinetics.ts).
+  - Backend: `70 kg` default em `concentration_at_time` e
+    `concentration_after_multiple_doses` (Farma/math.py).
+  - Real (Anders): 91 kg → backend é o lado errado.
+  - Impacto: Vd e clearance escalam linearmente com peso; 91/70 ≈ 1.30,
+    cálculos PK do backend subestimam ~30% pra Anders.
+  - Sprint dedicada: alinhar backend ao frontend, considerar config user-level.
 - ⏳ Sprint D: próxima feature cross-domain (escopo a definir).

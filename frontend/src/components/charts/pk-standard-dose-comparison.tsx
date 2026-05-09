@@ -162,9 +162,8 @@ export function PKStandardDoseComparison({ regimen, weightKg = DEFAULT_PK_BODY_W
         calculateConcentration(item.med, item.doses, timestamp, weightKg),
       )
       concentrationBySeries.set(item.dataKey, concentrations)
-      const fallbackPeak = Math.max(...concentrations, 1)
-      const denominator = item.med.therapeuticRange?.max ?? fallbackPeak
-      denominatorBySeries.set(item.dataKey, denominator > 0 ? denominator : fallbackPeak)
+      const peak = Math.max(...concentrations, 1)
+      denominatorBySeries.set(item.dataKey, peak)
     }
 
     const chartData = timestamps.map((timestamp, index) => {
@@ -214,7 +213,7 @@ export function PKStandardDoseComparison({ regimen, weightKg = DEFAULT_PK_BODY_W
         Curvas comparativas das 3 medicações
       </h3>
       <p className="mt-1 text-sm text-slate-500">
-        Simulação do regime ativo com até 3 substâncias em conjunto. Eixo Y normalizado por referência terapêutica (ou pico previsto quando faixa não existe).
+        Simulação do regime ativo com até 3 substâncias em conjunto. Eixo Y normalizado pelo pico esperado de cada substância no regime — todas as curvas em escala 0–100%, comparáveis entre si.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -249,13 +248,13 @@ export function PKStandardDoseComparison({ regimen, weightKg = DEFAULT_PK_BODY_W
               tickLine={false}
               axisLine={false}
               tickFormatter={(value: number) => `${value.toFixed(0)}%`}
-              label={{ value: '% referência', angle: -90, position: 'insideLeft', offset: 8, fontSize: 11, fill: '#64748b' }}
+              label={{ value: '% do pico', angle: -90, position: 'insideLeft', offset: 8, fontSize: 11, fill: '#64748b' }}
             />
             <ReferenceLine
               y={100}
               stroke="#94a3b8"
               strokeDasharray="4 4"
-              label={{ value: 'limite terapêutico', position: 'right', fontSize: 10, fill: '#64748b' }}
+              label={{ value: 'pico esperado', position: 'right', fontSize: 10, fill: '#64748b' }}
             />
             <Tooltip
               contentStyle={{

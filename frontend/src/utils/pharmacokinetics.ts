@@ -268,11 +268,20 @@ export function getTrendWindowMs(med: PKMedication): number {
   return Math.round(hours * 60 * 60 * 1000)
 }
 
-// Janela 2×t½ — observação clínica de Anders: quedas na concentração refletem
-// no humor com magnitude similar ao atraso da EMA dessa janela. Janela uniforme
-// pra todas as substâncias (não diferencia crônica/aguda como getTrendWindowMs).
-export function getMoodCorrelationWindowMs(med: PKMedication): number {
-  return Math.round(2 * med.halfLife * 60 * 60 * 1000)
+/**
+ * Janela 48h pré-registrada — calibrada por observação clínica externa
+ * (perda de efeito começa ~48h após falha de dose), ANTERIOR aos dados
+ * deste pipeline. Fixa por design pra evitar p-hacking implícito:
+ * ajustar a janela com base nos resultados desta correlação tornaria
+ * o resultado circular. Robustez testada por lag sweep [-3d..+3d]
+ * em pk-humor-correlation.tsx, não por busca de janela ótima.
+ *
+ * Versão anterior (`2 × t½`) descartada porque drogas com t½ longo
+ * (lamotrigina ~24h, aripiprazol ~75h) defasavam o sinal de queda
+ * além do timing clínico observado.
+ */
+export function getMoodCorrelationWindowMs(): number {
+  return 48 * 60 * 60 * 1000
 }
 
 export function computeTrendFromSamples(

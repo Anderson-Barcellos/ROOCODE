@@ -1,4 +1,18 @@
-import { useMemo } from 'react'
+/**
+ * PK×Humor Correlation — Pipeline Diário
+ *
+ * Hipótese pré-registrada:
+ *   - Janela: EMA-48h (observação clínica externa, ver pharmacokinetics.ts)
+ *   - Lag esperado: 0 (correlação contemporânea concentração×humor)
+ *   - Cauda esperada: ≤ +3d (perda de efeito não persiste pós-reposição)
+ *
+ * Robustez (não p-hacking):
+ *   - Lag sweep [-3,-2,-1,0,+1,+2,+3] dias testa se pico está em lag=0
+ *   - Lags negativos = controle de causalidade (pico em lag<0 = espúrio)
+ *   - FDR Benjamini-Hochberg cross-substância × cross-lag
+ */
+
+import { Fragment, useMemo } from 'react'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { useDoses, useSubstances } from '@/lib/api'
@@ -10,7 +24,13 @@ import {
   type PKDose,
   type PKMedication,
 } from '@/utils/pharmacokinetics'
-import { pearson, substanceToPKMedication, toPKDoses } from '@/utils/intraday-correlation'
+import {
+  benjaminiHochbergFdr,
+  fisherCi95,
+  pearson,
+  substanceToPKMedication,
+  toPKDoses,
+} from '@/utils/intraday-correlation'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
 interface DailyEmaSample {
@@ -25,7 +45,7 @@ function buildDailyEmaSamples(
   snapshots: DailySnapshot[],
   weightKg: number,
 ): DailyEmaSample[] {
-  const windowMs = getMoodCorrelationWindowMs(med)
+  const windowMs = getMoodCorrelationWindowMs()
   const hourMs = 60 * 60 * 1000
   const numPoints = Math.max(6, Math.round(windowMs / hourMs))
 
@@ -81,27 +101,45 @@ function pValueFromR(r: number, n: number): number {
   return 2 * (1 - normCdf(Math.abs(z / se)))
 }
 
-interface CorrelationRow {
-  subId: string
-  subName: string
-  lag0: CorrelationEstimate
-  lag1: CorrelationEstimate | null
-}
-
-interface CorrelationRawRow {
-  subId: string
-  subName: string
-  lag0Base: Omit<CorrelationEstimate, 'qFdr'>
-  lag1Base: Omit<CorrelationEstimate, 'qFdr'> | null
-}
-
-interface CorrelationEstimate {
+interface LagEstimate {
+  lagDays: number
   r: number
   p: number
   qFdr: number | null
   n: number
   ciLower: number | null
   ciUpper: number | null
+}
+
+interface CorrelationRow {
+  subId: string
+  subName: string
+  lags: LagEstimate[]
+  peakLagDays: number | null
+}
+
+const LAG_DAYS_SWEEP = [-3, -2, -1, 0, 1, 2, 3] as const
+const MIN_VALID_PAIRS = 5
+const MAX_LAG_ABS = 3
+const MIN_TOTAL_SAMPLES = MIN_VALID_PAIRS + MAX_LAG_ABS // = 8
+
+function pairAtLag(
+  samples: DailyEmaSample[],
+  lagDays: number,
+): { xs: number[]; ys: number[] } {
+  const xs: number[] = []
+  const ys: number[] = []
+  for (let i = 0; i < samples.length; i++) {
+    const j = i + lagDays
+    if (j < 0 || j >= samples.length) continue
+    const ema = samples[i].ema
+    const valence = samples[j].valence
+    if (Number.isFinite(ema) && valence != null) {
+      xs.push(ema)
+      ys.push(valence)
+    }
+  }
+  return { xs, ys }
 }
 
 interface Props {
@@ -116,88 +154,79 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
   const rows = useMemo<CorrelationRow[]>(() => {
     if (!substances.length || !doses.length) return []
 
-    const raw = substances
-      .map<CorrelationRawRow | null>((sub) => {
-        const med = substanceToPKMedication(sub)
-        if (!med) return null
+    type RawLagsBase = Array<Omit<LagEstimate, 'qFdr'> | null>
+    type RawRow = { subId: string; subName: string; lagsBase: RawLagsBase }
 
-        const subDoses = toPKDoses(doses.filter((d) => d.substance === sub.id))
-        if (subDoses.length < 3) return null
+    const raw: RawRow[] = []
+    for (const sub of substances) {
+      const med = substanceToPKMedication(sub)
+      if (!med) continue
 
-        const samples = buildDailyEmaSamples(med, subDoses, snapshots, weightKg)
-        const valid = samples.filter((s) => s.valence != null) as Array<DailyEmaSample & { valence: number }>
-        if (valid.length < 5) return null
+      const subDoses = toPKDoses(doses.filter((d) => d.substance === sub.id))
+      if (subDoses.length < 3) continue
 
-        const xs0 = valid.map((s) => s.ema)
-        const ys0 = valid.map((s) => s.valence)
-        const r0 = pearson(xs0, ys0)
-        const p0 = pValueFromR(r0, valid.length)
-        const ci0 = fisherCi95(r0, valid.length)
+      const samples = buildDailyEmaSamples(med, subDoses, snapshots, weightKg)
+      if (samples.length < MIN_TOTAL_SAMPLES) continue
 
-        const lagXs: number[] = []
-        const lagYs: number[] = []
-        for (let i = 1; i < samples.length; i++) {
-          const prev = samples[i - 1]
-          const cur = samples[i]
-          if (cur.valence != null && Number.isFinite(prev.ema)) {
-            lagXs.push(prev.ema)
-            lagYs.push(cur.valence)
-          }
-        }
-        const r1 = lagXs.length >= 5 ? pearson(lagXs, lagYs) : Number.NaN
-        const p1 = lagXs.length >= 5 ? pValueFromR(r1, lagXs.length) : Number.NaN
-        const ci1 = lagXs.length >= 5 ? fisherCi95(r1, lagXs.length) : null
-
-        const lag1Base = Number.isFinite(r1)
-          ? {
-              r: r1,
-              p: p1,
-              n: lagXs.length,
-              ciLower: ci1?.lower ?? null,
-              ciUpper: ci1?.upper ?? null,
-            }
-          : null
-
+      const lagsBase: RawLagsBase = LAG_DAYS_SWEEP.map((lagDays) => {
+        const { xs, ys } = pairAtLag(samples, lagDays)
+        if (xs.length < MIN_VALID_PAIRS) return null
+        const r = pearson(xs, ys)
+        if (!Number.isFinite(r)) return null
+        const p = pValueFromR(r, xs.length)
+        const ci = fisherCi95(r, xs.length)
         return {
-          subId: sub.id,
-          subName: sub.display_name.split(' ')[0],
-          lag0Base: {
-            r: r0,
-            p: p0,
-            n: valid.length,
-            ciLower: ci0?.lower ?? null,
-            ciUpper: ci0?.upper ?? null,
-          },
-          lag1Base,
+          lagDays,
+          r,
+          p,
+          n: xs.length,
+          ciLower: ci?.lower ?? null,
+          ciUpper: ci?.upper ?? null,
         }
       })
 
-      .filter((row): row is CorrelationRawRow => row != null)
+      raw.push({
+        subId: sub.id,
+        subName: sub.display_name.split(' ')[0],
+        lagsBase,
+      })
+    }
 
-    const pTargets: Array<{ idx: number; lag: 'lag0' | 'lag1'; p: number }> = []
-    raw.forEach((row, idx) => {
-      if (Number.isFinite(row.lag0Base.p)) pTargets.push({ idx, lag: 'lag0', p: row.lag0Base.p })
-      if (row.lag1Base && Number.isFinite(row.lag1Base.p)) pTargets.push({ idx, lag: 'lag1', p: row.lag1Base.p })
+    // FDR cross-substância × cross-lag
+    const pTargets: Array<{ rowIdx: number; lagIdx: number; p: number }> = []
+    raw.forEach((row, rowIdx) => {
+      row.lagsBase.forEach((est, lagIdx) => {
+        if (est && Number.isFinite(est.p)) {
+          pTargets.push({ rowIdx, lagIdx, p: est.p })
+        }
+      })
     })
+    const qValues = benjaminiHochbergFdr(pTargets.map((t) => t.p))
 
-    const qValues = benjaminiHochbergFdr(pTargets.map((target) => target.p))
-
-    return raw.map((row, idx) => {
-      const q0 = qValues[pTargets.findIndex((target) => target.idx === idx && target.lag === 'lag0')] ?? null
-      const q1 = qValues[pTargets.findIndex((target) => target.idx === idx && target.lag === 'lag1')] ?? null
+    return raw.map((row, rowIdx) => {
+      const lags: LagEstimate[] = []
+      row.lagsBase.forEach((est, lagIdx) => {
+        if (!est) return
+        const targetIdx = pTargets.findIndex((t) => t.rowIdx === rowIdx && t.lagIdx === lagIdx)
+        const qFdr = targetIdx >= 0 ? qValues[targetIdx] : null
+        lags.push({ ...est, qFdr })
+      })
+      const significant = lags.filter((l) => l.qFdr != null && l.qFdr < 0.05)
+      const peakLagDays = significant.length
+        ? significant.reduce((peak, l) => (Math.abs(l.r) > Math.abs(peak.r) ? l : peak)).lagDays
+        : null
       return {
         subId: row.subId,
         subName: row.subName,
-        lag0: { ...row.lag0Base, qFdr: q0 },
-        lag1: row.lag1Base ? { ...row.lag1Base, qFdr: q1 } : null,
+        lags,
+        peakLagDays,
       }
     })
   }, [substances, doses, snapshots, weightKg])
 
   const significantCount = useMemo(() => {
     return rows
-      .flatMap((row) => [row.lag0, row.lag1])
-      .filter((estimate): estimate is CorrelationEstimate => estimate != null)
+      .flatMap((row) => row.lags)
       .filter((estimate) => estimate.qFdr != null && estimate.qFdr < 0.05).length
   }, [rows])
 
@@ -208,10 +237,10 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           Correlação EMA × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          PK suavizada × valência diária
+          Heatmap PK×humor por lag (-3d a +3d)
         </h3>
         <p className="mt-4 text-sm text-slate-500">
-          Sem substâncias com ≥3 doses + ≥5 dias de humor no período. Aumente a janela de visualização ou logue mais doses.
+          Sem substâncias com ≥3 doses + ≥{MIN_TOTAL_SAMPLES} dias de snapshots no período. Aumente a janela de visualização ou logue mais doses.
         </p>
       </div>
     )
@@ -224,10 +253,10 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           Correlação EMA × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          Coeficientes diários PK×humor (lag 0 e +1d)
+          Heatmap PK×humor por lag (-3d a +3d)
         </h3>
         <p className="mt-1 text-xs text-slate-500 leading-5">
-          Pearson r entre EMA de concentração (janela 2×t½) e valência. A barra mostra IC95% (Fisher z). `q_fdr` corrige múltiplos testes no painel.
+          Pearson r entre EMA de concentração (janela 48h pré-registrada) e valência diária. FDR Benjamini-Hochberg cross-substância × cross-lag.
         </p>
         <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
           <span>Sinais com q_fdr &lt; 0.05:</span>
@@ -235,19 +264,50 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
         </p>
       </div>
 
-      <div className="mt-4 space-y-3">
-        {rows.map((row) => (
-          <div key={row.subId} className="rounded-xl border border-slate-200/80 bg-white px-4 py-3">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6' }} />
-              {row.subName}
+      <div className="mt-4 overflow-x-auto">
+        <div
+          className="grid min-w-[720px] gap-x-1 gap-y-2"
+          style={{ gridTemplateColumns: '140px repeat(7, minmax(72px, 1fr))' }}
+        >
+          <div />
+          {LAG_DAYS_SWEEP.map((lag) => (
+            <div
+              key={lag}
+              className={`text-center text-[0.65rem] font-semibold uppercase tracking-wider ${
+                lag < 0 ? 'text-slate-400' : lag === 0 ? 'text-teal-700' : 'text-slate-700'
+              }`}
+            >
+              {lag === 0 ? 'lag 0' : lag > 0 ? `+${lag}d` : `${lag}d`}
             </div>
-            <div className="space-y-2">
-              <CoefficientStrip label="Lag 0" estimate={row.lag0} />
-              <CoefficientStrip label="Lag +1d" estimate={row.lag1} />
-            </div>
-          </div>
-        ))}
+          ))}
+
+          {rows.map((row) => (
+            <Fragment key={row.subId}>
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6' }}
+                />
+                {row.subName}
+              </div>
+              {LAG_DAYS_SWEEP.map((lag) => {
+                const est = row.lags.find((l) => l.lagDays === lag) ?? null
+                return (
+                  <HeatmapCell
+                    key={lag}
+                    estimate={est}
+                    isPeak={row.peakLagDays === lag}
+                    isControl={lag < 0}
+                  />
+                )
+              })}
+            </Fragment>
+          ))}
+        </div>
+
+        <p className="mt-3 text-[0.7rem] leading-5 text-slate-500">
+          <span className="font-semibold">Como ler:</span> cor codifica Pearson r (verde positivo, vermelho negativo). Asterisco (★) marca q_fdr &lt; 0.05. Lags negativos (com opacidade reduzida) são <strong>controles de causalidade</strong> — pico em lag negativo sugere correlação espúria, pois concentração futura não pode causar humor passado. Borda âmbar destaca o lag de pico significativo da substância.
+        </p>
       </div>
     </div>
   )
@@ -265,91 +325,53 @@ function formatP(p: number): string {
   return p.toFixed(2)
 }
 
-function fisherCi95(r: number, n: number): { lower: number; upper: number } | null {
-  if (!Number.isFinite(r) || n < 4 || Math.abs(r) >= 1) return null
-  const z = 0.5 * Math.log((1 + r) / (1 - r))
-  const se = 1 / Math.sqrt(n - 3)
-  return {
-    lower: Math.tanh(z - 1.959963984540054 * se),
-    upper: Math.tanh(z + 1.959963984540054 * se),
-  }
-}
-
-function benjaminiHochbergFdr(pValues: number[]): Array<number | null> {
-  if (pValues.length === 0) return []
-  const indexed = pValues
-    .map((p, i) => ({ p, i }))
-    .filter((item) => Number.isFinite(item.p) && item.p >= 0 && item.p <= 1)
-    .sort((a, b) => a.p - b.p)
-
-  const result: Array<number | null> = new Array(pValues.length).fill(null)
-  const m = indexed.length
-  if (m === 0) return result
-
-  const raw = indexed.map((item, rank) => (item.p * m) / (rank + 1))
-  let minSoFar = 1
-  for (let idx = raw.length - 1; idx >= 0; idx--) {
-    minSoFar = Math.min(minSoFar, raw[idx])
-    result[indexed[idx].i] = Math.max(0, Math.min(1, minSoFar))
-  }
-  return result
-}
-
 function formatCi(lower: number | null, upper: number | null): string {
   if (lower == null || upper == null || !Number.isFinite(lower) || !Number.isFinite(upper)) return 'sem IC95%'
   return `[${lower.toFixed(2)}, ${upper.toFixed(2)}]`
 }
 
-function toTrackPercent(value: number): number {
-  const clamped = Math.max(-1, Math.min(1, value))
-  return ((clamped + 1) / 2) * 100
+function colorForR(r: number): string {
+  const clamped = Math.max(-1, Math.min(1, r))
+  const intensity = Math.abs(clamped)
+  if (clamped < 0) return `rgba(239, 68, 68, ${intensity * 0.45})` // red
+  if (clamped > 0) return `rgba(20, 184, 166, ${intensity * 0.45})` // teal
+  return 'rgba(241, 245, 249, 1)' // slate-100
 }
 
-function CoefficientStrip({
-  label,
+function HeatmapCell({
   estimate,
+  isPeak,
+  isControl,
 }: {
-  label: string
-  estimate: CorrelationEstimate | null
+  estimate: LagEstimate | null
+  isPeak: boolean
+  isControl: boolean
 }) {
   if (!estimate) {
     return (
-      <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-        {label}: dados insuficientes
-      </div>
+      <div
+        className={`h-12 rounded-md border border-slate-100 bg-slate-50/50 ${
+          isControl ? 'opacity-60' : ''
+        }`}
+      />
     )
   }
-
-  const center = toTrackPercent(0)
-  const dot = toTrackPercent(estimate.r)
-  const ciLeft = estimate.ciLower == null ? null : toTrackPercent(estimate.ciLower)
-  const ciRight = estimate.ciUpper == null ? null : toTrackPercent(estimate.ciUpper)
   const significant = estimate.qFdr != null && estimate.qFdr < 0.05
-
+  const tooltip =
+    `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)}` +
+    ` · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr ?? Number.NaN)} · n ${estimate.n}`
   return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-        <span className="font-semibold text-slate-600">{label}</span>
-        <span className="font-mono text-slate-500">
-          r {formatR(estimate.r)} · IC95% {formatCi(estimate.ciLower, estimate.ciUpper)} · p {formatP(estimate.p)} · q {formatP(estimate.qFdr ?? Number.NaN)} · n {estimate.n}
-        </span>
-      </div>
-      <div className="relative h-5 rounded-full bg-slate-200/70">
-        <span className="absolute inset-y-0 w-px bg-slate-400" style={{ left: `${center}%` }} />
-        {ciLeft != null && ciRight != null && (
-          <span
-            className={`absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full ${significant ? 'bg-amber-500' : 'bg-slate-500'}`}
-            style={{
-              left: `${Math.min(ciLeft, ciRight)}%`,
-              width: `${Math.max(1, Math.abs(ciRight - ciLeft))}%`,
-            }}
-          />
-        )}
-        <span
-          className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white shadow ${significant ? 'bg-amber-500' : 'bg-teal-700'}`}
-          style={{ left: `${dot}%` }}
-        />
-      </div>
+    <div
+      title={tooltip}
+      className={`relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
+        isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
+      } ${isControl ? 'opacity-70' : ''}`}
+      style={{ background: colorForR(estimate.r) }}
+    >
+      <span className="text-slate-900 mix-blend-luminosity">{formatR(estimate.r)}</span>
+      {significant && (
+        <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>
+      )}
     </div>
   )
 }

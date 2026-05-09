@@ -300,7 +300,7 @@ function percentile(sortedValues: number[], q: number): number {
   return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight
 }
 
-function fisherCi95(r: number, n: number): { lower: number; upper: number } | null {
+export function fisherCi95(r: number, n: number): { lower: number; upper: number } | null {
   if (!Number.isFinite(r) || n < 4) return null
   const clamped = Math.max(-0.999999, Math.min(0.999999, r))
   const z = 0.5 * Math.log((1 + clamped) / (1 - clamped))

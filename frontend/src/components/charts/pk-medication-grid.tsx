@@ -165,7 +165,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
       concs.push(conc)
     }
 
-    const emaWindowMs = getMoodCorrelationWindowMs(med)
+    const emaWindowMs = getMoodCorrelationWindowMs()
     const emaSeries = computeTrendFromSamples(timestamps, concs, emaWindowMs, 3)
 
     const series: GridPoint[] = timestamps.map((t, i) => {

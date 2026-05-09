@@ -4,6 +4,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -236,18 +237,25 @@ export function PKStandardDoseComparison({ regimen, weightKg = DEFAULT_PK_BODY_W
               dataKey="timestamp"
               type="number"
               scale="time"
+              domain={['dataMin', 'dataMax']}
               tick={{ fill: '#475569', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value: number) => format(value, 'd/M', { locale: ptBR })}
             />
             <YAxis
-              domain={[0, 160]}
+              domain={[0, 'auto']}
               tick={{ fill: '#475569', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value: number) => `${value.toFixed(0)}%`}
               label={{ value: '% referência', angle: -90, position: 'insideLeft', offset: 8, fontSize: 11, fill: '#64748b' }}
+            />
+            <ReferenceLine
+              y={100}
+              stroke="#94a3b8"
+              strokeDasharray="4 4"
+              label={{ value: 'limite terapêutico', position: 'right', fontSize: 10, fill: '#64748b' }}
             />
             <Tooltip
               contentStyle={{

@@ -182,6 +182,15 @@ Soma ponderada de 5 componentes, cada um normalizado 0-100. Pesos derivados de l
 
 **Risco:** pesos são empíricos. Documentar isso explicitamente. Sprint futura pode calibrar pesos via correlação com sintomas Anders reportar.
 
+**Observação herdada da Sprint M1 (2026-05-09):**
+
+O `TimelineChart` atual da landing (aba Panorama) tem issue de **gaps de interpolação longos demais** — quando há >2 dias sem dado, todas as 3 linhas (FC Repouso, HRV, Sono) param e só retomam após o gap. Atrapalha a leitura de tendência (ex: visível no screenshot de referência: linhas param em ~17 abr e só retomam em ~23 abr). Antes de substituir o `TimelineChart` pelo `RecoveryScoreChart`, decidir se o novo chart:
+- Usa a mesma regra estrita (gap >2d quebra a linha) — herda o problema.
+- Conecta gaps grandes com tracejado (preserva tendência visual mas marca interpolação).
+- Relaxa o limite (ex: 4-5 dias) — depende de quanto Anders acha que preserva fidelidade clínica.
+
+A decisão afeta também `personal-baselines.ts` (criado em M3) que vai alimentar o RecoveryScore — se a baseline rolling exclui interpolated rows, gaps longos derrubam confiança da baseline e podem disparar `DataReadinessGate` mais frequentemente que o desejável.
+
 ---
 
 ## Sprint M5 — Autonomic Balance Index (Coração)

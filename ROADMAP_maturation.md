@@ -19,8 +19,9 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M3 | Sono | Wrist Temp Deviation + remover badge "Hipotermia" | Baixo-médio | 1 sessão |
 | M4 | Panorama | Recovery Score composto (Whoop-style) | Médio | 1-2 sessões |
 | M5 | Coracao | Autonomic Balance Index | Médio | 1-2 sessões |
+| M6 | Cross-cutting | Interpolation Strategy (a definir) | Aberto | brainstorm + 1-2 sessões |
 
-Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5.
+Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual.
 
 ---
 
@@ -229,6 +230,50 @@ Soma ponderada de 5 componentes, cada um normalizado 0-100. Pesos derivados de l
 
 ---
 
+## Sprint M6 — Interpolation Strategy (a definir)
+
+**Status:** ⏳ aberto, requer brainstorm dedicado antes de executar.
+
+**Objetivo:** Definir e implementar política consistente de interpolação por contexto de uso do dado:
+
+- **Dados pra plotagem visual**: interpolação livre permitida (preenche gaps, melhora leitura). Já marcado via `interpolated: true` no `DailySnapshot` e renderizado tracejado no TimelineChart.
+- **Dados pra cálculo (correlações, derivações compostas, baselines)**: estratégia que MINIMIZE distorção estatística artificial.
+
+**Princípio metodológico:**
+
+Interpolação introduz autocorrelação serial. Se 3 dias entre 2 valores reais são interpolados linearmente, esses pontos são forçadamente colineares com vizinhos. Em Pearson r contra outra variável, isso INFLA o coeficiente artificialmente, criando false significance — equivalente ao p-hacking que a Sprint PK×Humor combateu via lag sweep.
+
+**Backlog de questões a brainstormar antes de executar:**
+
+1. **Política base por consumo:**
+   - Excluir interpolated rows das correlações? (conservador, perde poder estatístico)
+   - Downweight (peso reduzido) por confiança da interpolação? (elegante mas adiciona parâmetro livre)
+   - Limitar interpolação a janelas curtas (ex: ≤2 dias)? (pragmático mas arbitrário)
+   - Bootstrap blocking pra séries com autocorrelação? (rigoroso mas complexo)
+
+2. **Propagação em derivações compostas (M3/M4/M5):**
+   - Recovery Score deve marcar `interpolated: true` se ≥1 input é interpolado?
+   - ABI deve ter `interpolated: true` se HRV ou RHR daquele dia é interpolado?
+   - Wrist Temp Deviation deve excluir baselines computadas sobre dias interpolados?
+
+3. **Visualização:**
+   - Marcar correlações que dependem fortemente de interpolated data com badge "n_real / n_total"?
+   - Mostrar 2 r's: um com tudo, outro só com reais?
+
+4. **Backend (Interpolate/router.py):**
+   - Já existe? Como funciona hoje? Está sendo usado consistentemente?
+
+**Reflexo nas sprints M3/M4/M5 (regra interim):**
+
+Até M6 ser brainstormada e executada, **regra conservadora**:
+- Derivações compostas (Recovery Score, ABI, Wrist Temp Deviation) **excluem interpolated rows** da baseline rolling.
+- Score do dia N é null se HRV/RHR/sleep daquele dia é interpolated.
+- Esta é decisão temporária — Sprint M6 pode revisitar com política mais refinada.
+
+**Não tocar até brainstorm:** lógica de interpolação no `Interpolate/router.py` (backend) e qualquer pipeline que dependa disso.
+
+---
+
 ## Riscos cross-sprint
 
 1. **Pesos do Recovery Score são empíricos.** Documentar explicitamente como "preliminary calibration". Sprint futura pode calibrar via correlação com sintomas reportados.
@@ -236,6 +281,7 @@ Soma ponderada de 5 componentes, cada um normalizado 0-100. Pesos derivados de l
 3. **Idade hardcoded em VO2 Uth-Sørensen.** Aceitável pra N=1; documentar TODO pra config user-level.
 4. **Wrist temp baseline precisa ≥14 dias** — fallback se Anders trocar device ou der gap longo.
 5. **PK debug pode revelar problema mais profundo** (regimen API, calculation engine) — manter scope da M1 apertado, abrir backlog se aparecer mais.
+6. **Interpolação introduz autocorrelação serial** que pode inflar correlações em M4/M5. Regra interim conservadora (excluir interpolated rows das derivações) até Sprint M6 definir política refinada. **Importante:** se Anders revisar M4/M5 e o Recovery Score / ABI parecer "muito estável", pode ser sinal de que a regra interim está descartando dados úteis — sinalizar pra brainstorm de M6.
 
 ---
 

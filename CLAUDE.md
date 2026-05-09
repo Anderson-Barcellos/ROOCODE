@@ -75,17 +75,18 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-07 — após Sprint Codex Cleanup + walkingStepLengthCm rescue)
+## Status local validado (2026-05-09 — após Sprint PK×Humor Methodology)
 
-- Frontend: tsc + lint + test:unit + build ✅ (build 100% verde — dívida Recharts Formatter quitada na Codex Cleanup)
+- Frontend: tsc + lint + test:unit + build ✅ (build 100% verde)
 - Backend: farma + forecast + mood tests 29/29 OK
 - Diff hygiene: ✅
 - Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) consolidado.
 - `walkingStepLengthCm` exposto no pipeline (sem chart ainda — disponível pra próxima sprint visualizar).
+- PKHumorCorrelation com pré-registro + lag sweep [-3d..+3d] + heatmap UI.
 
 ## Próxima sprint planejada
 
-Nenhuma travada — gate de regularização e Cross-Domain Insights fechados. Próxima feature aberta a definir (Sprint D TBD).
+Nenhuma travada — Cross-Domain Insights, Codex Cleanup e PK×Humor Methodology fechadas. Sprint D em aberto (escopo a definir conforme prioridade clínica/UX). Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 
 ## Fresh start (obrigatório)
 

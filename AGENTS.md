@@ -4,11 +4,11 @@
 
 **Context is expensive.** Preferir leitura mínima útil, edição mínima segura e saída final que ajude o Anders a decidir.
 
-## Estado do projeto (2026-05-04)
+## Estado do projeto (2026-05-09)
 
-- As trilhas de sprint anteriores foram **canceladas** para evitar continuidade sobre base inconsistente.
-- Não existe sprint de feature ativa no momento.
-- Prioridade atual: **regularização técnica + documentação homogênea**.
+- Regularização técnica fechada (REG-0 a REG-4 ✅).
+- Sprints recentes: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas verdes em validação.
+- Não há sprint ativa no momento; Sprint D em aberto.
 
 ## Contrato documental (fonte de verdade)
 
@@ -58,10 +58,19 @@ Qualquer documento fora desse trio deve ser tratado como histórico/legado e pod
 
 Concluída em commit `8d35972`. Adotou os 11 arquivos do Codex em WIP como feature coesa: refactor estatístico SMA→EMA + readiness 4 níveis (`standby` → `collecting` → `exploratory` → `robust`) + inferência permutation/bootstrap/Spearman/FDR + chart `pk-standard-dose-comparison`. Fix do erro TS Recharts Formatter na linha 263 destravou o build (era a dívida pré-existente desde a Fatia B). Crédito ao Codex via `Co-Authored-By`.
 
-## Backlog menor (2026-05-07)
+## Sprint PK×Humor Methodology (2026-05-09)
+
+Concluída em commits `0c578dd` (feat) + `6ed22d0` (docs). Refatorou `PKHumorCorrelation` adotando metodologia mais robusta: pré-registro da janela 48h como hipótese clínica externa (perda de efeito ~48h após falha de dose, observação anterior aos dados), lag sweep simétrico `[-3d..+3d]` com lags negativos como controle de causalidade (pico em lag<0 ⇒ correlação espúria), FDR Benjamini-Hochberg cross-substância × cross-lag (m sobe de 2N pra 7N), UI heatmap substância×lag substituindo barras `CoefficientStrip`. DRY: `fisherCi95` e `benjaminiHochbergFdr` agora vêm exclusivamente de `intraday-correlation.ts`. `getMoodCorrelationWindowMs()` perdeu o parâmetro `PKMedication` — assinatura agora reflete que a janela não depende da droga.
+
+Backlog colateral aberto: peso corporal hardcoded inconsistente (91kg frontend vs 70kg backend default em `Farma/math.py`) — sprint dedicada futura.
+
+Plano completo: `/root/.claude/plans/vamos-brainstormar-entao-meu-virtual-brook.md`.
+
+## Backlog menor (2026-05-09)
 
 - ✅ `walkingStepLengthCm` resgatado no pipeline (commit `8c8128a`): type + adapter + aggregation + interpolation policy `linear_bounded` (±1.5 cm/dia) + fixtures de teste. Sem chart ainda — disponível pra próxima sprint visualizar.
 - ⏳ pk-rem-suppression: adicionar lag toggle + AUC trapezoidal precisa (TBD).
+- ⏳ Peso corporal hardcoded inconsistente (frontend 91kg vs backend 70kg default) — descoberto em 2026-05-09. Detalhes em `ROADMAP.md`.
 - ⏳ Sprint D: próxima feature cross-domain (escopo a definir).
 
 ## Sequência fresh obrigatória

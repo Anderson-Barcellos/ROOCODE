@@ -1,11 +1,11 @@
 # RooCode — Roadmap de Regularização
 
-> Última atualização: 2026-05-07
-> Estado: **regularização fechada**, Cross-Domain Insights e Codex Cleanup concluídas.
+> Última atualização: 2026-05-09
+> Estado: **regularização fechada**, Cross-Domain Insights, Codex Cleanup e PK×Humor Methodology concluídas.
 
 ## Objetivo do ciclo atual
 
-Próxima sprint de feature aberta — Sprint D TBD (a definir conforme prioridade clínica/UX).
+Próxima sprint de feature aberta — Sprint D TBD (a definir conforme prioridade clínica/UX). Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 
 ## Escopo deste roadmap
 
@@ -71,7 +71,7 @@ cd /root/RooCode
 git diff --check
 ```
 
-Status local 2026-05-07 (após Codex Cleanup + walkingStepLengthCm rescue):
+Status local 2026-05-09 (após Sprint PK×Humor Methodology):
 
 - Frontend: `npx tsc --noEmit`, `npm run lint`, `npm run test:unit`, `npm run build` ✅
 - Backend: 29/29 tests OK (farma 10 + forecast 13 + mood 6)
@@ -93,6 +93,22 @@ Concluída em commit `8d35972`. Refactor estatístico do Codex (SMA→EMA,
 readiness 4 níveis, permutation/bootstrap/Spearman/FDR, novo chart
 pk-standard-dose-comparison) adotado como feature coesa. Fix do erro TS
 Recharts Formatter destravou o build. Crédito ao Codex via Co-Authored-By.
+
+## Sprint PK×Humor Methodology (2026-05-09)
+
+Concluída em commits `0c578dd` (feat) + `6ed22d0` (docs). Refatorou
+`PKHumorCorrelation` adotando metodologia mais robusta: pré-registro da
+janela 48h como hipótese clínica externa (perda de efeito ~48h após
+falha de dose, observação anterior aos dados), lag sweep simétrico
+`[-3d..+3d]` com lags negativos como controle de causalidade (pico em
+lag<0 ⇒ correlação espúria), FDR Benjamini-Hochberg cross-substância ×
+cross-lag (m: 2N → 7N), UI heatmap substância×lag substituindo barras
+`CoefficientStrip`. DRY: `fisherCi95` e `benjaminiHochbergFdr` agora
+vêm exclusivamente de `intraday-correlation.ts`.
+`getMoodCorrelationWindowMs()` perdeu o parâmetro `PKMedication` —
+assinatura agora reflete que a janela não depende da droga.
+
+Plano completo: `/root/.claude/plans/vamos-brainstormar-entao-meu-virtual-brook.md`.
 
 ## Backlog menor (2026-05-07)
 

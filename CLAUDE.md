@@ -86,7 +86,9 @@ git diff --check
 
 ## Próxima sprint planejada
 
-Nenhuma travada — Cross-Domain Insights, Codex Cleanup e PK×Humor Methodology fechadas. Sprint D em aberto (escopo a definir conforme prioridade clínica/UX). Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
+**Sprint Maturation** — 5 sprints (M1-M5) planejadas em `ROADMAP_maturation.md` (2026-05-09). Princípio: substituir charts de dados crus por derivações compostas (z-scores, ratios, indices) seguindo o padrão Cross-Domain Insights. KICKOFF da **Sprint M1** (Farma debug do `PKStandardDoseComparison`) colável no fim do roadmap.
+
+Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 
 ## Fresh start (obrigatório)
 

@@ -277,7 +277,7 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v, name, item) => {
-                      if (['tempDelta_real', 'tempDelta_interp', 'tempDelta_forecast'].includes(name as string)) return [null, null]
+                      if (['tempDelta_real', 'tempDelta_interp', 'tempDelta_forecast', 'tempDelta_visual'].includes(name as string)) return [null, null]
                       const suffix = getDataSuffix(item)
                       if (name === 'tempDelta') {
                         if (typeof v !== 'number') return ['—', 'Desvio Temp Pulso']
@@ -289,6 +289,9 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
                     }}
                     itemSorter={() => 0}
                   />
+                  {/* Conector visual estético — liga pontos reais por cima de gaps vazios.
+                      Não usado em cálculos (baseline rolling, SD, correlations já filtram). */}
+                  <Line type="monotone" dataKey="tempDelta_real" stroke={COLOR_TEMP} strokeWidth={1} strokeOpacity={0.25} connectNulls dot={false} isAnimationActive={false} name="tempDelta_visual" legendType="none" />
                   <Line type="monotone" dataKey="tempDelta_real" stroke={COLOR_TEMP} strokeWidth={1.8} dot={{ r: 3, fill: COLOR_TEMP, stroke: '#fff', strokeWidth: 1 }} connectNulls={false} name="tempDelta" legendType="none" />
                   <Line type="monotone" dataKey="tempDelta_interp" stroke={COLOR_TEMP} strokeWidth={1.6} strokeDasharray="5 4" strokeOpacity={0.7} dot={false} connectNulls name="tempDelta (estim.)" legendType="none" />
                   <Line type="monotone" dataKey="tempDelta_forecast" stroke={COLOR_TEMP} strokeWidth={1.4} strokeDasharray="2 3" strokeOpacity={0.55} dot={false} connectNulls name="tempDelta (projeção)" legendType="none" />

@@ -16,7 +16,12 @@ import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
-import { VO2_BANDS_MALE_35_44, getVo2Category } from '@/utils/health-policies'
+import {
+  ANDERS_HRMAX_BPM,
+  VO2_BANDS_MALE_35_44,
+  estimateVo2MaxUthSorensen,
+  getVo2Category,
+} from '@/utils/health-policies'
 import { sma } from '@/utils/statistics'
 
 interface Vo2MaxChartProps {
@@ -32,12 +37,14 @@ const TOOLTIP_STYLE = {
 
 export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) {
   const { data, latest, latestCategory } = useMemo(() => {
-    const filtered = snapshots.filter((s) => s.health?.vo2Max != null)
-    const values = filtered.map((s) => s.health?.vo2Max ?? null)
+    const filtered = snapshots.filter((s) => s.health?.restingHeartRate != null)
+    const values = filtered.map((s) =>
+      estimateVo2MaxUthSorensen(s.health?.restingHeartRate ?? null, ANDERS_HRMAX_BPM),
+    )
     const smaValues = sma(values, 7)
 
     const data = filtered.map((s, i) => {
-      const v = s.health?.vo2Max ?? null
+      const v = values[i]
       const isForecast = s.forecasted === true
       const isInterp = !isForecast && s.interpolated === true
       return {
@@ -53,7 +60,7 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
       }
     })
 
-    const latest = filtered.at(-1)?.health?.vo2Max ?? null
+    const latest = values.length ? values[values.length - 1] : null
     const latestCategory = getVo2Category(latest)
     return { data, latest, latestCategory }
   }, [snapshots])
@@ -67,8 +74,8 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
         <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">Cardiorrespiratório</span>
-        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">VO2 Máx</h3>
-        <p className="mt-4 text-sm text-slate-400">Sem dados de VO2 Máx no período.</p>
+        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">VO2 Máx estimado (Uth-Sørensen)</h3>
+        <p className="mt-4 text-sm text-slate-400">Sem dados de FC de repouso no período pra estimar VO2 Máx.</p>
       </div>
     )
   }
@@ -79,7 +86,7 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
         Cardiorrespiratório
       </span>
       <div className="mt-3 flex items-center gap-3 flex-wrap">
-        <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">VO2 Máx</h3>
+        <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">VO2 Máx estimado (Uth-Sørensen)</h3>
         {latest != null && latestCategory && (
           <span
             className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold"
@@ -89,13 +96,16 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
           </span>
         )}
       </div>
-      <p className="mt-1 text-sm text-slate-500">Baseline cardiorrespiratório (homem 35-44a) · faixas de referência como bands coloridas · SMA 7d em linha sólida</p>
+      <p className="mt-1 text-sm text-slate-500">Estimativa Uth-Sørensen via FC de repouso (homem 35-44a) · faixas de referência como bands coloridas · SMA 7d em linha sólida</p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">Contexto clínico</summary>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          VO2 Máx responde a exercício aeróbico crônico. Cai com sedentarismo, ganho de peso, e pode ser
-          modulado por antidepressivos (via sedação ou ganho de peso). Movimentação de <strong>3-5 ml/(kg·min)</strong> em
-          poucas semanas é clinicamente relevante. Para referência: sedentário ≈ 28, atleta treinado ≥ 50.
+          Estimativa por proxy <strong>Uth-Sørensen</strong> (<code>VO2max ≈ 15 × HRmax/RHR</code>),
+          validada vs CPET em homens treinados (~85% acurácia). Não substitui medida direta em laboratório.
+          HRmax assumido = 220 − idade (= <strong>{ANDERS_HRMAX_BPM} bpm</strong> pra Anders).
+          Como o único input variável é a FC de repouso, a estimativa cai quando a RHR sobe (overtraining,
+          fadiga, doença) e sobe com treinamento aeróbico crônico. Movimentação de <strong>3-5 ml/(kg·min)</strong>
+          em poucas semanas é clinicamente relevante. Referência: sedentário ≈ 28, atleta treinado ≥ 50.
         </p>
       </details>
 
@@ -132,7 +142,7 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
                 if (name === 'vo2') {
                   const category = typeof v === 'number' ? getVo2Category(v)?.label ?? '' : ''
                   const text = typeof v === 'number' ? `${v.toFixed(1)} ml/(kg·min)${suffix} · ${category}` : '—'
-                  return [text, 'VO2 Máx']
+                  return [text, 'VO2 Máx estimado']
                 }
                 if (name === 'sma7') return [typeof v === 'number' ? `${v.toFixed(1)}` : '—', 'SMA 7d']
                 return [typeof v === 'number' ? `${v.toFixed(1)}` : '—', name]

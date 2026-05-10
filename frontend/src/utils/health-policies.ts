@@ -41,6 +41,25 @@ export function getVo2Category(value: number | null, bands = VO2_BANDS_MALE_35_4
   return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
 }
 
+// ─── Uth-Sørensen Estimation ──────────────────────────────────────────────────
+// Quando o Apple Watch não fornece VO2 Máx (raro pra Anders — requer exercício
+// aeróbico contínuo medido pelo wearable), derivamos estimativa via fórmula
+// Uth-Sørensen: VO2max ≈ 15 × (HRmax / RHR), em ml/(kg·min).
+// Validada vs CPET em homens treinados (~85% acurácia). NÃO substitui CPET.
+// Ref: Uth N, Sørensen H, Overgaard K, Pedersen PK. (2004) Eur J Appl Physiol 91:111-115.
+// HRmax via Fox-Haskell (220 − idade). TODO: tornar idade config user-level.
+
+export const ANDERS_HRMAX_BPM = 182 // 220 − 38
+
+export function estimateVo2MaxUthSorensen(
+  rhr: number | null,
+  hrMax: number = ANDERS_HRMAX_BPM,
+): number | null {
+  if (rhr == null || !Number.isFinite(rhr) || rhr <= 0) return null
+  if (!Number.isFinite(hrMax) || hrMax <= rhr) return null
+  return 15 * (hrMax / rhr)
+}
+
 // ─── Walking Asymmetry ────────────────────────────────────────────────────────
 // Percentual de tempo em que a marcha mostra diferença de cadência entre lados.
 // Marcador de marcha alterada — sedação (clonazepam), neuropatia, claudicação.

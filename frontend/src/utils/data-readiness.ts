@@ -184,7 +184,9 @@ export const CHART_REQUIREMENTS = {
   scatterCorrelation: { type: 'pairs', robustMin: 35, exploratoryMin: 20, collectingMin: 10 },
   // Fase 8A — Activity/Physiology
   // VO2 Máx é baseline crônico (atualiza com 48-72h de dados acumulados). Usamos threshold mais alto.
-  vo2MaxChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'vo2Max' },
+  // Sprint M2 (2026-05-09): chart agora deriva via Uth-Sørensen a partir de RHR.
+  // Field do readiness reflete o input real, não a derivação.
+  vo2MaxChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'restingHeartRate' },
   // Walking vitality combina speed + asymmetry. Velocidade muda dia a dia, mas é marcador estável.
   walkingVitalityChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'walkingSpeedKmh' },
   // Steps é o sinal mais denso — quase sempre presente se o watch foi usado.

@@ -170,19 +170,28 @@ export function getRespiratoryRateCategory(
   return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
 }
 
-export const PULSE_TEMP_BANDS: VitalSignBand[] = [
-  { label: 'Hipotermia', min: 33.0, max: 36.0, tone: 'watch',    color: '#bfdbfe' },
-  { label: 'Normal',     min: 36.0, max: 37.0, tone: 'positive', color: '#bbf7d0' },
-  { label: 'Subfebre',   min: 37.0, max: 38.0, tone: 'watch',    color: '#fed7aa' },
-  { label: 'Febre',      min: 38.0, max: 42.0, tone: 'negative', color: '#fca5a5' },
+// Wrist Temperature Deviation — Apple Watch mede temperatura do pulso
+// durante o sono e o algoritmo nativo já normaliza como DESVIO da baseline
+// pessoal, não absoluto. Sprint M3 (2026-05-09): chart passou a mostrar
+// delta (temperature_today − rolling_baseline_30d) em vez de °C absoluto.
+// Bandas centralizadas em 0; queda anormal e elevação ambas marcadas.
+
+export const WRIST_TEMP_DEVIATION_BANDS: VitalSignBand[] = [
+  { label: 'Queda anormal', min: -1.5, max: -0.3, tone: 'watch',    color: '#bfdbfe' },
+  { label: 'Normal',        min: -0.3, max: 0.3,  tone: 'positive', color: '#bbf7d0' },
+  { label: 'Elevado',       min: 0.3,  max: 0.5,  tone: 'watch',    color: '#fed7aa' },
+  { label: 'Alerta',        min: 0.5,  max: 1.5,  tone: 'negative', color: '#fca5a5' },
 ]
 
-export function getPulseTempCategory(
-  value: number | null,
-  bands = PULSE_TEMP_BANDS,
+export function getWristTempDeviationCategory(
+  delta: number | null,
+  bands = WRIST_TEMP_DEVIATION_BANDS,
 ): VitalSignBand | null {
-  if (value == null) return null
-  return bands.find((b) => value >= b.min && value < b.max) ?? bands[bands.length - 1]
+  if (delta == null || !Number.isFinite(delta)) return null
+  const found = bands.find((b) => delta >= b.min && delta < b.max)
+  if (found) return found
+  if (delta < bands[0].min) return bands[0] // extrapola pra "Queda anormal"
+  return bands[bands.length - 1] // extrapola pra "Alerta"
 }
 
 // ─── Cardio Recovery (HRR-1) ─────────────────────────────────────────────────

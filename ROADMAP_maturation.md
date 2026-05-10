@@ -1,7 +1,7 @@
 # RooCode — Roadmap de Amadurecimento de Dados
 
 > Última atualização: 2026-05-10
-> Estado: Sprints M1 + M2 + M3 + M4 concluídas; próxima execução: Sprint M5
+> Estado: Sprints M1 + M2 + M3 + M4 + M5 concluídas; próxima etapa: brainstorm da Sprint M6 (Interpolation Strategy)
 > Sessão de planejamento: `/root/.claude/plans/vamos-brainstormar-entao-meu-virtual-brook.md`
 
 ## Princípio
@@ -18,7 +18,7 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M2 | Atividade | VO2 Máx via Uth-Sørensen (substitui empty) | Baixo | ✅ 2026-05-09 (`611db4c`) |
 | M3 | Sinais Vitais | Wrist Temp Deviation + FR variability + remover badge "Hipotermia" | Baixo-médio | ✅ 2026-05-09 (`bb4cad6`) |
 | M4 | Panorama | Recovery Score composto (Whoop-style) | Médio | ✅ 2026-05-10 (`322781e`) |
-| M5 | Coracao | Autonomic Balance Index | Médio | 1-2 sessões |
+| M5 | Coracao | Autonomic Balance Index | Médio | ✅ 2026-05-10 (`7fab71b`) |
 | M6 | Cross-cutting | Interpolation Strategy (a definir) | Aberto | brainstorm + 1-2 sessões |
 
 Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual.
@@ -267,7 +267,36 @@ A decisão afeta também `personal-baselines.ts` (criado em M3) que vai alimenta
 
 ---
 
-## Sprint M5 — Autonomic Balance Index (Coração)
+## Sprint M5 — Autonomic Balance Index (Coração) ✅ CONCLUÍDA
+
+**Status:** CONCLUÍDA em 2026-05-10 — commit `7fab71b` ("Closes Sprint M5").
+
+**Resultado real:**
+- **Utility nova** `frontend/src/utils/autonomic-balance.ts`: `computeAbiBaseline(snapshots)` + `computeAbiSeries(snapshots)`. Z-score pessoal de `ln(HRV/RHR)` com baseline única do dataset (windowSize 30 / minPoints 14, padrão M3/M4). Função pura — reusa `computeRollingBaseline` da M3.
+- **Chart novo** `autonomic-balance-chart.tsx`: LineChart com 3 `ReferenceArea` (red z<-1σ / amber -1..+1σ / green z≥+1σ), `ReferenceLine` em y=0, linha tênue do z diário + linha grossa do SMA-7d, tooltip educativo (HRV bruto, RHR bruto, ratio, ln(ratio), z, banda, SMA), badge "Último" no header com z atual + nome da banda. DataReadinessGate 30/14/7.
+- **Hard-remove**: `hrv-analysis.tsx` + `heart-rate-bands.tsx` deletados. Hook `useCardioAnalysis.ts` enxugado — saíram `HrvBaselineBand`, `OvertrainingStatus`, `computeHrvBaselineBands`, `computeOvertrainingStatus`, `stdDev`, `OVERTRAINING_MIN_DAYS`. Restaram `RecoveryScore` + `computeRecoveryScore` + `clamp` + `BASELINE_WINDOW` (legacy ainda consumido em `executiveMetrics` no Panorama).
+- **CHART_REQUIREMENTS**: `-hrvAnalysis`, `-heartRateBands`, `+autonomicBalanceChart` (30/14/7, field `hrvSdnn`).
+- **App.tsx aba Coração**: agora apenas 3 charts (era 4) — ABI → HRRangeChart → CardioRecoveryChart.
+
+**Decisões metodológicas:**
+- **Por que log:** ratio HRV/RHR é positivamente skewed (HRV 15-80ms, RHR 50-80bpm, curtose pesada). `ln(HRV/RHR)` normaliza antes do z-score, evitando que outliers altos puxem desproporcionalmente a média.
+- **Política rigorosa de inputs:** HRV+RHR ambos obrigatórios. Se 1 faltar, abi=null com `reason: 'inputs_missing'`. Mesma decisão da M4 — revisável.
+- **Regra interim M6:** snapshot `interpolated || forecasted` → abi=null com reason correspondente. Baseline ignora esses dias na média + SD.
+- **Proteção contra log inválido:** `hrv≤0 || rhr≤0` → `inputs_missing` (evita NaN propagando).
+- **Threshold 30/14/7** (vs 28/14/7 do Recovery Score): log-ratio precisa de mais histórico pra estabilizar SD; 2 dias a mais no robustMin é margem prudente.
+- **SD=0 fallback:** se baseline tem variância zero (improvável fora de teste sintético), z-score retorna 0 — evita divisão por zero.
+
+**Trade-off aceito:** hard-remove (autorização explícita do Anders) significa que se HRV cru ou FC banded voltar a ser útil em alguma análise futura, é `git revert 7fab71b` ou reescrever. Como pesava ~600 linhas de código não-reusado fora da aba Coração, decisão de blast radius foi favorável à limpeza.
+
+**Risco mapeado pra acompanhar:** se ABI ficar com range muito apertado pra Anders (-0.3 a +0.3 z em variação normal), pode indicar que HRV e RHR são colineares demais nele — a derivação composta acaba redundante. **Plano B documentado:** voltar a HRV + RHR separados na aba Coração (ou em outra aba). Sinalizar pra brainstorm da M6 se observado.
+
+**Test novo:** `tests/autonomic-balance.test.ts` — sanity de `ABI_BAND_THRESHOLD=1`, dia médio z≈0 (HRV=50, RHR=60), parassimpático z>+1 (HRV=90, RHR=50), simpático z<-1 (HRV=30, RHR=80), reason variants (interpolated/forecasted/inputs_missing por HRV null/inputs_missing por RHR null/baseline_missing por dataset curto), baseline filtra forecast poluidor (HRV=9999), proteção contra log inválido (hrv=0 → inputs_missing), série mantém 1 ponto por snapshot.
+
+**Validação local:** `tsc --noEmit` ✅ · `lint` ✅ · `test:unit` ✅ · `build` ✅ (817ms, bundle -7kB pelo hard-remove). **UI manual NÃO testada** nesta sessão — Chrome DevTools MCP indisponível (config persistente requer restart de sessão). Validação visual fica pra Anders no /coracao da próxima abertura.
+
+---
+
+**Plano original (preservado pra auditoria):**
 
 **Objetivo:** Substituir os 2 charts crus (`HrvAnalysis` e o componente de RHR via `HeartRateBands`) na aba Coração por um único chart de **Autonomic Balance Index**. Manter `HRRangeChart` e `CardioRecoveryChart`.
 
@@ -368,110 +397,104 @@ Até M6 ser brainstormada e executada, **regra conservadora**:
 
 ---
 
-## KICKOFF — Sprint M5 (próxima sessão fresh)
+## KICKOFF — Brainstorm Sprint M6 (próxima sessão fresh)
+
+> **Atenção:** M6 é cross-cutting e ABRE com BRAINSTORM, não com codificação.
+> Coding só depois de Anders aprovar a política. Não pular essa fase.
 
 ```
 Olá Claude! Sou o Anders. Estamos retomando o RooCode (`/root/RooCode`).
 Sessão fresh — siga sprint-system.md (especialmente Pós-Sprint Protocol,
 regra 7) e o protocolo de fresh start do AGENTS.md.
 
-# Sprint M5 — Autonomic Balance Index (Coração)
+# Sprint M6 — Interpolation Strategy (brainstorm + execução)
 
-**Objetivo:** Substituir os 2 charts crus (`HrvAnalysis` e `HeartRateBands`)
-na aba Coração por um único chart de **Autonomic Balance Index (ABI)** —
-z-score pessoal de `log(HRV / RHR)`. Manter `HRRangeChart` e
-`CardioRecoveryChart`.
+**Status:** ⏳ ABERTA — requer brainstorm dedicado ANTES de codar.
 
-**Arquivos-alvo:**
-- /root/RooCode/frontend/src/App.tsx (substituir APENAS na aba coracao)
-- NOVO: /root/RooCode/frontend/src/components/charts/autonomic-balance-chart.tsx
-- NOVO: /root/RooCode/frontend/src/utils/autonomic-balance.ts (fórmula isolada)
-- Reuso: /root/RooCode/frontend/src/utils/personal-baselines.ts (criado na M3)
-- Reuso de padrão: /root/RooCode/frontend/src/utils/recovery-score.ts (M4 —
-  referência de pipeline "baseline única do dataset + filtro interp/forecast
-  + função pura + reason em null").
-- DECISÃO PENDENTE com Anders antes de codar: HrvAnalysis e HeartRateBands
-  ficam no código (apenas desmontados da aba coracao) OU são removidos?
-  Default proposto: soft-remove (mantém no código pra reuso futuro/aba nova).
+**Por que cross-cutting:** afeta retroativamente Recovery Score (M4) e
+Autonomic Balance Index (M5) — eles aplicam regra interim conservadora
+(score=null em dia interpolated/forecasted; baselines ignoram dias
+interpolated). Se M6 mudar essa política, M4/M5 precisam refletir.
 
-**Hipótese pré-registrada:**
-"ABI captura balanço simpato-parassimpático melhor que HRV ou RHR isolados.
-Quedas sustentadas (≥7d) <-1σ correlacionam com fadiga crônica/estresse.
-Picos >+1σ correlacionam com recovery alto/treino bem dormido."
+**Antes de codar, brainstormar com Anders** sobre as 4 dimensões abertas:
 
-**Decisões metodológicas:**
-- ABI = z-score pessoal de `log(HRV / RHR)` — log estabiliza pq ratio HRV/RHR
-  é positivamente skewed.
-- Baseline pessoal: `computeRollingBaseline` (M3) aplicado sobre
-  `log(HRV/RHR)` das últimas 30 medições reais (filtrar
-  `interpolated || forecasted` antes — regra interim M6, mesmo padrão da M4).
-- Bandas (recomendação):
-  - z ≥ +1: parassimpático/recovery alto - verde (#10b981)
-  - -1 ≤ z < +1: equilibrado - âmbar (#f59e0b)
-  - z < -1: simpático/stress/overtraining - vermelho (#ef4444)
-- SMA-7d sobreposto pra atenuar ruído diário (linha secundária tracejada).
-- DataReadinessGate threshold 30/14/7 dias (consistente com derivações
-  compostas; ABI requer histórico um pouco maior que Recovery Score pra
-  baseline log-ratio estabilizar).
-- Regra interim M6 aplicada: snapshot `interpolated || forecasted` → ABI=null
-  com reason (mesma estrutura `RecoveryScorePoint` da M4).
-- Tooltip educativo: HRV bruto (ms), RHR bruto (bpm), ratio HRV/RHR, log-ratio,
-  z-score, banda corrente.
+1. **Política base por consumo (correlações, derivações):**
+   - Excluir interpolated rows? (conservador, perde poder estatístico)
+   - Downweight por confiança da interpolação? (elegante, +1 parâmetro livre)
+   - Limitar interpolação a janelas curtas (≤2d)? (pragmático mas arbitrário)
+   - Bootstrap blocking pra séries com autocorrelação? (rigoroso, complexo)
 
-**Plano:**
-1. Read hrv-analysis.tsx + heart-rate-bands.tsx (entender estrutura atual,
-   identificar o que será desmontado da aba coracao).
-2. Read recovery-score.ts + recovery-score-chart.tsx (M4) como template — o
-   pipeline é praticamente o mesmo (baseline única, filter interp/forecast,
-   função pura retornando array com reason, chart com bandas + DataReadinessGate).
-3. Decidir com Anders soft-remove vs hard-remove de HrvAnalysis/HeartRateBands.
-4. Criar `autonomic-balance.ts` com `computeAbiSeries(snapshots)` →
-   `Array<{date, abi, components: {hrv, rhr, ratio, logRatio, zScore}, reason?}>`.
-5. Criar `autonomic-balance-chart.tsx` (LineChart + 3 bandas ReferenceArea +
-   SMA-7d + tooltip educativo + DataReadinessGate). Reusar
-   `computeRollingBaseline` (M3) — atenção que aqui se aplica a log-ratio,
-   não a HRV ou RHR isoladamente.
-6. Adicionar `autonomicBalanceChart` em `CHART_REQUIREMENTS` (28/14/7 ou
-   30/14/7 — alinhar com decisão de robustez).
-7. Edit App.tsx aba coracao — substituir HrvAnalysis e HeartRateBands por
-   AutonomicBalanceChart. Manter HRRangeChart e CardioRecoveryChart.
-8. Test `tests/autonomic-balance.test.ts` espelhando padrão do
-   `recovery-score.test.ts` (M4): sanity de fórmula, dia médio = z=0, dia
-   alto/baixo, reason em interp/forecast/inputs_missing/baseline_missing,
-   filter de interp/forecast nas baselines.
-9. Validação: `tsc --noEmit` + `lint` + `test:unit` + `build` + manual UI
-   (se Chrome DevTools MCP disponível na sessão fresh).
-10. Commit técnico + commit docs Pós-Sprint Protocol.
+2. **Propagação em derivações compostas (M3/M4/M5):**
+   - Recovery Score deve marcar `interpolated: true` se ≥1 input é interp?
+   - ABI deve ter `interpolated: true` se HRV ou RHR daquele dia é interp?
+   - Wrist Temp Deviation deve excluir baselines computadas sobre dias interp?
+   - Política UNIFICADA vs por-derivação?
 
-**Validação:**
-- AutonomicBalanceChart renderiza linha de z-score com 3 bandas coloridas.
-- Aba Coração agora tem 3 charts (era 4): ABI → HRRangeChart → CardioRecoveryChart.
-- DataReadinessGate ativa se <14 dias reais.
-- Tooltip educativo explica componentes (HRV, RHR, ratio, log-ratio, z, banda).
-- Range esperado pra Anders: -1.5 a +1.5 z em variação normal.
-- HrvAnalysis e HeartRateBands intactos no código (soft-remove) OU deletados
-  (hard-remove), conforme decisão prévia com Anders.
+3. **Visualização:**
+   - Marcar correlações que dependem fortemente de interpolated data com
+     badge "n_real / n_total"?
+   - Mostrar 2 r's no scatter: um com tudo, outro só com reais?
+   - No Recovery Score / ABI: relaxar regra "5/5 obrigatório" se 4/5 + 1
+     interp permite score com reescala? Mostrar marker de confiança?
 
-**Risco:** HRV e RHR já são correlacionados naturalmente (HRV alto tende com
-RHR baixo). Ratio pode ter info redundante. Validar empiricamente: se ABI
-tem range muito apertado (-0.3 a +0.3), considerar que separar HRV e RHR
-era mais informativo. **Plano B:** voltar pra HRV+RHR separados na aba.
+4. **Backend (Interpolate/router.py):**
+   - Como funciona hoje? (Read antes de propor)
+   - Está sendo usado consistentemente em todas as derivações?
+   - Há mismatch entre `interpolated` flag e o que efetivamente foi
+     interpolado vs preservado?
 
-**Não tocar:** outras abas/charts. `recovery-score.ts`,
-`recovery-score-chart.tsx`, `timeline-chart.tsx`, `personal-baselines.ts`
-ficam intocados.
+**Sinais empíricos pra trazer pro brainstorm (capturar antes da sessão):**
+- Recovery Score M4 está se mostrando "muito esparso" pra Anders? (sinal
+  de que a regra interim 5/5 + null em interp está descartando demais).
+- ABI M5 tem range muito apertado (-0.3 a +0.3)? (pode ser colinearidade
+  HRV/RHR, OU pode ser a regra interim filtrando dias úteis).
+- Correlações nos charts de PK×Humor / lag analysis estão visivelmente
+  diferentes quando comparadas "com interp" vs "só real"?
+
+**Workflow proposto pra próxima sessão:**
+
+Fase 1 — Reconhecimento (read-only):
+1. Read /root/RooCode/Interpolate/router.py + utils.py (entender política atual).
+2. Read frontend/src/utils/interpolate.ts (frontend side).
+3. Mapear: quais derivações HOJE excluem interpolated? quais incluem?
+4. Trazer dados empíricos: Anders abre /panorama e /coracao, screenshot
+   do Recovery Score e ABI atual.
+
+Fase 2 — Brainstorm (usar superpowers:brainstorming):
+1. Apresentar trade-offs das 4 dimensões com exemplos.
+2. Anders escolhe política (pode ser híbrida: regra A pra plotagem, regra
+   B pra correlações, regra C pra derivações compostas).
+3. Plan mode pra documentar decisão antes de codar.
+
+Fase 3 — Execução:
+1. Refletir mudanças em M3/M4/M5 (se houver) — pode exigir tweaks pequenos
+   nos utilities.
+2. Eventualmente atualizar Interpolate/router.py.
+3. Atualizar docs (ROADMAP + CLAUDE.md raiz).
+4. Validação + commit.
+
+**Arquivos prováveis de tocar:**
+- `/root/RooCode/Interpolate/router.py` (backend)
+- `/root/RooCode/Interpolate/utils.py` (backend)
+- `/root/RooCode/frontend/src/utils/interpolate.ts`
+- Possíveis tweaks em `recovery-score.ts`, `autonomic-balance.ts`,
+  `personal-baselines.ts`, `correlations.ts`, `intraday-correlation.ts`.
+
+**Não comece codando.** Se entrar na sessão e tentar pular o brainstorm,
+está pulando a parte mais importante. M6 é decisão metodológica antes
+de ser código.
 
 **Pós-Sprint Protocol obrigatório** (ver `/root/.claude/rules/sprint-system.md` regra 7):
-- Marcar M5 como concluída no ROADMAP_maturation.md (status + commit hash).
+- Marcar M6 como concluída no ROADMAP_maturation.md (status + commit hash).
 - Atualizar tabela executiva (✅ + hash).
-- Adicionar bloco "Status / Resultado" no topo da seção M5.
-- Reescrever este KICKOFF apontando pra Sprint M6 (Interpolation Strategy
-  — requer brainstorm dedicado antes de executar) OU outro próximo passo
-  combinado com Anders.
-- Atualizar CLAUDE.md raiz: adicionar M5 nas concluídas + linha no Status local.
+- Adicionar bloco "Status / Resultado" no topo da seção M6.
+- Reescrever este KICKOFF apontando pra próximo passo (provavelmente fim
+  do roadmap M1-M6 ou nova fase combinada com Anders).
+- Atualizar CLAUDE.md raiz: adicionar M6 nas concluídas + linha no Status local.
 
 **ROADMAP completo:** /root/RooCode/ROADMAP_maturation.md
 **Sessão de planejamento original:** /root/.claude/plans/vamos-brainstormar-entao-meu-virtual-brook.md
+**Seção M6 detalhada (princípios + backlog):** ROADMAP_maturation.md `## Sprint M6 — Interpolation Strategy`
 
-Bora!
+Bora brainstormar!
 ```

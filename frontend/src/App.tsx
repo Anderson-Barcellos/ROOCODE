@@ -31,7 +31,7 @@ import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-di
 import { HRRangeChart } from '@/components/charts/hr-range-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
-import { TimelineChart } from '@/components/charts/timeline-chart'
+import { RecoveryScoreChart } from '@/components/charts/recovery-score-chart'
 import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -39,32 +39,9 @@ import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
-import type { OverviewMetrics, TimelineSeriesKey } from '@/types/apple-health'
+import type { OverviewMetrics } from '@/types/apple-health'
 import { ForecastSignalsPanel } from '@/components/charts/ForecastSignalsPanel'
-import { buildTimelineSeries, selectSnapshotRange } from '@/utils/aggregation'
-import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
-
-const TIMELINE_LABELS: Record<TimelineSeriesKey, string> = {
-  sleepTotalHours: 'Sono (h)',
-  sleepEfficiencyPct: 'Eficiência (%)',
-  restingHeartRate: 'FC Repouso (bpm)',
-  hrvSdnn: 'HRV (ms)',
-  spo2: 'SpO₂ (%)',
-  activeEnergyKcal: 'Energia ativa (kcal)',
-  exerciseMinutes: 'Exercício (min)',
-  standingMinutes: 'Em pé (min)',
-  daylightMinutes: 'Luz do dia (min)',
-  valence: 'Humor',
-  // Fase 8A
-  steps: 'Passos',
-  vo2Max: 'VO2 Máx',
-  walkingSpeedKmh: 'Velocidade de marcha (km/h)',
-  walkingHeartRateAvg: 'FC caminhada (bpm)',
-  respiratoryRate: 'Resp. (rpm)',
-  pulseTemperatureC: 'Temp. pulso (°C)',
-}
-
-const EXEC_SERIES: TimelineSeriesKey[] = ['sleepTotalHours', 'hrvSdnn', 'restingHeartRate']
+import { selectSnapshotRange } from '@/utils/aggregation'
 
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
 
@@ -340,11 +317,6 @@ export default function App() {
       cardio.recoveryScore,
     ],
   )
-  const timelineData = useMemo(() => buildTimelineSeries(rangedWithForecast, EXEC_SERIES), [rangedWithForecast])
-  const timelineReadiness = useMemo(
-    () => evaluateReadiness(ranged, CHART_REQUIREMENTS.timelineChart, 'Timeline'),
-    [ranged],
-  )
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHash)
@@ -425,7 +397,7 @@ export default function App() {
 
                   <ForecastAccuracyCard snapshots={ranged} />
 
-                  <TimelineChart data={timelineData} seriesKeys={EXEC_SERIES} labels={TIMELINE_LABELS} readiness={timelineReadiness} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  <RecoveryScoreChart snapshots={rangedWithForecast} />
 
                   {forecast === 'on' && (
                     <ForecastSignalsPanel

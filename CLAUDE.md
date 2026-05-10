@@ -75,14 +75,16 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-09 — após Sprint PK×Humor Methodology)
+## Status local validado (2026-05-09 — após Sprint M2)
 
 - Frontend: tsc + lint + test:unit + build ✅ (build 100% verde)
-- Backend: farma + forecast + mood tests 29/29 OK
+- Backend: farma + forecast + mood tests 29/29 OK (não tocados na M1/M2)
 - Diff hygiene: ✅
 - Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) consolidado.
 - `walkingStepLengthCm` exposto no pipeline (sem chart ainda — disponível pra próxima sprint visualizar).
 - PKHumorCorrelation com pré-registro + lag sweep [-3d..+3d] + heatmap UI.
+- PKStandardDoseComparison normalizado pelo pico simulado de cada substância (commits `b0622ff` + `6b1bc07`): 3 curvas em escala 0-100%, ReferenceLine y=100 representa "pico esperado do regime".
+- Vo2MaxChart deriva via Uth-Sørensen (commit `611db4c`): VO2 estimado a partir de RHR, HRmax = 182 bpm hardcoded; `s.health.vo2Max` real do Apple Watch preservado pra outros consumidores (KPI, aggregation).
 
 ## Próxima sprint planejada
 
@@ -90,6 +92,7 @@ git diff --check
 
 Concluídas:
 - Sprint M1 (Farma debug do `PKStandardDoseComparison`) em 2026-05-09 — commits `b0622ff` + `6b1bc07`.
+- Sprint M2 (VO2 Máx via Uth-Sørensen) em 2026-05-09 — commit `611db4c`.
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 

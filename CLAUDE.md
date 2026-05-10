@@ -86,7 +86,10 @@ git diff --check
 
 ## Próxima sprint planejada
 
-**Sprint Maturation** — 5 sprints (M1-M5) planejadas em `ROADMAP_maturation.md` (2026-05-09). Princípio: substituir charts de dados crus por derivações compostas (z-scores, ratios, indices) seguindo o padrão Cross-Domain Insights. KICKOFF da **Sprint M1** (Farma debug do `PKStandardDoseComparison`) colável no fim do roadmap.
+**Sprint Maturation** — 6 sprints (M1-M6) planejadas em `ROADMAP_maturation.md` (2026-05-09). Princípio: substituir charts de dados crus por derivações compostas (z-scores, ratios, indices) seguindo o padrão Cross-Domain Insights. **KICKOFF da próxima sprint sempre colável no fim do `ROADMAP_maturation.md`** — single-source-of-truth, sem repetir nome aqui pra evitar drift.
+
+Concluídas:
+- Sprint M1 (Farma debug do `PKStandardDoseComparison`) em 2026-05-09 — commits `b0622ff` + `6b1bc07`.
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 

@@ -75,10 +75,10 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-09 — após Sprint M3)
+## Status local validado (2026-05-10 — após Sprint M4)
 
 - Frontend: tsc + lint + test:unit + build ✅ (build 100% verde)
-- Backend: farma + forecast + mood tests 29/29 OK (não tocados na M1/M2/M3)
+- Backend: farma + forecast + mood tests 29/29 OK (não tocados nas M1-M4)
 - Diff hygiene: ✅
 - Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) consolidado.
 - `walkingStepLengthCm` exposto no pipeline (sem chart ainda — disponível pra próxima sprint visualizar).
@@ -86,7 +86,8 @@ git diff --check
 - PKStandardDoseComparison normalizado pelo pico simulado de cada substância (commits `b0622ff` + `6b1bc07`): 3 curvas em escala 0-100%, ReferenceLine y=100 representa "pico esperado do regime".
 - Vo2MaxChart deriva via Uth-Sørensen (commit `611db4c`): VO2 estimado a partir de RHR, HRmax = 182 bpm hardcoded; `s.health.vo2Max` real do Apple Watch preservado pra outros consumidores (KPI, aggregation).
 - VitalSignsTimeline com Wrist Temp Deviation + FR variability (commit `bb4cad6`): badge "Hipotermia" removido, painel temp passa a delta da baseline pessoal (média 30d, mín 14 reais), painel FR ganha YAxis secundário com SD rolling 7d. `s.health.pulseTemperatureC` preservado intacto no tipo/adapter/consumers.
-- Utility nova `personal-baselines.ts` (`computeRollingBaseline` + `rollingStandardDeviation`) disponível pra reuso em M4 e M5.
+- Utility `personal-baselines.ts` (`computeRollingBaseline` + `rollingStandardDeviation`) consolidada — já reusada em M4, prevista pra M5 (ABI).
+- Panorama tab agora exibe `RecoveryScoreChart` (commit `322781e`): score 0-100 composto (30% HRV z / 25% sleep eff / 20% RHR z invertido / 15% sleep debt 7d invertido / 10% mood reescalado). Regra interim M6 aplicada — score=null em interp/forecast. `timeline-chart.tsx` segue intacto (consumo em InterpolationDemo). Pesos preliminary calibration. **UI manual não validada nessa sessão** — Chrome DevTools MCP indisponível.
 
 ## Próxima sprint planejada
 
@@ -96,6 +97,7 @@ Concluídas:
 - Sprint M1 (Farma debug do `PKStandardDoseComparison`) em 2026-05-09 — commits `b0622ff` + `6b1bc07`.
 - Sprint M2 (VO2 Máx via Uth-Sørensen) em 2026-05-09 — commit `611db4c`.
 - Sprint M3 (Wrist Temp Deviation + FR variability + utility `personal-baselines.ts`) em 2026-05-09 — commit `bb4cad6`.
+- Sprint M4 (Recovery Score composto na aba Panorama) em 2026-05-10 — commit `322781e`.
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 

@@ -193,21 +193,47 @@ assert.equal(perfectDay.components?.sleepEff, 100)
 assert.equal(perfectDay.components?.mood, 100)
 assert.ok(perfectDay.components?.sleepDebt != null && perfectDay.components.sleepDebt >= 90)
 
-// ─── Reason: interpolated → score null ───────────────────────────────────
+// ─── interpolated → score não-null, derivedFromInterpolated=true ─────────
 
 const interpDataset = buildDataset({}, { interpolated: true })
 const interpSeries = computeRecoveryScoreSeries(interpDataset)
 const interpDay = interpSeries[interpSeries.length - 1]
-assert.equal(interpDay.score, null)
-assert.equal(interpDay.reason, 'interpolated')
+assert.ok(interpDay.score != null, 'interpolated deve ter score não-null')
+assert.equal(interpDay.derivedFromInterpolated, true)
+assert.ok(interpDay.confidence != null && interpDay.confidence < 1, 'interp confidence deve ser < 1')
 
-// ─── Reason: forecasted → score null ──────────────────────────────────────
+// ─── forecasted → score não-null, derivedFromInterpolated=true ───────────
 
 const forecastDataset = buildDataset({}, { forecasted: true })
 const forecastSeries = computeRecoveryScoreSeries(forecastDataset)
 const forecastDay = forecastSeries[forecastSeries.length - 1]
-assert.equal(forecastDay.score, null)
-assert.equal(forecastDay.reason, 'forecasted')
+assert.ok(forecastDay.score != null, 'forecasted deve ter score não-null')
+assert.equal(forecastDay.derivedFromInterpolated, true)
+assert.ok(forecastDay.confidence != null && forecastDay.confidence < 1, 'forecast confidence deve ser < 1')
+
+// ─── Dia real → derivedFromInterpolated=false, confidence=1 ──────────────
+
+const realDay = meanSeries[meanSeries.length - 1]
+assert.equal(realDay.derivedFromInterpolated, false)
+assert.equal(realDay.confidence, 1)
+
+// ─── Confidence interp = 0.7× do mesmo dia real ──────────────────────────
+
+const sameInputsReal = buildDataset(
+  {},
+  { hrv: baselines.hrv.mean, rhr: baselines.rhr.mean, sleepEff: 90, sleepTotal: 7.5, valence: 0 },
+)
+const sameInputsInterp = buildDataset(
+  {},
+  { hrv: baselines.hrv.mean, rhr: baselines.rhr.mean, sleepEff: 90, sleepTotal: 7.5, valence: 0, interpolated: true },
+)
+const realPoint = computeRecoveryScoreSeries(sameInputsReal).at(-1)!
+const interpPoint = computeRecoveryScoreSeries(sameInputsInterp).at(-1)!
+assert.ok(realPoint.confidence === 1, `real confidence deve ser 1, got ${realPoint.confidence}`)
+assert.ok(
+  Math.abs(interpPoint.confidence - 0.7) < 1e-9,
+  `interp confidence deve ser 0.7, got ${interpPoint.confidence}`,
+)
 
 // ─── Reason: input missing (mood null) → score null ──────────────────────
 

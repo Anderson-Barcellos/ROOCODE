@@ -10,7 +10,8 @@
  *
  * Princípios:
  *   - Função pura. Recebe snapshots, retorna série.
- *   - Regra interim M6: snapshot interpolated/forecasted → score=null.
+ *   - Sprint M6: interp/forecast recebem score normalmente; derivedFromInterpolated=true,
+ *     confidence=0.7 (vs 1.0 pra dias reais). Baselines continuam excluindo interp/forecast.
  *   - Baselines HRV/RHR únicas do dataset, calculadas só sobre dias reais
  *     (mesmo padrão da Sprint M3, vital-signs-timeline).
  *   - Política rigorosa: 5/5 componentes obrigatórios; se faltar 1 → null.
@@ -47,8 +48,9 @@ export interface RecoveryScorePoint {
   date: string
   score: number | null
   components: RecoveryComponents | null
-  /** Razão pela qual score é null (debug/UX). */
-  reason?: 'interpolated' | 'forecasted' | 'baseline_missing' | 'inputs_missing'
+  confidence: number
+  derivedFromInterpolated: boolean
+  reason?: 'baseline_missing' | 'inputs_missing'
 }
 
 export interface RecoveryBaselines {
@@ -166,15 +168,10 @@ export function computeRecoveryScoreSeries(
 
   return snapshots.map((snapshot) => {
     const { date } = snapshot
+    const derivedFromInterpolated = !!(snapshot.interpolated || snapshot.forecasted)
 
-    if (snapshot.forecasted) {
-      return { date, score: null, components: null, reason: 'forecasted' }
-    }
-    if (snapshot.interpolated) {
-      return { date, score: null, components: null, reason: 'interpolated' }
-    }
     if (!baselines.hrv || !baselines.rhr) {
-      return { date, score: null, components: null, reason: 'baseline_missing' }
+      return { date, score: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'baseline_missing' as const }
     }
 
     const components = buildComponents(
@@ -189,10 +186,11 @@ export function computeRecoveryScoreSeries(
     )
 
     if (!components) {
-      return { date, score: null, components: null, reason: 'inputs_missing' }
+      return { date, score: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'inputs_missing' as const }
     }
 
     const score = clamp(weightedScore(components), 0, 100)
-    return { date, score, components }
+    const confidence = derivedFromInterpolated ? 0.7 : 1
+    return { date, score, components, confidence, derivedFromInterpolated }
   })
 }

@@ -174,8 +174,6 @@ export function evaluateReadiness(
 
 export const CHART_REQUIREMENTS = {
   timelineChart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3 },
-  hrvAnalysis: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'hrvSdnn' },
-  heartRateBands: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'restingHeartRate' },
   activityBars: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3 },
   sleepStagesChart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3, field: 'sleepTotalHours' },
   spo2Chart: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3, field: 'spo2' },
@@ -205,4 +203,8 @@ export const CHART_REQUIREMENTS = {
   // HRV/RHR (regra interim M6) + 5 inputs por dia. Threshold mais alto pra
   // estabilidade da série composta.
   recoveryScoreChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
+  // Sprint M5 — Autonomic Balance Index. z-score de ln(HRV/RHR), baseline
+  // única sobre dias reais. Threshold um pouco mais alto que Recovery Score
+  // pq log-ratio precisa de mais histórico pra estabilizar.
+  autonomicBalanceChart: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
 } as const satisfies Record<string, ReadinessRequirement>

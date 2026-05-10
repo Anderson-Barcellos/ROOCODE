@@ -13,8 +13,7 @@ import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
 import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
 import { SleepDebtHrvCard } from '@/components/charts/sleep-debt-hrv-card'
-import { HeartRateBands } from '@/components/charts/heart-rate-bands'
-import { HrvAnalysis } from '@/components/charts/hrv-analysis'
+import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-chart'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
@@ -497,13 +496,7 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
-                  <HrvAnalysis snapshots={rangedWithForecast} baselineBands={cardio.hrvBaselineBands} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-
-                  <HeartRateBands
-                    snapshots={rangedWithForecast}
-                    overtraining={cardio.overtrainingStatus ?? undefined}
-                    forecastStartDate={forecast === 'on' ? todayIso : undefined}
-                  />
+                  <AutonomicBalanceChart snapshots={rangedWithForecast} />
 
                   <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
 

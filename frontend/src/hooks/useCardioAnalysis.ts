@@ -3,20 +3,6 @@ import { useMemo } from 'react'
 import type { DailySnapshot } from '@/types/apple-health'
 import { mean } from '@/utils/date'
 
-export interface HrvBaselineBand {
-  date: string
-  mean: number
-  upper: number
-  lower: number
-}
-
-export interface OvertrainingStatus {
-  isOvertrained: boolean
-  daysElevated: number
-  baselineMean: number
-  baselineUpper: number
-}
-
 export interface RecoveryScore {
   score: number | null
   hrvComponent: number | null
@@ -28,73 +14,9 @@ export interface RecoveryScore {
 }
 
 const BASELINE_WINDOW = 14
-const OVERTRAINING_MIN_DAYS = 7
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
-}
-
-function stdDev(values: number[]): number {
-  if (values.length < 2) return 0
-  const avg = values.reduce((sum, v) => sum + v, 0) / values.length
-  const variance = values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / values.length
-  return Math.sqrt(variance)
-}
-
-function computeHrvBaselineBands(snapshots: DailySnapshot[]): HrvBaselineBand[] {
-  const bands: HrvBaselineBand[] = []
-
-  for (let i = 0; i < snapshots.length; i++) {
-    const start = Math.max(0, i - BASELINE_WINDOW)
-    const windowSlice = snapshots.slice(start, i)
-    const hrvValues = windowSlice
-      .map((s) => s.health?.hrvSdnn ?? null)
-      .filter((v): v is number => v != null && Number.isFinite(v))
-
-    if (hrvValues.length < 2) continue
-
-    const avg = hrvValues.reduce((sum, v) => sum + v, 0) / hrvValues.length
-    const sd = stdDev(hrvValues)
-    bands.push({
-      date: snapshots[i].date,
-      mean: avg,
-      upper: avg + sd,
-      lower: avg - sd,
-    })
-  }
-
-  return bands
-}
-
-function computeOvertrainingStatus(snapshots: DailySnapshot[]): OvertrainingStatus | null {
-  const rhrWithDates = snapshots
-    .map((s) => ({ date: s.date, rhr: s.health?.restingHeartRate ?? null }))
-    .filter((x): x is { date: string; rhr: number } => x.rhr != null && Number.isFinite(x.rhr))
-
-  if (rhrWithDates.length < OVERTRAINING_MIN_DAYS) return null
-
-  const baselineEndIndex = Math.max(0, rhrWithDates.length - OVERTRAINING_MIN_DAYS)
-  const baselinePool =
-    baselineEndIndex > 0 ? rhrWithDates.slice(0, baselineEndIndex) : rhrWithDates
-  const baselineValues = baselinePool.map((x) => x.rhr)
-  const baselineMean = baselineValues.reduce((sum, v) => sum + v, 0) / baselineValues.length
-  const baselineUpper = baselineMean + stdDev(baselineValues)
-
-  let daysElevated = 0
-  for (let i = rhrWithDates.length - 1; i >= 0; i--) {
-    if (rhrWithDates[i].rhr > baselineUpper) {
-      daysElevated += 1
-    } else {
-      break
-    }
-  }
-
-  return {
-    isOvertrained: daysElevated >= OVERTRAINING_MIN_DAYS,
-    daysElevated,
-    baselineMean,
-    baselineUpper,
-  }
 }
 
 function computeDayScore(
@@ -216,14 +138,10 @@ function computeRecoveryScore(snapshots: DailySnapshot[]): RecoveryScore | null 
 }
 
 export function useCardioAnalysis(snapshots: DailySnapshot[]): {
-  hrvBaselineBands: HrvBaselineBand[]
-  overtrainingStatus: OvertrainingStatus | null
   recoveryScore: RecoveryScore | null
 } {
   return useMemo(
     () => ({
-      hrvBaselineBands: computeHrvBaselineBands(snapshots),
-      overtrainingStatus: computeOvertrainingStatus(snapshots),
       recoveryScore: computeRecoveryScore(snapshots),
     }),
     [snapshots],

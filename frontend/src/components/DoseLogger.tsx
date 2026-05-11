@@ -65,8 +65,14 @@ export default function DoseLogger() {
       return
     }
 
-    // Substância manual (suplemento/PRN) — preserva campos pra user digitar
-    setDoseFromRegimen(false)
+    // Substância PRN/manual — usa typical_dose_mg como sugestão se disponível
+    const sub = substances.find((s) => s.id === value)
+    if (sub?.typical_dose_mg != null) {
+      setDoseMg(String(sub.typical_dose_mg))
+      setDoseFromRegimen(true)
+    } else {
+      setDoseFromRegimen(false)
+    }
     setTimeFromRegimen(false)
   }
 

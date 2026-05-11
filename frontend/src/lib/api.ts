@@ -12,6 +12,7 @@ export interface Substance {
   dose_unit: string
   confidence: 'high' | 'medium' | 'low' | 'unknown'
   is_custom: boolean
+  typical_dose_mg?: number | null
   // Campos PK full (retornados apenas com ?full=true; undefined no modo slim)
   model_supported?: boolean
   time_unit?: string

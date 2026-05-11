@@ -283,6 +283,7 @@ def _serialize_substance(key: str, profile: dict, is_custom: bool, full: bool) -
         "dose_unit": profile.get("dose_unit", "mg"),
         "confidence": profile.get("confidence", "unknown"),
         "is_custom": is_custom,
+        "typical_dose_mg": profile.get("typical_dose_mg"),
     }
     if not full:
         return base

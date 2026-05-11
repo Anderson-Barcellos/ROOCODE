@@ -205,6 +205,7 @@
     },
     "clonazepam": {
       "display_name": "Rivotril (clonazepam)",
+      "typical_dose_mg": 1.0,
       "aliases": [
         "rivotril",
         "clonazepam",

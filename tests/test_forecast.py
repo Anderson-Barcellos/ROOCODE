@@ -536,5 +536,93 @@ class BuildRecentSummaryEnrichedTests(unittest.TestCase):
         self.assertEqual(out["interpolated_days_in_context"], 0)
 
 
+class BuildPromptEnrichedTests(unittest.TestCase):
+    """M6.2.c — _build_prompt inclui PACIENTE + REGIME + PK + DERIVAÇÕES."""
+
+    def _future_dates(self) -> List[Dict[str, str]]:
+        return [
+            {"date": "2026-04-08", "weekday": "Quarta-feira"},
+            {"date": "2026-04-09", "weekday": "Quinta-feira"},
+        ]
+
+    def _enriched_recent(self) -> List[Dict[str, Any]]:
+        # Compactado igual o pipeline real produz após M6.2.b
+        return [
+            {
+                "date": "2026-04-04",
+                "values": {
+                    "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                    "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.2,
+                },
+                "derivations": {"recoveryScore": 70.0, "abi": 0.3, "wristTempDeviation": -0.05},
+            },
+            {
+                "date": "2026-04-05",
+                "values": {
+                    "sleepTotalHours": 6.5, "hrvSdnn": 105.0, "restingHeartRate": 56.0,
+                    "activeEnergyKcal": 450.0, "exerciseMinutes": 30.0, "valence": 0.0,
+                },
+                "derivations": {"recoveryScore": 65.0, "abi": 0.1, "wristTempDeviation": 0.1},
+                "is_interpolated": True,
+            },
+        ]
+
+    def test_prompt_contains_patient_block(self):
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        self.assertIn("PACIENTE", prompt)
+        self.assertIn("39 anos, 91 kg", prompt)
+        self.assertIn("Neuropsiquiatra", prompt)
+
+    def test_prompt_contains_regimen_block(self):
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        self.assertIn("REGIME FARMACOLÓGICO", prompt)
+        self.assertIn("Escitalopram 40 mg", prompt)
+        self.assertIn("Lisdexanfetamina 200 mg", prompt)
+        self.assertIn("Lamotrigina 200 mg", prompt)
+
+    def test_prompt_contains_derivations_when_present(self):
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        self.assertIn("DERIVAÇÕES_COMPOSTAS_JSON", prompt)
+        self.assertIn("recoveryScore", prompt)
+
+    def test_prompt_contains_pk_context_block_with_real_regimen(self):
+        # build_pk_series usa Farma/regimen_config.json + dose_log.json reais
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        # PK_CONTEXT é opcional — só aparece se build_pk_series retornar dados.
+        # Com regimen real do Anders deve aparecer pra Lexapro/Lamictal/Venvanse.
+        self.assertIn("PK_CONTEXT_JSON", prompt)
+
+    def test_prompt_omits_derivations_block_when_absent(self):
+        # Snapshots legacy sem derivations não devem ter o bloco
+        legacy = [
+            forecast_router._compact_snapshot(s) for s in _build_snapshots()
+        ]
+        legacy = [c for c in legacy if c is not None]
+        prompt = forecast_router._build_prompt(legacy, self._future_dates(), cap=0.4)
+        self.assertNotIn("DERIVAÇÕES_COMPOSTAS_JSON", prompt)
+        # PACIENTE + REGIME aparecem sempre (são âncoras estáveis)
+        self.assertIn("PACIENTE", prompt)
+        self.assertIn("REGIME FARMACOLÓGICO", prompt)
+
+    def test_prompt_size_reasonable(self):
+        # Cap defensivo: prompt completo deve caber bem abaixo de 100k chars.
+        # Anders tem 10M tokens/dia, mas vale monitorar pra detectar inflar acidental.
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        self.assertLess(len(prompt), 100_000, "Prompt cresceu demais — investigar")
+
+    def test_prompt_includes_interp_count_in_rules(self):
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        self.assertIn("interpolated_days_in_context", prompt)
+
+    @patch("Forecast.router.build_pk_series")
+    def test_pk_failure_does_not_break_prompt(self, mock_pk):
+        mock_pk.side_effect = RuntimeError("PK calculation failed")
+        # Não deve raise — só omite o bloco PK
+        prompt = forecast_router._build_prompt(self._enriched_recent(), self._future_dates(), cap=0.4)
+        self.assertNotIn("PK_CONTEXT_JSON", prompt)
+        # Resto do prompt segue intacto
+        self.assertIn("PACIENTE", prompt)
+
+
 if __name__ == "__main__":
     unittest.main()

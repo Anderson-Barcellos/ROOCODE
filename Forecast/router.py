@@ -30,6 +30,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from Forecast import storage as forecast_storage
+from Forecast.payload_helpers import build_pk_series
 
 router = APIRouter()
 
@@ -494,6 +495,37 @@ def _build_recent_summary(
     }
 
 
+_PATIENT_BLOCK = (
+    "PACIENTE\n"
+    "Masculino, 39 anos, 91 kg, Santa Cruz do Sul/RS. Neuropsiquiatra em atividade, "
+    "com TDAH + TOC desde a infância. Perfil cardiometabólico sem comorbidades relevantes."
+)
+
+_REGIMEN_BLOCK = (
+    "REGIME FARMACOLÓGICO (steady-state em todas as drogas contínuas)\n"
+    "- Escitalopram 40 mg/dia (ISRS; t½ ~30 h; supressão leve de HRV ~5-10%; valence basal em platô).\n"
+    "- Lisdexanfetamina 200 mg/dia matinal (Tmax ~3-4 h; duração ~12-14 h; impacta exerciseMinutes "
+    "e activeEnergyKcal diurnos; mínimo efeito em HRV noturno; pausa em fins de semana por regime).\n"
+    "- Lamotrigina 200 mg/dia (estabilizador; t½ ~25 h; sem picos intradia clinicamente relevantes; "
+    "efeito crônico em valence basal).\n"
+    "- Clonazepam PRN (uso esporádico; assuma ausência salvo sinal contrário nos dados)."
+)
+
+_PK_SUBSTANCES = ("lexapro", "lamictal", "venvanse")
+
+
+def _build_pk_context_block(recent: list[dict]) -> dict[str, Any]:
+    """Concentrações simuladas ao meio-dia pros últimos 7 dias do contexto."""
+    recent_dates = [str(s.get("date") or "") for s in recent[-7:] if s.get("date")]
+    if not recent_dates:
+        return {}
+    try:
+        return build_pk_series(list(_PK_SUBSTANCES), recent_dates)
+    except Exception:
+        # Falha não pode bloquear o forecast — payload PK é enriquecimento opcional.
+        return {}
+
+
 def _build_prompt(
     recent: list[dict],
     future_dates: list[dict[str, str]],
@@ -502,12 +534,29 @@ def _build_prompt(
 ) -> str:
     future_list = [{"date": fd["date"], "weekday": fd["weekday"]} for fd in future_dates]
     summary_payload = _build_recent_summary(recent, rolling_summary)
+    pk_context = _build_pk_context_block(recent)
+
+    pk_block = (
+        f"\nPK_CONTEXT_JSON (concentrações simuladas ao meio-dia, ng/mL, últimos 7 dias)\n"
+        f"{json.dumps(pk_context, ensure_ascii=False, separators=(',', ':'))}\n"
+        if pk_context else ""
+    )
+
+    derivations_block = (
+        f"\nDERIVAÇÕES_COMPOSTAS_JSON (recoveryScore 0-100, abi z-score pessoal, wristTempDeviation °C)\n"
+        f"{json.dumps(summary_payload.get('derivations_summary', {}), ensure_ascii=False, separators=(',', ':'))}\n"
+        if summary_payload.get("derivations_summary") else ""
+    )
 
     return f"""Você é um analista clínico e deve projetar {len(future_dates)} dias futuros para um dashboard fisiológico.
 
-Use SOMENTE o resumo abaixo (sem inventar contexto externo). O regime farmacológico do paciente está estável (steady-state), então a projeção deve priorizar tendência recente e efeito de dia-da-semana.
+Use SOMENTE o resumo abaixo (sem inventar contexto externo). O regime farmacológico do paciente está estável (steady-state), então a projeção deve priorizar tendência recente, efeito de dia-da-semana, e ancoragem nos índices compostos.
 
-RESUMO_ESTRUTURADO_JSON
+{_PATIENT_BLOCK}
+
+{_REGIMEN_BLOCK}
+{pk_block}{derivations_block}
+RESUMO_ESTRUTURADO_JSON (inclui field_trends com sono detalhado quando disponível)
 {json.dumps(summary_payload, ensure_ascii=False, separators=(",", ":"))}
 
 DATAS_A_PROJETAR_JSON
@@ -516,10 +565,12 @@ DATAS_A_PROJETAR_JSON
 REGRAS
 1. Projete sinais plausíveis e coerentes entre si (HRV x FC de repouso anticorrelacionados quando fizer sentido).
 2. Preserve autocorrelação temporal: não crie saltos abruptos sem justificativa.
-3. Use `field_trends`, `rolling_summary` e `weekday_effect` como âncoras principais.
-4. Incerteza cresce no horizonte: `confidence` não pode aumentar do dia T+1 para T+5.
-5. `confidence` deve ficar entre 0 e {cap:.2f}.
-6. Tom descritivo e prudente; sem recomendação médica.
+3. Use `field_trends`, `rolling_summary`, `weekday_effect` e `derivations_summary` como âncoras principais.
+4. Quando PK_CONTEXT estiver presente, considere efeito de Tmax matinal de Venvanse no `activeEnergyKcal`/`exerciseMinutes` diurnos. Lexapro e Lamictal estão flat (steady-state).
+5. `interpolated_days_in_context` indica quantos dias do recente são estimativas (não medidos) — pesem menos esses pontos.
+6. Incerteza cresce no horizonte: `confidence` não pode aumentar do dia T+1 para T+5.
+7. `confidence` deve ficar entre 0 e {cap:.2f}.
+8. Tom descritivo e prudente; sem recomendação médica.
 
 RETORNO (JSON válido, sem markdown, sem texto fora do JSON):
 {{

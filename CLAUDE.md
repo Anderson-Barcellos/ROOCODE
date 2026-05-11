@@ -75,12 +75,12 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-10 — meio da Sprint M6)
+## Status local validado (2026-05-10 — Sprint M6 concluída)
 
-- Frontend: tsc + lint + test:unit + build ✅ pós-bff5752 (M6.2.e)
+- Frontend: tsc + lint + test:unit + build ✅ pós-3175be7 (M6.3.f)
 - Backend: 47 tests verdes em test_forecast (era 29 antes de M6) + 16 em test_forecast_payload_helpers + farma/mood inalterados
 - Diff hygiene: ✅ (`reports_history.json` adicionado ao .gitignore na M6.3.a)
-- M6 EM ANDAMENTO: 9/14 tasks done. Continuação documentada no fim do `ROADMAP_maturation.md` (KICKOFF — Continuação Sprint M6). Plano completo em `/root/.claude/plans/crystalline-wondering-dijkstra.md`.
+- M6 CONCLUÍDA: 14/14 tasks done. Commits 137d63a → 3175be7 (14 commits, 13 feature + 1 docs intermediário). Plano completo em `/root/.claude/plans/crystalline-wondering-dijkstra.md`.
 - Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) consolidado.
 - `walkingStepLengthCm` exposto no pipeline (sem chart ainda — disponível pra próxima sprint visualizar).
 - PKHumorCorrelation com pré-registro + lag sweep [-3d..+3d] + heatmap UI.
@@ -90,10 +90,11 @@ git diff --check
 - Utility `personal-baselines.ts` (`computeRollingBaseline` + `rollingStandardDeviation`) consolidada — reusada em M3 (Wrist Temp), M4 (Recovery Score) e M5 (ABI).
 - Panorama tab exibe `RecoveryScoreChart` (commit `322781e`): score 0-100 composto (30% HRV z / 25% sleep eff / 20% RHR z invertido / 15% sleep debt 7d invertido / 10% mood reescalado). Regra interim M6 aplicada — score=null em interp/forecast. `timeline-chart.tsx` segue intacto (consumo em InterpolationDemo). Pesos preliminary calibration. **UI manual não validada nessa sessão** — Chrome DevTools MCP indisponível.
 - Coração tab exibe `AutonomicBalanceChart` (commit `7fab71b`): z-score pessoal de `ln(HRV/RHR)`, baseline única do dataset (30/14, padrão M3/M4), 3 bandas (z<-1 simpático / -1..+1 equilibrado / z≥+1 parassimpático), SMA-7d sobreposto, tooltip educativo com HRV/RHR/ratio/log-ratio/z. Aba agora tem 3 charts (era 4): ABI → HRRangeChart → CardioRecoveryChart. **Hard-remove** dos antigos `hrv-analysis.tsx` e `heart-rate-bands.tsx`; hook `useCardioAnalysis` enxugado mantendo só `RecoveryScore` legacy (alimenta MetricGrid do Panorama). **UI manual não validada nessa sessão**.
+- Análise IA verbose em modal fullscreen (commits 137d63a → 3175be7): endpoint `POST /forecast/report` retorna narrative estruturada em 6 seções (contexto/hipóteses/tendências/drivers/projeção 5d/monitoramento) + drivers + signals + forecast cru, persistido em `Forecast/reports_history.json`. Frontend consome via `useForecastReport` mutation + `useForecastReportsList`/`useForecastReportById` queries. Modal Radix Dialog acessível pelo botão "🔮 Análise IA" no TabNav (cor violet, junto ao range selector). Histórico de relatórios clicável na sidebar. **Mudança comportamental:** forecast simples (linhas tracejadas nos charts) agora sempre on (não mais toggle ON/OFF — segmento removido do TabNav), 1 request OpenAI por sessão (cached 1h). `ForecastSignalsPanel.tsx` órfão (sem consumers) — backlog de limpeza. **UI manual não validada nessa sessão**.
 
 ## Próxima sprint planejada
 
-**Sprint Maturation** — M1-M5 ✅ + M6 EM ANDAMENTO. **KICKOFF de continuação no fim do `ROADMAP_maturation.md`** — single-source-of-truth, sem repetir nome aqui pra evitar drift.
+**Sprint Maturation completa — M1-M6 ✅**. **KICKOFF da próxima sprint no fim do `ROADMAP_maturation.md`** — aguardando definição com Anders.
 
 Concluídas:
 - Sprint M1 (Farma debug do `PKStandardDoseComparison`) em 2026-05-09 — commits `b0622ff` + `6b1bc07`.
@@ -101,9 +102,7 @@ Concluídas:
 - Sprint M3 (Wrist Temp Deviation + FR variability + utility `personal-baselines.ts`) em 2026-05-09 — commit `bb4cad6`.
 - Sprint M4 (Recovery Score composto na aba Panorama) em 2026-05-10 — commit `322781e`.
 - Sprint M5 (Autonomic Balance Index na aba Coração + hard-remove HrvAnalysis/HeartRateBands) em 2026-05-10 — commit `7fab71b`.
-
-Em andamento:
-- **Sprint M6** (Interp policy + payload IA enriquecido + relatório modal) — 9/14 tasks done em 2026-05-10. Commits 137d63a → 8ba37fd. Próxima task = M6.3.c (frontend useForecastReport.ts). Modo de trabalho atual: orchestrator-driven (sem subagents).
+- Sprint M6 (Interp policy + payload IA enriquecido + relatório IA modal) em 2026-05-10 — commits 137d63a → 3175be7 (14 commits, 13 feature + 1 docs intermediário).
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 

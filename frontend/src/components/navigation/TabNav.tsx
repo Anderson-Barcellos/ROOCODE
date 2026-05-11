@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { Activity, Heart, LayoutDashboard, MoonStar, Pill, Sparkles, Telescope } from 'lucide-react'
-import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
 export type TabKey = 'panorama' | 'sono' | 'coracao' | 'atividade' | 'farmaco' | 'insights'
@@ -22,11 +21,6 @@ const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = A
       { key: 'linear', label: 'Linear' },
     ]
 
-const forecastOptions: Array<{ key: ForecastMode; label: string }> = [
-  { key: 'off', label: 'Off' },
-  { key: 'on', label: '🔮 Projetar 5d' },
-]
-
 interface TabNavProps {
   activeTab: TabKey
   onTabChange: (tab: TabKey) => void
@@ -35,9 +29,7 @@ interface TabNavProps {
   interpolation: InterpolationMode
   onInterpolationChange: (mode: InterpolationMode) => void
   interpolationLoading?: boolean
-  forecast: ForecastMode
-  onForecastChange: (mode: ForecastMode) => void
-  forecastLoading?: boolean
+  onAnalyzeClick: () => void
 }
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> = [
@@ -57,9 +49,7 @@ export function TabNav({
   interpolation,
   onInterpolationChange,
   interpolationLoading = false,
-  forecast,
-  onForecastChange,
-  forecastLoading = false,
+  onAnalyzeClick,
 }: TabNavProps) {
   return (
     <nav className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-900/10 shadow-sm">
@@ -101,6 +91,14 @@ export function TabNav({
               {option}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={onAnalyzeClick}
+            className="ml-3 inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+          >
+            <Sparkles className="h-3 w-3" />
+            Análise IA
+          </button>
         </div>
       </div>
 
@@ -137,35 +135,6 @@ export function TabNav({
           })}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1 inline-flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            Projeção
-          </span>
-          {forecastOptions.map(({ key, label }) => {
-            const active = forecast === key
-            const showSpinner = active && key === 'on' && forecastLoading
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onForecastChange(key)}
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition inline-flex items-center gap-1.5 ${
-                  active
-                    ? key === 'on'
-                      ? 'bg-violet-700 text-white'
-                      : 'bg-slate-950 text-white'
-                    : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {label}
-                {showSpinner && (
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" aria-label="loading" />
-                )}
-              </button>
-            )
-          })}
-        </div>
       </div>
     </nav>
   )

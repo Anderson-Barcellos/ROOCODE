@@ -5,6 +5,7 @@ import { Activity, Compass, MoonStar, FlaskConical, Pill, Telescope } from 'luci
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
+import { ForecastReportModal } from '@/components/charts/ForecastReportModal'
 import { SurfaceFrame, MetricGrid, EmptyAnalyticsState } from '@/components/analytics/shared'
 import type { AnalyticsMetric, AnalyticsTone } from '@/components/analytics/types'
 import DoseLogger from '@/components/DoseLogger'
@@ -39,7 +40,6 @@ import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { OverviewMetrics } from '@/types/apple-health'
-import { ForecastSignalsPanel } from '@/components/charts/ForecastSignalsPanel'
 import { selectSnapshotRange } from '@/utils/aggregation'
 
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
@@ -256,23 +256,16 @@ export default function App() {
     setInterpolationState(nextMode)
     localStorage.setItem('roocode-interpolation', nextMode)
   }
-  const [forecast, setForecastState] = useState<ForecastMode>(() => {
-    const saved = localStorage.getItem('roocode-forecast')
-    return saved === 'on' ? 'on' : 'off'
-  })
-  const setForecast = (mode: ForecastMode) => {
-    setForecastState(mode)
-    localStorage.setItem('roocode-forecast', mode)
-  }
-  const data = useRooCodeData(interpolation, forecast)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const data = useRooCodeData(interpolation, 'on')
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
   const todayIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const rangedWithForecast = useMemo(
     () =>
-      forecast === 'on' && data.forecastedSnapshots.length > 0
+      data.forecastedSnapshots.length > 0
         ? [...ranged, ...data.forecastedSnapshots]
         : ranged,
-    [ranged, data.forecastedSnapshots, forecast],
+    [ranged, data.forecastedSnapshots],
   )
   const cardio = useCardioAnalysis(ranged)
   // Fase 8A — agregações 7d pros novos KPIs Activity/Physiology
@@ -336,9 +329,7 @@ export default function App() {
         interpolation={interpolation}
         onInterpolationChange={setInterpolation}
         interpolationLoading={data.interpolationLoading}
-        forecast={forecast}
-        onForecastChange={setForecast}
-        forecastLoading={data.forecastLoading}
+        onAnalyzeClick={() => setReportModalOpen(true)}
       />
 
       <main className="app-shell">
@@ -398,16 +389,6 @@ export default function App() {
 
                   <RecoveryScoreChart snapshots={rangedWithForecast} />
 
-                  {forecast === 'on' && (
-                    <ForecastSignalsPanel
-                      signals={data.forecastSignals}
-                      loading={data.forecastLoading}
-                      error={data.forecastError}
-                      errorMessage={data.forecastErrorMessage}
-                      maxConfidence={data.forecastMaxConfidence}
-                      forecastedSnapshots={data.forecastedSnapshots}
-                    />
-                  )}
                 </div>
               )}
             </SurfaceFrame>
@@ -435,7 +416,7 @@ export default function App() {
                 </div>
                 <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
-                <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                 <PKMedicationGrid hoursWindow={168} />
 
@@ -472,11 +453,11 @@ export default function App() {
 
                   <SleepDebtChart snapshots={ranged} />
 
-                  <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <RespiratoryDisturbancesChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    <VitalSignsTimeline snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                    <RespiratoryDisturbancesChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                    <VitalSignsTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
                   </div>
                 </div>
               )}
@@ -498,9 +479,9 @@ export default function App() {
                 <div className="space-y-4">
                   <AutonomicBalanceChart snapshots={rangedWithForecast} />
 
-                  <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
-                  <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
                 </div>
               )}
             </SurfaceFrame>
@@ -519,13 +500,13 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
-                  <ActivityBars snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  <ActivityBars snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
-                  <StepsChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                  <StepsChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
-                    <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={forecast === 'on' ? todayIso : undefined} />
+                    <Vo2MaxChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                    <WalkingVitalityChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
                   </div>
                 </div>
               )}
@@ -565,6 +546,12 @@ export default function App() {
           )}
         </div>
       </main>
+      <ForecastReportModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        snapshots={data.snapshots}
+        validRealDays={data.validRealDays}
+      />
     </>
   )
 }

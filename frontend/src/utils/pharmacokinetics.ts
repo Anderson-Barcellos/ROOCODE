@@ -339,11 +339,14 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     name: 'Lisdexamfetamina',
     brandName: 'Venvanse',
     category: 'Stimulant',
-    halfLife: 11,
-    volumeOfDistribution: 3.5,
-    bioavailability: 0.96,
-    absorptionRate: 1.5,
-    therapeuticRange: { min: 50, max: 150, unit: 'ng/mL' },
+    // Analito modelado: dextroanfetamina (formada após administração da pró-droga).
+    // Vd/F aparente oral; F=1.0 evita dupla correção. Parâmetros alinhados com
+    // Farma/medDataBase.json (backend). Sources: DailyMed + PMC3689918.
+    halfLife: 11.2,
+    volumeOfDistribution: 15.58,
+    bioavailability: 1.0,
+    absorptionRate: 0.604541,
+    therapeuticRange: { min: 10, max: 30, unit: 'ng/mL' },
   },
   lamotrigine: {
     name: 'Lamotrigina',

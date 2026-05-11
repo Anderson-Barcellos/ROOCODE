@@ -203,6 +203,38 @@
         "https://go.drugbank.com/drugs/DB00114"
       ]
     },
+    "clonazepam": {
+      "display_name": "Rivotril (clonazepam)",
+      "aliases": [
+        "rivotril",
+        "clonazepam",
+        "klonopin"
+      ],
+      "model_supported": true,
+      "confidence": "medium",
+      "dose_unit": "mg",
+      "time_unit": "hours",
+      "bioavailability": 0.90,
+      "half_life_hours": 33.0,
+      "tmax_hours": 2.0,
+      "ke_per_hour": 0.021004,
+      "ka_per_hour": 2.300000,
+      "vd_l_per_kg": 3.2,
+      "vd_basis": "label_value",
+      "therapeutic_range_min": 5,
+      "therapeutic_range_max": 70,
+      "therapeutic_range_unit": "ng/mL",
+      "notes": [
+        "Meia-vida media 33h (literatura: 20-50h). Tmax ~2h oral.",
+        "ka derivado numericamente para Tmax=2h com ke=0.021 (modelo 1-compartimento oral).",
+        "Confidence medium: Vd tem variabilidade ampla (1.5-4.4 L/kg); usado ponto medio de 3.2 L/kg.",
+        "Faixa terapeutica referenciada para ansiedade/panico. Epilepsia pode usar concentracoes maiores."
+      ],
+      "sources": [
+        "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e84e3882-4ab8-4a48-9c4c-d6d9bb1b3cdc",
+        "https://go.drugbank.com/drugs/DB01068"
+      ]
+    },
     "piracetam": {
       "display_name": "Piracetam",
       "aliases": [

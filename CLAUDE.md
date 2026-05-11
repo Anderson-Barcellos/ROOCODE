@@ -56,19 +56,16 @@ git diff --check
 - `/interpolate` (POST)
 - `/forecast` (POST)
 
-## Baseline funcional preservado
+## Componentes ativos por aba (22 total — 2026-05-11)
 
-- Medication Action Center ativo:
-  - `DoseLogger` com **tomar agora** por regime.
-  - `DoseCalendarView` com **adicionar/editar/remover** no dia selecionado.
-- Insights ativos:
-  - `MoodDriverBoard` no topo de Insights.
-  - `MoodLagHypothesisLab` com lags `0d..3d`, `n`, qualidade, `r`, baseline e aviso de sampling bias.
-
-## Achados abertos de regularização
-
-1. Slice antigo de charts estacionado em stash (`stash@{0}`), com decisão de tratar em sprint dedicada numa sessão fresh (redução de cache/contexto).
-2. Worktree local segue com fatias misturadas (backend/frontend/testes/docs), com recorte já mapeado em 4 fatias de commit e aguardando execução.
+| Aba | Componentes |
+|---|---|
+| **Panorama** | MetricGrid (KPIs) · WeekdayWeekendCard · ForecastAccuracyCard · RecoveryScoreChart |
+| **Farmaco** | MoodTimeline · PKMedicationGrid · PKStandardDoseComparison · PKHumorCorrelation · DoseLogger · DoseCalendarView |
+| **Sono** | SleepStagesChart · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline |
+| **Coração** | AutonomicBalanceChart · HRRangeChart · CardioRecoveryChart (⚪ empty sem HRR) |
+| **Atividade** | ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart |
+| **Insights** | CorrelationHeatmap · SleepDebtHrvCard · ScatterCorrelation · PKMoodScatterChart · PkRemSuppression · LagCorrelationChart |
 
 ## Notas operacionais recentes
 

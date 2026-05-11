@@ -256,13 +256,47 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           Heatmap PK×humor por lag (-3d a +3d)
         </h3>
         <p className="mt-1 text-xs text-slate-500 leading-5">
-          Pearson r entre EMA de concentração (janela 48h pré-registrada) e valência diária. FDR Benjamini-Hochberg cross-substância × cross-lag.
+          Para cada medicação: como a concentração de hoje correlaciona com teu humor — ontem, hoje ou nos próximos dias.
         </p>
         <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-          <span>Sinais com q_fdr &lt; 0.05:</span>
+          <span>Sinais significativos (q &lt; 0.05):</span>
           <span>{significantCount}</span>
         </p>
       </div>
+
+      {rows.filter((r) => r.peakLagDays !== null).length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {rows
+            .filter((r) => r.peakLagDays !== null)
+            .map((row) => {
+              const peak = row.lags.find((l) => l.lagDays === row.peakLagDays)
+              const direction =
+                peak && peak.r > 0 ? '↑ humor tende a subir' : '↓ humor tende a cair'
+              const lagText =
+                row.peakLagDays === 0
+                  ? 'no mesmo dia'
+                  : row.peakLagDays! > 0
+                    ? `${row.peakLagDays}d depois`
+                    : 'lag negativo — correlação provavelmente espúria'
+              return (
+                <div
+                  key={row.subId}
+                  className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-700"
+                >
+                  <span
+                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6' }}
+                  />
+                  <span className="font-semibold">{row.subName}:</span>
+                  <span>
+                    {direction} quando concentração alta — pico {lagText}
+                    {peak ? ` (r≈${peak.r.toFixed(2)})` : ''}
+                  </span>
+                </div>
+              )
+            })}
+        </div>
+      )}
 
       <div className="mt-4 overflow-x-auto">
         <div
@@ -305,9 +339,19 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           ))}
         </div>
 
-        <p className="mt-3 text-[0.7rem] leading-5 text-slate-500">
-          <span className="font-semibold">Como ler:</span> cor codifica Pearson r (verde positivo, vermelho negativo). Asterisco (★) marca q_fdr &lt; 0.05. Lags negativos (com opacidade reduzida) são <strong>controles de causalidade</strong> — pico em lag negativo sugere correlação espúria, pois concentração futura não pode causar humor passado. Borda âmbar destaca o lag de pico significativo da substância.
-        </p>
+        <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
+          <li>
+            <span className="font-semibold text-teal-700">Verde/↑</span> = mais concentração → humor melhor ·{' '}
+            <span className="font-semibold text-red-500">Vermelho/↓</span> = mais concentração → humor pior
+          </li>
+          <li>
+            <span className="font-semibold text-amber-600">★</span> = resultado com q &lt; 0.05 (controle de falsos positivos entre todas as substâncias × lags) ·{' '}
+            <span className="font-semibold text-amber-600">borda âmbar</span> = lag de pico da substância
+          </li>
+          <li>
+            <span className="font-semibold text-slate-400">Lags negativos (esmaecidos)</span> = controles de causalidade — pico neles indica correlação espúria (concentração futura não causa humor passado)
+          </li>
+        </ul>
       </div>
     </div>
   )
@@ -368,6 +412,12 @@ function HeatmapCell({
       } ${isControl ? 'opacity-70' : ''}`}
       style={{ background: colorForR(estimate.r) }}
     >
+      {estimate.r > 0.05 && (
+        <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-teal-700">↑</span>
+      )}
+      {estimate.r < -0.05 && (
+        <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-red-500">↓</span>
+      )}
       <span className="text-slate-900 mix-blend-luminosity">{formatR(estimate.r)}</span>
       {significant && (
         <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>

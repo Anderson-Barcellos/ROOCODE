@@ -18,7 +18,6 @@ import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-cha
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
-import { PKStandardDoseComparison } from '@/components/charts/pk-standard-dose-comparison'
 import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
@@ -419,8 +418,6 @@ export default function App() {
                 <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                 <PKMedicationGrid hoursWindow={168} />
-
-                <PKStandardDoseComparison regimen={data.regimen} />
 
                 <PKHumorCorrelation snapshots={ranged} />
 

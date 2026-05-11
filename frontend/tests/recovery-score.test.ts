@@ -6,6 +6,7 @@ import {
   computeRecoveryBaselines,
   computeRecoveryScoreSeries,
 } from '../src/utils/recovery-score'
+import { INTERP_CONFIDENCE_MULTIPLIER } from '../src/utils/interp-policy'
 
 // ─── Pesos somam 100 (sanity) ─────────────────────────────────────────────
 
@@ -231,8 +232,8 @@ const realPoint = computeRecoveryScoreSeries(sameInputsReal).at(-1)!
 const interpPoint = computeRecoveryScoreSeries(sameInputsInterp).at(-1)!
 assert.ok(realPoint.confidence === 1, `real confidence deve ser 1, got ${realPoint.confidence}`)
 assert.ok(
-  Math.abs(interpPoint.confidence - 0.7) < 1e-9,
-  `interp confidence deve ser 0.7, got ${interpPoint.confidence}`,
+  Math.abs(interpPoint.confidence - INTERP_CONFIDENCE_MULTIPLIER) < 1e-9,
+  `interp confidence deve ser ${INTERP_CONFIDENCE_MULTIPLIER}, got ${interpPoint.confidence}`,
 )
 
 // ─── Reason: input missing (mood null) → score null ──────────────────────
@@ -242,6 +243,7 @@ const missingMoodSeries = computeRecoveryScoreSeries(missingMoodDataset)
 const missingMoodDay = missingMoodSeries[missingMoodSeries.length - 1]
 assert.equal(missingMoodDay.score, null)
 assert.equal(missingMoodDay.reason, 'inputs_missing')
+assert.equal(missingMoodDay.confidence, 0)
 
 // ─── Reason: input missing (HRV null) → score null ────────────────────────
 
@@ -250,6 +252,7 @@ const missingHrvSeries = computeRecoveryScoreSeries(missingHrvDataset)
 const missingHrvDay = missingHrvSeries[missingHrvSeries.length - 1]
 assert.equal(missingHrvDay.score, null)
 assert.equal(missingHrvDay.reason, 'inputs_missing')
+assert.equal(missingHrvDay.confidence, 0)
 
 // ─── Reason: baseline_missing quando <14 dias reais ──────────────────────
 
@@ -262,6 +265,7 @@ const tinySeries = computeRecoveryScoreSeries(tinyDataset)
 for (const point of tinySeries) {
   assert.equal(point.score, null, `tiny dataset deveria não computar score`)
   assert.equal(point.reason, 'baseline_missing')
+  assert.equal(point.confidence, 0)
 }
 
 // ─── Baseline calculada SEMPRE filtra interpolated/forecasted ─────────────

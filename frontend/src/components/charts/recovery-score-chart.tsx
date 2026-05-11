@@ -40,24 +40,36 @@ const TOOLTIP_STYLE = {
 interface ChartRow {
   date: string
   label: string
-  score: number | null
+  scoreReal: number | null
+  scoreInterp: number | null
   components: RecoveryComponents | null
+  derivedFromInterpolated: boolean
 }
 
 function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
   const series = computeRecoveryScoreSeries(snapshots)
-  const rows: ChartRow[] = series.map((point) => ({
-    date: point.date,
-    label: dayLabel(point.date),
-    score: point.score,
-    components: point.components,
-  }))
+  const rows: ChartRow[] = series.map((point, idx) => {
+    const isInterp = point.derivedFromInterpolated
+    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
+    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+    return {
+      date: point.date,
+      label: dayLabel(point.date),
+      scoreReal: isInterp ? null : point.score,
+      // Include boundary real days adjacent to interp segments so the dashed
+      // line connects without gaps at the transition point.
+      scoreInterp: isInterp ? point.score : (prevIsInterp || nextIsInterp ? point.score : null),
+      components: point.components,
+      derivedFromInterpolated: isInterp,
+    }
+  })
 
   if (rows.length < 2) return rows
 
   // Insere gap rows quando há buracos >2d (mesmo padrão do timeline-chart).
-  // Score=null já provoca quebra visual nos dias interpolated/forecasted, mas
-  // gap >2d entre datas só some na linha se tiver row null no intervalo.
+  // Dias interp/forecast com inputs_missing/baseline_missing continuam retornando
+  // score=null e quebram a linha normalmente; gaps >2d entre datas requerem row
+  // explícita com null pra garantir quebra visual.
   const withGaps: ChartRow[] = []
   for (let i = 0; i < rows.length; i += 1) {
     const current = rows[i]
@@ -65,7 +77,7 @@ function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
     const next = rows[i + 1]
     if (!next) continue
     if (calculateDayGapDays(current.date, next.date) > 2) {
-      withGaps.push({ date: `${current.date}-gap`, label: '', score: null, components: null })
+      withGaps.push({ date: `${current.date}-gap`, label: '', scoreReal: null, scoreInterp: null, components: null, derivedFromInterpolated: false })
     }
   }
   return withGaps
@@ -79,7 +91,8 @@ interface TooltipProps {
 function RecoveryTooltip({ active, payload }: TooltipProps) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload
-  if (!row || row.score == null || !row.components) return null
+  if (!row || (row.scoreReal == null && row.scoreInterp == null) || !row.components) return null
+  const score = row.scoreReal ?? row.scoreInterp
 
   const componentRows: Array<{ key: keyof RecoveryComponents; label: string; weight: number }> = [
     { key: 'hrv', label: 'HRV (z-score)', weight: RECOVERY_WEIGHTS.hrv },
@@ -95,9 +108,14 @@ function RecoveryTooltip({ active, payload }: TooltipProps) {
       style={TOOLTIP_STYLE}
     >
       <div className="mb-1 font-semibold text-slate-700">{row.label}</div>
+      {row.derivedFromInterpolated && (
+        <div className="mb-1 text-[0.62rem] font-medium text-amber-600">
+          ⚠ estimado a partir de dia interp
+        </div>
+      )}
       <div className="mb-2 flex items-baseline gap-1.5">
         <span className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          {row.score.toFixed(0)}
+          {score!.toFixed(0)}
         </span>
         <span className="text-[0.65rem] uppercase tracking-wider text-slate-500">/ 100</span>
       </div>
@@ -128,7 +146,7 @@ export function RecoveryScoreChart({ snapshots }: RecoveryScoreChartProps) {
   const latest = useMemo(() => {
     for (let i = data.length - 1; i >= 0; i -= 1) {
       const row = data[i]
-      if (row.score != null) return row
+      if (row.scoreReal != null || row.scoreInterp != null) return row
     }
     return null
   }, [data])
@@ -159,13 +177,25 @@ export function RecoveryScoreChart({ snapshots }: RecoveryScoreChartProps) {
           <Tooltip content={<RecoveryTooltip />} />
           <Line
             type="monotone"
-            dataKey="score"
+            dataKey="scoreReal"
             stroke={COLOR_LINE}
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 5 }}
             connectNulls={false}
             name="Recovery Score"
+          />
+          <Line
+            type="monotone"
+            dataKey="scoreInterp"
+            stroke={COLOR_LINE}
+            strokeWidth={2.5}
+            strokeDasharray="5 3"
+            dot={false}
+            activeDot={{ r: 5 }}
+            connectNulls={false}
+            name="Recovery Score (estimado)"
+            legendType="none"
           />
         </LineChart>
       </ResponsiveContainer>
@@ -188,11 +218,11 @@ export function RecoveryScoreChart({ snapshots }: RecoveryScoreChartProps) {
             correlação com sintomas reportados.
           </p>
         </div>
-        {latest && latest.score != null && (
+        {latest != null && (latest.scoreReal != null || latest.scoreInterp != null) && (
           <div className="text-right">
             <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
             <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {latest.score.toFixed(0)}
+              {(latest.scoreReal ?? latest.scoreInterp)!.toFixed(0)}
             </div>
             <div className="text-[0.7rem] text-slate-500">{latest.label}</div>
           </div>

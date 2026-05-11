@@ -171,6 +171,10 @@ assert.ok(
 const bothFlagsDataset = buildDataset({}, { interpolated: true, forecasted: true })
 const bothFlagsDay = computeAbiSeries(bothFlagsDataset).at(-1)!
 assert.equal(bothFlagsDay.derivedFromInterpolated, true)
+assert.ok(
+  Math.abs(bothFlagsDay.confidence - INTERP_CONFIDENCE_MULTIPLIER) < 1e-9,
+  `both-flags confidence deve ser ${INTERP_CONFIDENCE_MULTIPLIER} (sem double-apply), got ${bothFlagsDay.confidence}`,
+)
 
 // ─── Reason: inputs_missing (HRV null) ───────────────────────────────────
 
@@ -178,6 +182,7 @@ const missingHrv = buildDataset({}, { hrv: null })
 const missingHrvDay = computeAbiSeries(missingHrv).at(-1)!
 assert.equal(missingHrvDay.abi, null)
 assert.equal(missingHrvDay.reason, 'inputs_missing')
+assert.equal(missingHrvDay.confidence, 0)
 
 // ─── Reason: inputs_missing (RHR null) ───────────────────────────────────
 
@@ -185,6 +190,7 @@ const missingRhr = buildDataset({}, { rhr: null })
 const missingRhrDay = computeAbiSeries(missingRhr).at(-1)!
 assert.equal(missingRhrDay.abi, null)
 assert.equal(missingRhrDay.reason, 'inputs_missing')
+assert.equal(missingRhrDay.confidence, 0)
 
 // ─── Reason: baseline_missing quando <14 dias reais ──────────────────────
 
@@ -197,6 +203,7 @@ const tinySeries = computeAbiSeries(tinyDataset)
 for (const point of tinySeries) {
   assert.equal(point.abi, null)
   assert.equal(point.reason, 'baseline_missing')
+  assert.equal(point.confidence, 0)
 }
 
 // ─── Baseline filtra interpolated/forecasted ─────────────────────────────

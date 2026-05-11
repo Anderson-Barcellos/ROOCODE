@@ -42,9 +42,11 @@ const TOOLTIP_STYLE = {
 interface ChartRow {
   date: string
   label: string
-  abi: number | null
+  abiReal: number | null
+  abiInterp: number | null
   sma7: number | null
   components: AbiComponents | null
+  derivedFromInterpolated: boolean
 }
 
 function bandLabel(z: number): { text: string; color: string } {
@@ -58,13 +60,20 @@ function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
   const abiValues = series.map((p) => p.abi)
   const smaValues = sma(abiValues, 7)
 
-  const rows: ChartRow[] = series.map((point, idx) => ({
-    date: point.date,
-    label: dayLabel(point.date),
-    abi: point.abi,
-    sma7: smaValues[idx],
-    components: point.components,
-  }))
+  const rows: ChartRow[] = series.map((point, idx) => {
+    const isInterp = point.derivedFromInterpolated
+    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
+    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+    return {
+      date: point.date,
+      label: dayLabel(point.date),
+      abiReal: isInterp ? null : point.abi,
+      abiInterp: isInterp ? point.abi : (prevIsInterp || nextIsInterp ? point.abi : null),
+      sma7: smaValues[idx],
+      components: point.components,
+      derivedFromInterpolated: isInterp,
+    }
+  })
 
   if (rows.length < 2) return rows
 
@@ -78,9 +87,11 @@ function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
       withGaps.push({
         date: `${current.date}-gap`,
         label: '',
-        abi: null,
+        abiReal: null,
+        abiInterp: null,
         sma7: null,
         components: null,
+        derivedFromInterpolated: false,
       })
     }
   }
@@ -95,13 +106,19 @@ interface TooltipProps {
 function AbiTooltip({ active, payload }: TooltipProps) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload
-  if (!row || row.abi == null || !row.components) return null
-  const band = bandLabel(row.abi)
+  if (!row || (row.abiReal == null && row.abiInterp == null) || !row.components) return null
+  const abi = (row.abiReal ?? row.abiInterp)!
+  const band = bandLabel(abi)
   const { hrv, rhr, ratio, logRatio, zScore } = row.components
 
   return (
     <div className="rounded-2xl bg-white px-3 py-2 text-xs shadow-[0_18px_42px_rgba(17,35,30,0.12)]" style={TOOLTIP_STYLE}>
       <div className="mb-1 font-semibold text-slate-700">{row.label}</div>
+      {row.derivedFromInterpolated && (
+        <div className="mb-1 text-[0.62rem] font-medium text-amber-600">
+          ⚠ estimado a partir de dia interp
+        </div>
+      )}
       <div className="mb-2 flex items-baseline gap-1.5">
         <span className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
           {zScore >= 0 ? '+' : ''}
@@ -152,7 +169,7 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
   const latest = useMemo(() => {
     for (let i = data.length - 1; i >= 0; i -= 1) {
       const row = data[i]
-      if (row.abi != null) return row
+      if (row.abiReal != null || row.abiInterp != null) return row
     }
     return null
   }, [data])
@@ -161,9 +178,10 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
     let min = -ABI_BAND_THRESHOLD - Y_PAD
     let max = ABI_BAND_THRESHOLD + Y_PAD
     for (const row of data) {
-      if (row.abi != null) {
-        if (row.abi < min) min = row.abi - Y_PAD
-        if (row.abi > max) max = row.abi + Y_PAD
+      const abi = row.abiReal ?? row.abiInterp
+      if (abi != null) {
+        if (abi < min) min = abi - Y_PAD
+        if (abi > max) max = abi + Y_PAD
       }
     }
     return [Math.floor(min), Math.ceil(max)]
@@ -197,7 +215,7 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
           <Tooltip content={<AbiTooltip />} />
           <Line
             type="monotone"
-            dataKey="abi"
+            dataKey="abiReal"
             stroke={COLOR_LINE}
             strokeWidth={1.8}
             strokeOpacity={0.55}
@@ -205,6 +223,19 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
             activeDot={{ r: 5 }}
             connectNulls={false}
             name="ABI"
+          />
+          <Line
+            type="monotone"
+            dataKey="abiInterp"
+            stroke={COLOR_LINE}
+            strokeWidth={1.8}
+            strokeOpacity={0.55}
+            strokeDasharray="5 3"
+            dot={false}
+            activeDot={{ r: 5 }}
+            connectNulls={false}
+            name="ABI (estimado)"
+            legendType="none"
           />
           <Line
             type="monotone"
@@ -220,7 +251,8 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
     </div>
   )
 
-  const latestBand = latest && latest.abi != null ? bandLabel(latest.abi) : null
+  const latestAbi = latest != null ? (latest.abiReal ?? latest.abiInterp) : null
+  const latestBand = latestAbi != null ? bandLabel(latestAbi) : null
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -239,17 +271,17 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
             âmbar = equilibrado; vermelha (z &lt; −1σ) = stress / overtraining.
           </p>
         </div>
-        {latest && latest.abi != null && latestBand && (
+        {latestAbi != null && latestBand && (
           <div className="text-right">
             <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
             <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {latest.abi >= 0 ? '+' : ''}
-              {latest.abi.toFixed(2)}σ
+              {latestAbi >= 0 ? '+' : ''}
+              {latestAbi.toFixed(2)}σ
             </div>
             <div className="text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: latestBand.color }}>
               {latestBand.text}
             </div>
-            <div className="text-[0.65rem] text-slate-500">{latest.label}</div>
+            <div className="text-[0.65rem] text-slate-500">{latest?.label}</div>
           </div>
         )}
       </div>

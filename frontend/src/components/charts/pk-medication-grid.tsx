@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
@@ -90,9 +89,9 @@ function toPKDose(record: DoseRecord): PKDose {
 
 const COLORS_BY_ID = SUBSTANCE_COLORS
 
-function statusOf(currentPct: number, rangeMinPct: number): CardStatus {
-  if (currentPct > 100) return 'supra'
-  if (currentPct < rangeMinPct) return 'sub'
+function statusFromConc(conc: number, min: number, max: number): CardStatus {
+  if (conc > max) return 'supra'
+  if (conc < min) return 'sub'
   return 'within'
 }
 
@@ -127,7 +126,7 @@ function CardTooltip({ active, payload, hasRange }: TooltipShape & { hasRange?: 
       <div style={{ color: 'var(--muted)', marginBottom: 3 }}>{point.label}</div>
       <div>
         {hasRange && point.pct != null
-          ? `${point.pct.toFixed(1)}% · ${(point.conc_ng_ml ?? 0).toFixed(1)} ng/mL`
+          ? `${point.pct.toFixed(1)}% do pico · ${(point.conc_ng_ml ?? 0).toFixed(2)} ng/mL`
           : point.conc_ng_ml != null
             ? `${point.conc_ng_ml.toFixed(2)} ng/mL`
             : '—'}
@@ -150,7 +149,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
   const range = med.therapeuticRange
   const hasRange = range != null
 
-  const { data, currentPct, currentConc, rangeMinPct, maxConc } = useMemo(() => {
+  const { data, currentPct, currentConc, maxConc } = useMemo(() => {
     const stepMinutes = 30
     const stepMs = stepMinutes * 60 * 1000
     const n = Math.max(1, Math.floor((windowEnd - windowStart) / stepMs))
@@ -174,26 +173,25 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
       return {
         timestamp: t,
         conc_ng_ml: conc,
-        pct: range ? (conc / range.max) * 100 : null,
+        pct: maxConc > 0 ? (conc / maxConc) * 100 : null,
         ema_ng_ml: emaVal,
-        ema_pct: emaVal != null && range ? (emaVal / range.max) * 100 : null,
+        ema_pct: emaVal != null && maxConc > 0 ? (emaVal / maxConc) * 100 : null,
         label: format(t, "d MMM · HH:mm", { locale: ptBR }),
       }
     })
 
     const nowConc = calculateConcentration(med, doses, nowTimestamp, weightKg)
-    const currentPct = range ? (nowConc / range.max) * 100 : 0
+    const currentPct = maxConc > 0 ? (nowConc / maxConc) * 100 : 0
     return {
       data: series,
       currentPct,
       currentConc: nowConc,
-      rangeMinPct: range ? (range.min / range.max) * 100 : 0,
       maxConc,
     }
   }, [med, doses, range, windowStart, windowEnd, nowTimestamp, weightKg])
 
   const color = COLORS_BY_ID[med.id] ?? '#8b5cf6'
-  const status = hasRange ? statusOf(currentPct, rangeMinPct) : null
+  const status = hasRange && range ? statusFromConc(currentConc, range.min, range.max) : null
   const hasData = hasRange
     ? data.some((p) => (p.pct ?? 0) > 0.1)
     : data.some((p) => (p.conc_ng_ml ?? 0) > 0.001)
@@ -201,8 +199,8 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
   // Key da série e domínio do Y axis dependem do modo.
   const seriesKey = hasRange ? 'pct' : 'conc_ng_ml'
   const emaKey = hasRange ? 'ema_pct' : 'ema_ng_ml'
-  const yDomain: [number, number] = hasRange ? [0, 150] : [0, Math.max(maxConc * 1.2, 1)]
-  const yTicks = hasRange ? [0, 50, 100, 150] : undefined
+  const yDomain: [number, number] = hasRange ? [0, 115] : [0, Math.max(maxConc * 1.2, 1)]
+  const yTicks = hasRange ? [0, 25, 50, 75, 100] : undefined
   const yTickFormatter = hasRange
     ? (v: number) => `${v}%`
     : (v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(2))
@@ -289,20 +287,6 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
               tickFormatter={yTickFormatter}
             />
             <Tooltip content={<CardTooltip hasRange={hasRange} />} />
-            {hasRange && range && (
-              <>
-                <ReferenceArea
-                  y1={rangeMinPct}
-                  y2={100}
-                  fill="#22c55e"
-                  fillOpacity={0.08}
-                  stroke="#22c55e"
-                  strokeOpacity={0.2}
-                  strokeDasharray="2 2"
-                />
-                <ReferenceLine y={100} stroke="#22c55e" strokeOpacity={0.4} strokeDasharray="3 3" />
-              </>
-            )}
             <Area
               type="monotone"
               dataKey={seriesKey}

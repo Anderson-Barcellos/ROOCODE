@@ -363,7 +363,9 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     volumeOfDistribution: 3.0,
     bioavailability: 0.90,
     absorptionRate: 2.0,
-    therapeuticRange: { min: 20, max: 80, unit: 'ng/mL' },
+    // Range para ansiedade/pânico (DailyMed + medDataBase.json).
+    // Epilepsia usa concentrações maiores (20-80 ng/mL).
+    therapeuticRange: { min: 5, max: 70, unit: 'ng/mL' },
   },
   bacopa: {
     name: 'Bacopa Monnieri',

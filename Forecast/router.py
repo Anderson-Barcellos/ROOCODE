@@ -9,7 +9,7 @@ Endpoint único: POST /forecast
 
 Provider:
 - `FORECAST_AI_PROVIDER=openai` (OpenAI-only; outros providers falham explicitamente)
-- OpenAI (Chat Completions) com modelo default `gpt-5.4-mini`
+- OpenAI (Chat Completions) com modelo default `gpt-5.1`
 - `OPENAI_API_KEY` via env (fallback opcional para `/root/RooCode/.env.yml`)
 """
 from __future__ import annotations
@@ -53,8 +53,8 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 
 AI_PROVIDER = os.environ.get("FORECAST_AI_PROVIDER", "openai").strip().lower() or "openai"
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4-mini").strip() or "gpt-5.4-mini"
-OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "high").strip().lower() or "high"
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.1").strip() or "gpt-5.1"
+OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "medium").strip().lower() or "medium"
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 ENV_YAML_PATHS = (Path("/root/RooCode/.env.yml"), Path("/root/RooCode/env.yml"))
 FORECAST_HORIZON = 5
@@ -122,8 +122,8 @@ def _call_openai(prompt: str, verbosity: Optional[str] = None) -> str:
         "response_format": {"type": "json_object"},
     }
     if verbosity:
-        # Param novo da OpenAI pra GPT-5 — se a API rejeitar, _call_openai
-        # propaga o HTTPError 400 e o endpoint trata como erro do provider.
+        # Se a API rejeitar verbosity, _call_openai propaga o HTTPError 400
+        # e o endpoint trata como erro do provider.
         payload["verbosity"] = verbosity
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -137,7 +137,7 @@ def _call_openai(prompt: str, verbosity: Optional[str] = None) -> str:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=180) as resp:
             raw = resp.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="ignore")
@@ -967,7 +967,7 @@ async def forecast_report(body: ForecastReportRequest) -> JSONResponse:
 
     Diferenças do `/forecast`:
     - Retorna `narrative` (6 seções estruturadas) + `drivers` além do forecast cru.
-    - Usa verbosity=high tentando o param novo da API GPT-5 (fallback: prompt já pede verbose).
+    - Usa verbosity=high tentando param da API (fallback: prompt já pede verbose).
     - Persiste cada chamada com report_id pra histórico comparável.
     """
     try:

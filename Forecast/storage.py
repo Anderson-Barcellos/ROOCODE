@@ -6,6 +6,9 @@ entries por (target_date, field, predicted, confidence) e persiste em
 predicted com actual (snapshots reais entregues pelo cliente) e computa
 MAPE/MAE/RMSE agregados por field.
 
+Sprint M6.3.a: adiciona persistência de relatórios narrativos detalhados em
+`reports_history.json` separado. Mesmo pattern atomic write + schema versioning.
+
 Concorrência: escrita atômica via tmp+rename (uvicorn single-process,
 risco residual baixo, mas evita corrupção em crash mid-write).
 """
@@ -13,13 +16,16 @@ risco residual baixo, mas evita corrupção em crash mid-write).
 import json
 import os
 import tempfile
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 
 HISTORY_PATH = Path(__file__).parent / "forecast_history.json"
+REPORTS_PATH = Path(__file__).parent / "reports_history.json"
 SCHEMA_VERSION = 1
+SCHEMA_VERSION_REPORTS = 1
 
 TRACKED_FIELDS: tuple[str, ...] = (
     "sleepTotalHours",
@@ -45,18 +51,19 @@ def _load_or_init() -> dict:
     return data
 
 
-def _atomic_write(data: dict) -> None:
+def _atomic_write(data: dict, path: Optional[Path] = None) -> None:
     """Escreve em arquivo temporário no mesmo dir e faz os.replace pra atomicidade."""
-    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    target = path or HISTORY_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(
         prefix=".forecast_history_",
         suffix=".tmp",
-        dir=str(HISTORY_PATH.parent),
+        dir=str(target.parent),
     )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2)
-        os.replace(tmp_path, HISTORY_PATH)
+        os.replace(tmp_path, target)
     except Exception:
         try:
             os.unlink(tmp_path)
@@ -208,3 +215,64 @@ def compute_accuracy(
         "history_size": history_size,
         "warning": warning,
     }
+
+
+# ─── Reports (M6.3.a) ─────────────────────────────────────────────────────────
+
+def _load_reports_or_init() -> dict:
+    if not REPORTS_PATH.exists():
+        return {"_schema_version": SCHEMA_VERSION_REPORTS, "reports": []}
+    try:
+        with REPORTS_PATH.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return {"_schema_version": SCHEMA_VERSION_REPORTS, "reports": []}
+    if not isinstance(data, dict) or "reports" not in data:
+        return {"_schema_version": SCHEMA_VERSION_REPORTS, "reports": []}
+    return data
+
+
+def record_report(report: dict, generated_at: str) -> str:
+    """Persiste um relatório IA detalhado, retorna report_id (uuid4 hex 12 chars)."""
+    report_id = uuid.uuid4().hex[:12]
+    entry = {
+        "report_id": report_id,
+        "generated_at": generated_at,
+        **report,
+    }
+    data = _load_reports_or_init()
+    data.setdefault("reports", []).append(entry)
+    data["_schema_version"] = SCHEMA_VERSION_REPORTS
+    _atomic_write(data, REPORTS_PATH)
+    return report_id
+
+
+def load_reports(
+    days_back: Optional[int] = None,
+    limit: Optional[int] = None,
+) -> list[dict]:
+    """Lista relatórios persistidos (mais recentes primeiro).
+
+    Args:
+        days_back: filtra por generated_at >= hoje - N dias (None = sem filtro).
+        limit: cap no número de relatórios retornados (None = todos).
+    """
+    data = _load_reports_or_init()
+    reports = list(data.get("reports", []))
+    if days_back is not None:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days_back)).isoformat()
+        reports = [r for r in reports if isinstance(r.get("generated_at"), str) and r["generated_at"] >= cutoff]
+    # Mais recente primeiro
+    reports.sort(key=lambda r: r.get("generated_at", ""), reverse=True)
+    if limit is not None and limit > 0:
+        reports = reports[:limit]
+    return reports
+
+
+def get_report(report_id: str) -> Optional[dict]:
+    """Busca um relatório específico pelo report_id. Retorna None se ausente."""
+    data = _load_reports_or_init()
+    for entry in data.get("reports", []):
+        if entry.get("report_id") == report_id:
+            return entry
+    return None

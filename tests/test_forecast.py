@@ -624,5 +624,75 @@ class BuildPromptEnrichedTests(unittest.TestCase):
         self.assertIn("PACIENTE", prompt)
 
 
+class ReportsStorageTests(unittest.TestCase):
+    """M6.3.a — record_report + load_reports + get_report."""
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_path = forecast_storage.REPORTS_PATH
+        forecast_storage.REPORTS_PATH = Path(self.temp_dir.name) / "reports.json"
+
+    def tearDown(self) -> None:
+        forecast_storage.REPORTS_PATH = self.original_path
+        self.temp_dir.cleanup()
+
+    def test_record_report_persists_and_returns_id(self):
+        report = {
+            "narrative": "Recovery em alta…",
+            "forecast_snapshots": [{"date": "2026-04-08", "forecastConfidence": 0.4}],
+            "signals": [{"field": "hrvSdnn", "observation": "trending up"}],
+        }
+        report_id = forecast_storage.record_report(report, "2026-04-07T20:00:00+00:00")
+        self.assertIsInstance(report_id, str)
+        self.assertEqual(len(report_id), 12)
+        self.assertTrue(forecast_storage.REPORTS_PATH.exists())
+
+    def test_load_reports_returns_most_recent_first(self):
+        forecast_storage.record_report({"narrative": "A"}, "2026-04-01T00:00:00+00:00")
+        forecast_storage.record_report({"narrative": "B"}, "2026-04-05T00:00:00+00:00")
+        forecast_storage.record_report({"narrative": "C"}, "2026-04-03T00:00:00+00:00")
+
+        reports = forecast_storage.load_reports()
+        self.assertEqual(len(reports), 3)
+        self.assertEqual(reports[0]["narrative"], "B")
+        self.assertEqual(reports[1]["narrative"], "C")
+        self.assertEqual(reports[2]["narrative"], "A")
+
+    def test_load_reports_filters_by_days_back(self):
+        now = datetime.now(timezone.utc)
+        old_ts = (now - timedelta(days=60)).isoformat()
+        recent_ts = (now - timedelta(days=5)).isoformat()
+        forecast_storage.record_report({"narrative": "old"}, old_ts)
+        forecast_storage.record_report({"narrative": "recent"}, recent_ts)
+
+        recent_only = forecast_storage.load_reports(days_back=30)
+        self.assertEqual(len(recent_only), 1)
+        self.assertEqual(recent_only[0]["narrative"], "recent")
+
+    def test_load_reports_respects_limit(self):
+        for i in range(5):
+            ts = (datetime.now(timezone.utc) - timedelta(days=i)).isoformat()
+            forecast_storage.record_report({"narrative": f"r{i}"}, ts)
+        limited = forecast_storage.load_reports(limit=3)
+        self.assertEqual(len(limited), 3)
+
+    def test_get_report_returns_specific_entry(self):
+        rid_a = forecast_storage.record_report({"narrative": "A"}, "2026-04-01T00:00:00+00:00")
+        forecast_storage.record_report({"narrative": "B"}, "2026-04-02T00:00:00+00:00")
+        fetched = forecast_storage.get_report(rid_a)
+        self.assertIsNotNone(fetched)
+        self.assertEqual(fetched["narrative"], "A")
+        self.assertEqual(fetched["report_id"], rid_a)
+
+    def test_get_report_returns_none_for_unknown_id(self):
+        forecast_storage.record_report({"narrative": "A"}, "2026-04-01T00:00:00+00:00")
+        self.assertIsNone(forecast_storage.get_report("nonexistent_id_xyz"))
+
+    def test_load_reports_empty_when_no_file(self):
+        # REPORTS_PATH doesn't exist yet (setUp created tempdir but no file written)
+        reports = forecast_storage.load_reports()
+        self.assertEqual(reports, [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -5,6 +5,9 @@
 **/sleep_data.csv
 # Log de doses real (quando existir)
 dose_log.json
+# Histórico de forecasts e relatórios IA (dados pessoais)
+Forecast/forecast_history.json
+Forecast/reports_history.json
 # Backups / exports manuais
 *.backup
 .opencode/

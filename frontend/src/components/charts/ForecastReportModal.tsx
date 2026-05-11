@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { RefreshCw, Sparkles, X } from 'lucide-react'
+import { History, RefreshCw, Sparkles, X } from 'lucide-react'
 
+import { useForecastReportById, useForecastReportsList } from '@/lib/api'
 import type { DailySnapshot } from '@/types/apple-health'
 import {
   useForecastReport,
@@ -67,6 +69,14 @@ function formatGeneratedAt(iso: string): string {
   }
 }
 
+function formatGeneratedAtShort(iso: string): string {
+  try {
+    return format(parseISO(iso), "d MMM · HH:mm", { locale: ptBR })
+  } catch {
+    return iso
+  }
+}
+
 function formatNumber(value: number | null | undefined, digits = 1): string {
   if (value == null || !Number.isFinite(value)) return '—'
   return value.toFixed(digits)
@@ -77,9 +87,92 @@ function formatValence(value: number | null | undefined): string {
   return value.toFixed(2)
 }
 
-function IdleState({ onGenerate }: { onGenerate: () => void }) {
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1).trimEnd()}…`
+}
+
+interface HistoryItem {
+  report_id: string
+  generated_at: string
+  preview: string
+}
+
+function buildHistoryItems(reports: ForecastReport[] | undefined): HistoryItem[] {
+  if (!reports) return []
+  return reports.map((r) => ({
+    report_id: r.report_id,
+    generated_at: r.generated_at,
+    preview: truncate(r.narrative?.contexto_recente ?? '', 70),
+  }))
+}
+
+function HistoryList({
+  items,
+  selectedReportId,
+  onSelect,
+  variant,
+}: {
+  items: HistoryItem[]
+  selectedReportId: string | null
+  onSelect: (reportId: string) => void
+  variant: 'sidebar' | 'idle'
+}) {
+  if (items.length === 0) {
+    if (variant === 'sidebar') {
+      return (
+        <p className="px-2 text-[0.7rem] leading-5 text-slate-400">
+          Nenhuma análise persistida ainda.
+        </p>
+      )
+    }
+    return null
+  }
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+    <ul className={variant === 'sidebar' ? 'space-y-1' : 'mt-3 max-h-64 space-y-1 overflow-y-auto'}>
+      {items.map((item) => {
+        const isSelected = item.report_id === selectedReportId
+        return (
+          <li key={item.report_id}>
+            <button
+              type="button"
+              onClick={() => onSelect(item.report_id)}
+              className={`block w-full rounded-lg px-3 py-2 text-left transition-colors ${
+                isSelected
+                  ? 'bg-violet-100 text-violet-900'
+                  : 'bg-white text-slate-700 hover:bg-violet-50'
+              }`}
+            >
+              <div className="text-[0.7rem] font-semibold uppercase tracking-wider text-violet-700">
+                {formatGeneratedAtShort(item.generated_at)}
+              </div>
+              {item.preview && (
+                <div className="mt-0.5 line-clamp-2 text-[0.72rem] leading-snug text-slate-600">
+                  {item.preview}
+                </div>
+              )}
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function IdleState({
+  onGenerate,
+  history,
+  selectedReportId,
+  onSelectHistory,
+}: {
+  onGenerate: () => void
+  history: HistoryItem[]
+  selectedReportId: string | null
+  onSelectHistory: (reportId: string) => void
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-12 text-center">
       <Sparkles className="mb-4 h-12 w-12 text-violet-400" strokeWidth={1.4} />
       <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
         Nenhuma análise gerada ainda
@@ -96,16 +189,30 @@ function IdleState({ onGenerate }: { onGenerate: () => void }) {
         <Sparkles className="h-4 w-4" strokeWidth={2} />
         Gerar nova análise
       </button>
+
+      {history.length > 0 && (
+        <div className="mt-8 w-full max-w-md">
+          <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-500">
+            Ou veja análises anteriores
+          </p>
+          <HistoryList
+            items={history}
+            selectedReportId={selectedReportId}
+            onSelect={onSelectHistory}
+            variant="idle"
+          />
+        </div>
+      )}
     </div>
   )
 }
 
-function LoadingState() {
+function LoadingState({ contextLabel }: { contextLabel: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
       <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
       <h3 className="font-['Fraunces'] text-xl tracking-[-0.03em] text-slate-900">
-        Gerando análise…
+        {contextLabel}
       </h3>
       <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
         Modelo IA processando contexto clínico, regime PK e derivações compostas.
@@ -122,7 +229,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
         ⚠
       </div>
       <h3 className="font-['Fraunces'] text-xl tracking-[-0.03em] text-slate-900">
-        Não foi possível gerar análise
+        Não foi possível carregar análise
       </h3>
       <p className="mt-2 max-w-md text-sm leading-6 text-rose-700">{message}</p>
       <button
@@ -218,31 +325,44 @@ function SuccessState({
   report,
   onRegenerate,
   isRegenerating,
+  history,
+  selectedReportId,
+  onSelectHistory,
+  onBackToCurrent,
+  canGoBackToCurrent,
 }: {
   report: ForecastReport
   onRegenerate: () => void
   isRegenerating: boolean
+  history: HistoryItem[]
+  selectedReportId: string | null
+  onSelectHistory: (reportId: string) => void
+  onBackToCurrent: () => void
+  canGoBackToCurrent: boolean
 }) {
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* Sticky navigation lateral */}
-      <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-slate-50/50 px-4 py-5 md:block">
-        <div className="sticky top-0 space-y-1">
-          <p className="px-2 pb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-500">
-            Navegação
-          </p>
-          <nav className="flex flex-col gap-0.5">
-            {SECTIONS.map((section) => (
-              <a
-                key={section.id}
-                href={`#section-${section.id}`}
-                className="rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700"
-              >
-                {section.label}
-              </a>
-            ))}
-          </nav>
-          <div className="mt-4 rounded-lg bg-white px-3 py-3 text-center">
+      <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50/50 px-4 py-5 md:block">
+        <div className="space-y-4">
+          <div>
+            <p className="px-2 pb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-500">
+              Navegação
+            </p>
+            <nav className="flex flex-col gap-0.5">
+              {SECTIONS.map((section) => (
+                <a
+                  key={section.id}
+                  href={`#section-${section.id}`}
+                  className="rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700"
+                >
+                  {section.label}
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          <div className="rounded-lg bg-white px-3 py-3 text-center">
             <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-slate-500">
               Confiança máx.
             </p>
@@ -250,21 +370,40 @@ function SuccessState({
               {(report.max_confidence * 100).toFixed(0)}%
             </p>
           </div>
-          <div className="mt-3 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-center">
-            <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-slate-400">
+
+          <div>
+            <p className="flex items-center gap-1.5 px-2 pb-2 text-[0.65rem] font-semibold uppercase tracking-wider text-slate-500">
+              <History className="h-3 w-3" strokeWidth={2} />
               Histórico
             </p>
-            <p className="mt-1 text-[0.7rem] text-slate-400">M6.3.f — em construção</p>
+            <HistoryList
+              items={history}
+              selectedReportId={selectedReportId}
+              onSelect={onSelectHistory}
+              variant="sidebar"
+            />
           </div>
-          <button
-            type="button"
-            onClick={onRegenerate}
-            disabled={isRegenerating}
-            className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RefreshCw className={`h-3 w-3 ${isRegenerating ? 'animate-spin' : ''}`} strokeWidth={2} />
-            Regenerar
-          </button>
+
+          <div className="space-y-2">
+            {canGoBackToCurrent && (
+              <button
+                type="button"
+                onClick={onBackToCurrent}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Voltar pra atual
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={isRegenerating}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3 w-3 ${isRegenerating ? 'animate-spin' : ''}`} strokeWidth={2} />
+              Gerar nova
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -335,31 +474,76 @@ export function ForecastReportModal({
   validRealDays,
 }: ForecastReportModalProps) {
   const report = useForecastReport()
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null)
+  const reportsList = useForecastReportsList(30, 30)
+  const historicReport = useForecastReportById(selectedReportId)
+
+  const history = buildHistoryItems(reportsList.data?.reports)
 
   const fire = () => {
+    setSelectedReportId(null)
     report.mutate({ snapshots, validRealDays })
   }
 
+  const handleSelectHistory = (reportId: string) => {
+    if (reportId === selectedReportId) return
+    setSelectedReportId(reportId)
+  }
+
+  const handleBackToCurrent = () => {
+    setSelectedReportId(null)
+  }
+
+  const isViewingHistory = selectedReportId !== null
+  const activeReport: ForecastReport | undefined = isViewingHistory
+    ? historicReport.data
+    : report.data
+  const isPendingActive = isViewingHistory ? historicReport.isLoading : report.isPending
+  const isErrorActive = isViewingHistory ? historicReport.isError : report.isError
+  const errorMessage = isViewingHistory
+    ? historicReport.error?.message ?? 'Erro ao carregar relatório do histórico.'
+    : report.error?.message ?? 'Erro inesperado no provedor de forecast.'
+
   let body: React.ReactNode
-  if (report.isPending) {
-    body = <LoadingState />
-  } else if (report.isError) {
-    const message = report.error?.message ?? 'Erro inesperado no provedor de forecast.'
-    body = <ErrorState message={message} onRetry={fire} />
-  } else if (report.isSuccess && report.data) {
+  if (isPendingActive) {
+    body = (
+      <LoadingState
+        contextLabel={isViewingHistory ? 'Carregando relatório…' : 'Gerando análise…'}
+      />
+    )
+  } else if (isErrorActive) {
+    body = (
+      <ErrorState
+        message={errorMessage}
+        onRetry={isViewingHistory ? () => historicReport.refetch() : fire}
+      />
+    )
+  } else if (activeReport) {
     body = (
       <SuccessState
-        report={report.data}
+        report={activeReport}
         onRegenerate={fire}
         isRegenerating={report.isPending}
+        history={history}
+        selectedReportId={selectedReportId}
+        onSelectHistory={handleSelectHistory}
+        onBackToCurrent={handleBackToCurrent}
+        canGoBackToCurrent={isViewingHistory && Boolean(report.data)}
       />
     )
   } else {
-    body = <IdleState onGenerate={fire} />
+    body = (
+      <IdleState
+        onGenerate={fire}
+        history={history}
+        selectedReportId={selectedReportId}
+        onSelectHistory={handleSelectHistory}
+      />
+    )
   }
 
-  const headerSubtitle = report.data
-    ? formatGeneratedAt(report.data.generated_at)
+  const headerSubtitle = activeReport
+    ? `${formatGeneratedAt(activeReport.generated_at)}${isViewingHistory ? ' · histórico' : ''}`
     : 'Relatório IA detalhado · contexto clínico + projeção 5 dias'
 
   return (

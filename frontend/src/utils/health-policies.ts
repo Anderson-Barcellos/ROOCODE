@@ -7,6 +7,8 @@
  * Fase 8A — 2026-04-20.
  */
 
+import { USER_PROFILE } from './user-profile'
+
 export type ClinicalTone = 'positive' | 'neutral' | 'watch' | 'negative'
 
 // ─── VO2 Máx ──────────────────────────────────────────────────────────────────
@@ -47,9 +49,9 @@ export function getVo2Category(value: number | null, bands = VO2_BANDS_MALE_35_4
 // Uth-Sørensen: VO2max ≈ 15 × (HRmax / RHR), em ml/(kg·min).
 // Validada vs CPET em homens treinados (~85% acurácia). NÃO substitui CPET.
 // Ref: Uth N, Sørensen H, Overgaard K, Pedersen PK. (2004) Eur J Appl Physiol 91:111-115.
-// HRmax via Fox-Haskell (220 − idade). TODO: tornar idade config user-level.
+// HRmax via Fox-Haskell (220 − idade). Idade/HRmax vêm de `user-profile.ts`.
 
-export const ANDERS_HRMAX_BPM = 182 // 220 − 38
+export const ANDERS_HRMAX_BPM: number = USER_PROFILE.hrMaxBpm
 
 export function estimateVo2MaxUthSorensen(
   rhr: number | null,

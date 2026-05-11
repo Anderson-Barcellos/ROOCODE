@@ -14,6 +14,7 @@ from Farma.math import (
     load_medication_database,
     _profile_volume_of_distribution,
 )
+from Profile import DEFAULT_BODY_WEIGHT_KG
 
 router = APIRouter()
 DOSE_LOG_PATH = Path(__file__).parent / "dose_log.json"
@@ -650,7 +651,7 @@ async def concentrationSeries(
     substance: str = Query(...),
     from_: str = Query(..., alias="from"),
     to: str = Query(...),
-    weight_kg: float = Query(default=70.0, gt=0, le=300),
+    weight_kg: float = Query(default=DEFAULT_BODY_WEIGHT_KG, gt=0, le=300),
 ):
     """
     Retorna série diária de cmax/cmin/auc estimados para a substância no range.

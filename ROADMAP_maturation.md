@@ -20,8 +20,10 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M4 | Panorama | Recovery Score composto (Whoop-style) | Médio | ✅ 2026-05-10 (`322781e`) |
 | M5 | Coracao | Autonomic Balance Index | Médio | ✅ 2026-05-10 (`7fab71b`) |
 | M6 | Cross-cutting | Interp policy + payload IA enriquecido + relatório modal | Médio | ✅ 2026-05-10 (commits 137d63a → 3175be7) |
+| M7 | Coração | 3 charts educativos (HRV Variability + HRR + Chronotropic Response) | Baixo | ✅ 2026-05-11 (`5c48c94` + `2380d20`) |
+| R  | Regularização | Profile centralizado + drift docs + remove ForecastSignalsPanel órfão | Baixo | ✅ 2026-05-11 |
 
-Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual.
+Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual. **Sprint R** é gate antes da Sprint D (Daily Decision Layer) — consolida hardcodes de perfil pessoal e sincroniza drift documental.
 
 ---
 
@@ -426,62 +428,120 @@ Até M6 ser brainstormada e executada, **regra conservadora**:
 
 ---
 
-## KICKOFF — Próxima Sprint (a definir com Anders)
+## Sprint R — Regularização Pré-Daily Decision Layer ✅ CONCLUÍDA
 
-> Sprint Maturation completa (M1-M6 ✅). Aguardando definição do próximo ciclo. Esta seção é single-source-of-truth pra próxima sessão fresh — leia primeiro.
+**Status:** CONCLUÍDA em 2026-05-11 — sprint inteira em 1 sessão.
 
-### Estado técnico (todos os commits no main, verdes)
+**Origem:** auditoria de produto em `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (seção 4 — Achados de redundância e limpeza; seção 8.1 — Config pessoal centralizada). Gate obrigatório antes da Sprint D.
 
-- **M6 inteira:** 137d63a → 3175be7 (14 commits, 13 feature + 1 docs intermediário `2190ae7`).
-- Frontend: tsc + lint + test:unit + build verdes (build ~950ms). Bundle JS ~1.014MB (chunk warning >500kB pré-existente).
-- Backend: 47 tests `test_forecast` + 16 `test_forecast_payload_helpers` + farma/mood inalterados.
-- Service `roocode.service` ativo. `/forecast/report` precisa de restart pra pegar mudanças backend M6.3.b se não foi feito ainda.
+**Resultado real:**
 
-### Validação manual pendente (Anders)
+- **R1 — Sync de drift documental:** CLAUDE.md raiz listava `PKStandardDoseComparison` como componente ativo da aba Farmaco, mas o arquivo havia sido removido em `c741b40` ("clonazepam + heatmap UX + remove curvas comparativas") posterior à M1. Corrigido: removido da lista + nota histórica no bloco da M1. Aba Insights ganhou `MoodDriverBoard` e `MoodLagHypothesisLab` (existiam no código e estavam ausentes da doc). Aba Farmaco ganhou `MedicationCatalogEditor`. Header da seção passou de "25 total" pra "26 ativos — PKStandardDoseComparison removido em c741b40".
 
-Sprints recentes (M4, M5, M6) não tiveram validação visual em UI nesta sessão — Chrome DevTools MCP indisponível. Pra validar M6:
+- **R2 — Remove `ForecastSignalsPanel.tsx` órfão:** `git rm` no arquivo — zero consumers desde a M6 (modal IA verbose substituiu o panel). CLAUDE.md atualizado: backlog de limpeza marcado como resolvido.
 
-- `/panorama` → botão "🔮 Análise IA" no TabNav (cor violet, junto ao range selector)
-- Click abre modal fullscreen → "Gerar nova análise" dispara mutation
-- 6 seções narrative renderizam (contexto, hipóteses, tendências, drivers, projeção 5d, monitoramento)
-- Drivers cards renderizam com badge de impact (alto/medio/baixo) + glifo direcional (↑↓→)
-- Tabela de forecast 5d na seção projeção
-- Sidebar mostra navegação por anchors + confiança máx + histórico de relatórios persistidos
-- Click em item do histórico carrega relatório antigo · "Voltar pra atual" reverte
-- Charts da app mostram linhas tracejadas (forecast snapshots) sempre que IA responde com sucesso
+- **R3 — Profile centralizado (front + back):**
+  - **Novo módulo backend `Profile/`** (`__init__.py` + `user_profile.py`) com `USER_PROFILE` dict + `DEFAULT_BODY_WEIGHT_KG` constante + `estimate_hr_max_by_age()` helper. Campos: `weight_kg=91`, `birth_year=1987`, `age=38`, `hr_max_bpm=182` (220−38), `sex=M`, `timezone=America/Sao_Paulo`.
+  - **Novo módulo frontend `frontend/src/utils/user-profile.ts`** com `USER_PROFILE` const `as const` + 2 helpers (`estimateHrMaxByAge`, `getCurrentAge`). Espelha o backend.
+  - **Refatorações de call sites:**
+    - `frontend/src/utils/pharmacokinetics.ts:62` — `DEFAULT_PK_BODY_WEIGHT_KG` reexporta `USER_PROFILE.weightKg` (anotado `: number` pra não vazar literal type `91`).
+    - `frontend/src/utils/health-policies.ts:52` — `ANDERS_HRMAX_BPM` reexporta `USER_PROFILE.hrMaxBpm` (mesmo cuidado de tipo).
+    - `Farma/math.py:202` — `_profile_volume_of_distribution` usa `DEFAULT_BODY_WEIGHT_KG` no fallback.
+    - `Farma/router.py:653` — `/farma/concentration-series` usa `DEFAULT_BODY_WEIGHT_KG` no Query default.
+    - `Forecast/payload_helpers.py:25` — `_DEFAULT_WEIGHT_KG` reexporta do Profile + docstring sincronizada.
+  - **Mudança comportamental backend:** default do endpoint `/farma/concentration-series` passou de 70 → 91 kg. Forecast já passava 91 explícito, então diff funcional pra clients atuais = zero.
 
-### Possíveis frentes pra próxima sprint (a discutir com Anders)
+**Trade-offs aceitos:**
 
-1. **Limpeza pós-M6:** remover `ForecastSignalsPanel.tsx` (sem consumers), limpar `localStorage 'roocode-forecast'` órfão, possivelmente type `ForecastMode` se nada mais consome.
-2. **Calibração de Recovery Score:** pesos preliminares (30% HRV / 25% sleep eff / 20% RHR / 15% sleep debt / 10% mood). Sprint dedicada pode calibrar via correlação com sintomas Anders reportar.
-3. **UX manual validation:** sprint dedicada a validar visualmente todas as M3-M6 com screenshots + correções + ajustes de copy/layout.
-4. **Chart visual de forecast 5d no modal:** atualmente é tabela (decisão consciente). Sprint pequena pode adicionar Recharts.
-5. **Smoke test de componentes:** adicionar JSDOM + RTL ao setup pra permitir tests de modal/UI. Habilita confiança em refactors futuros.
-6. **Histórico no modal — fase 2:** comparação lado-a-lado entre 2 relatórios ("o que IA dizia há 1 mês vs hoje").
-7. **Outros:** Anders pode trazer feature totalmente nova fora dessas frentes.
+- **Strings descritivas em prompts IA não tocadas:** `Interpolate/router.py:128` e `Forecast/router.py:504` ainda têm "Masculino, 39 anos, 91 kg" hardcoded. Há divergência interna: `Profile.age=38` (consistente com `HRmax=182` via 220−38) vs prompts dizendo "39 anos". Teste `tests/test_forecast.py:573` valida `"39 anos, 91 kg"` literal. **Pendência pra próxima sprint** (Sprint D ou D+1): decidir idade canônica do Anders e propagar uniformemente.
+- **Tipos `number` em vez de literal:** `DEFAULT_PK_BODY_WEIGHT_KG: number` e `ANDERS_HRMAX_BPM: number` foram anotados explicitamente pra não quebrar testes que passam outros valores como argumento (TS estreitava o tipo pra literal `91` por causa do `as const` no Profile).
 
-### Como retomar (sessão fresh)
+**Validação executada nesta sessão:**
+
+- Backend: **79/79 tests verdes** (`test_farma` + `test_forecast` + `test_forecast_payload_helpers` + `test_mood`).
+- Frontend: `tsc --noEmit` ✅, `npm run test:unit` ✅, `npm run build` ✅ (1.33s), `npm run lint` ✅ (0 errors, 1 warning pré-existente em `pk-medication-grid.tsx:191`).
+- Backend smoke: `/sleep`, `/metrics`, `/farma/substances` retornam 200. `/farma/concentration-series` sem `weight_kg` explícito retorna `weight_kg=91.0` (confirma novo default).
+- **UI manual não validada nessa sessão** — Chrome DevTools MCP indisponível.
+
+---
+
+## KICKOFF — Sprint D — Daily Health Decision Layer
+
+> Esta seção é single-source-of-truth pra próxima sessão fresh — leia primeiro.
+
+**Status:** Aguardando aprovação do Anders (Q1 abaixo deve ser respondida antes de codar).
+
+**Origem:** `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (auditoria 2026-05-11) — seção 9. Documento sobreviveu à Sprint R com escopo intacto (R foi gate de regularização, não consumiu cards do plano D).
+
+**Objetivo:** Transformar dados existentes em **3 cards acionáveis de uso diário**, sem expandir backend. Tirar o RooCode do "painel de avião" e virar "copiloto clínico pessoal". Sprint cirúrgica, baixo risco — reusa código existente.
+
+**Escopo (3 cards prioritários, ordem crescente de esforço):**
+
+1. **Card "Limitante principal da recuperação"** (Panorama, junto do `RecoveryScoreChart`)
+   - **Pergunta clínica:** "Se recovery caiu hoje, foi sono, autonômico, humor ou débito acumulado?"
+   - **Inputs:** os 5 componentes já decompostos em `recovery-score.ts` (HRV z, sleepEff, RHR z invertido, sleepDebt 7d invertido, mood reescalado).
+   - **Saída:** ranking dos 1-2 componentes que mais puxaram o score pra baixo no dia. UI compacta — chip por componente com seta vermelha + delta vs baseline.
+   - **Esforço:** **baixo** — só ranking + UI card. Quick win.
+
+2. **Card "Noite boa, média ou ruim?"** (Sono + resumo no Panorama)
+   - **Pergunta clínica:** "A noite foi reparadora ou fisiologicamente ruim?"
+   - **Inputs:** sleep efficiency, deep sleep, REM, awake time, respiratory disturbances, SpO2, FR noturna, wrist temp deviation.
+   - **Saída:** score 0-100 + classe (`reparadora`, `fragmentada`, `respiratória ruim`, `alerta autonômico`).
+   - **Esforço:** **médio** — integra 5 charts da aba Sono em uma leitura diária. Define pesos preliminary, refinar com dados reais depois.
+
+3. **Card "Dose coverage / janela de vulnerabilidade"** (Farmaco + resumo no Panorama)
+   - **Pergunta clínica:** "Houve buraco farmacocinético relevante nas últimas 24-48h?"
+   - **Inputs:** dose log, regimen fallback, série PK por substância, humor valence nos dias seguintes.
+   - **Saída:** classe (`Cobertura adequada`, `queda de cobertura`, `janela de vulnerabilidade`, `dose não registrada`). Mais acionável que r/p-value pra uso cotidiano.
+   - **Esforço:** **médio** — regras farmacológicas. Conecta ao achado pré-registrado: perda de efeito ~48h após falha de dose.
+
+**Cards adiados pra Sprint D+1 ou D+2:**
+- 5.1 "Hoje: usar energia ou poupar?" — depende da decisão Q1 (médico vs coaching) abaixo.
+- 5.5 "Consistência circadiana" — precisa confirmar se horário início/fim sono está no AutoExport antes (risco de virar proxy fraco).
+
+**Decisões pendentes antes de codar (Q1-Q3):**
+
+1. **Tom dos cards: médico ou coaching?** (pergunta #2 do `ACHADOS_E_IDEIAS_SAUDE.md`). Afeta TODOS os 3 cards.
+   - **Médico:** "HRV z=-1.4, alerta autonômico — investigar."
+   - **Coaching:** "Pega leve hoje — corpo dando sinais."
+   - **Recomendação:** misto. Headline coaching, motivo médico no tooltip/detalhe.
+
+2. **Idade canônica do Anders (38 ou 39)?** Trade-off herdado da Sprint R. Precisa alinhar `Profile.age` + prompts IA + teste `tests/test_forecast.py:573`.
+
+3. **Recovery Score: parcial ou 5/5 obrigatório?** (pergunta #3 do documento). Hoje (M4) é 5/5 + null em interp. Card "Limitante" precisa de score pra rankear componentes — se score é null, o card também é null OU mostra ranking parcial com badge de confiança?
+
+**Arquivos prováveis de tocar:**
+- `frontend/src/components/charts/recovery-score-chart.tsx` (extender com ranking) ou novo `limiting-factor-card.tsx`
+- `frontend/src/utils/recovery-score.ts` (helper que retorna ranking dos componentes)
+- `frontend/src/components/charts/night-quality-card.tsx` (NOVO)
+- `frontend/src/components/charts/pk-coverage-card.tsx` (NOVO)
+- Possíveis utilities: `utils/sleep-quality-score.ts`, `utils/pk-coverage.ts`
+- `frontend/src/App.tsx` (mount dos cards nas abas)
+
+**Como retomar (sessão fresh):**
 
 ```
 Olá Claude! Sou o Anders. Retomando RooCode (`/root/RooCode`).
 Sessão fresh — siga sprint-system.md (especialmente Pós-Sprint Protocol,
-regra 7) e o protocolo de fresh start do AGENTS.md.
+regra 7) e o protocolo de fresh start do CLAUDE.md.
 
-Sprint Maturation completa (M1-M6 ✅). Quero próxima sprint sobre [X].
+Sprint R concluída (Pré-Daily Decision Layer). KICKOFF da Sprint D
+está no fim do ROADMAP_maturation.md. Documento-fonte:
+/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md.
 
-[Anders descreve o objetivo da sprint]
+Antes de codar, resolva Q1-Q3 do KICKOFF comigo.
 
-Bora brainstormar!
+Bora!
 ```
 
-### Pós-Sprint Protocol obrigatório (ao fechar próxima sprint)
+**Pós-Sprint Protocol obrigatório** (ver `~/.claude/rules/sprint-system.md` regra 7) — ao fechar a Sprint D:
+- Marcar Sprint D na tabela executiva (✅ + commits range).
+- Bloco Status no topo da seção D com 1-3 linhas resumindo resultado real.
+- Documentar trade-offs aceitos (especialmente decisões Q1/Q2/Q3).
+- Reescrever este KICKOFF apontando pra Sprint D+1 (próximos cards do documento ou nova frente).
+- Atualizar CLAUDE.md raiz: Sprint D nas concluídas + linha no Status local validado.
 
-Ver `~/.claude/rules/sprint-system.md` regra 7. Quando próxima sprint fechar:
-- Marcar na tabela executiva (✅ + commits range)
-- Bloco Status no topo da seção da sprint com 1-3 linhas resumindo
-- Documentar trade-offs aceitos
-- Reescrever este KICKOFF apontando pra sprint seguinte
-- Atualizar CLAUDE.md raiz: nova sprint nas concluídas + linha no Status local validado
+**Documento-fonte:** `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (auditoria de produto 2026-05-11, sobreviveu à Sprint R intacta).
 
 ---
 

@@ -8,6 +8,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from Profile import DEFAULT_BODY_WEIGHT_KG
+
 _DATABASE_PATH = Path(__file__).with_name("medDataBase.json")
 
 
@@ -199,7 +201,7 @@ def _profile_volume_of_distribution(profile: dict[str, Any], weight_kg: float | 
             f"perfil {profile['id']} nao possui vd_l nem vd_l_per_kg configurado"
         )
 
-    resolved_weight = weight_kg if weight_kg is not None else profile.get("default_weight_kg", 70.0)
+    resolved_weight = weight_kg if weight_kg is not None else profile.get("default_weight_kg", DEFAULT_BODY_WEIGHT_KG)
     if resolved_weight <= 0:
         raise ValueError("weight_kg deve ser maior que zero")
 

@@ -12,6 +12,7 @@ from Farma.math import (
     get_substance_profile,
     _profile_volume_of_distribution,
 )
+from Profile import DEFAULT_BODY_WEIGHT_KG
 
 _FARMA_DIR = Path(__file__).parent.parent / "Farma"
 _REGIMEN_PATH = _FARMA_DIR / "regimen_config.json"
@@ -21,8 +22,8 @@ _DOSE_LOG_PATH = _FARMA_DIR / "dose_log.json"
 # Lexapro t½=30h, Lamictal t½=32.8h → 5×33h ≈ 7 days covers all three substances.
 _WARMUP_DAYS = 14
 
-# Caller-supplied weight for Anders's regimen; backend default is 70 kg (known discrepancy).
-_DEFAULT_WEIGHT_KG = 91.0
+# Re-exporta o default do Profile pra preservar a API local existente.
+_DEFAULT_WEIGHT_KG = DEFAULT_BODY_WEIGHT_KG
 
 
 def _load_regimen() -> list[dict]:
@@ -154,8 +155,7 @@ def build_pk_series(
         substances: Substance keys or aliases (e.g. ["lexapro", "lamictal", "venvanse"]).
         dates: ISO YYYY-MM-DD date strings to evaluate.
         body_weight_kg: Patient weight for weight-based Vd calculation. Defaults to
-            Anders's weight (91 kg). Backend PK endpoint uses 70 kg by default —
-            pass explicitly to match clinical reality.
+            `DEFAULT_BODY_WEIGHT_KG` do `Profile` (91 kg pós-Sprint R, antes 70 kg).
 
     Returns:
         Mapping ``{date_iso: {substance_key: concentration_at_noon | None}}``.

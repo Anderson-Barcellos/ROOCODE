@@ -3,6 +3,8 @@
  * Modelos de 1 e 2 compartimentos, efeito biofásico, autoinduçao da lamotrigina.
  */
 
+import { USER_PROFILE } from './user-profile'
+
 export interface PKMedication {
   id: string
   name: string
@@ -59,7 +61,7 @@ const EFFECT_LAG_BY_CLASS: Record<string, number> = {
 const AUTOINDUCTION_DRUGS = ['lamotrigine', 'lamictal', 'lamotrigina', 'lamictal']
 const AUTOINDUCTION_DAYS = 21
 const AUTOINDUCTION_HL_REDUCTION = 0.2
-export const DEFAULT_PK_BODY_WEIGHT_KG = 91
+export const DEFAULT_PK_BODY_WEIGHT_KG: number = USER_PROFILE.weightKg
 export const PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML = 0.01
 
 function getKa(med: PKMedication): number {

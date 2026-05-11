@@ -32,6 +32,7 @@ import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { RecoveryScoreChart } from '@/components/charts/recovery-score-chart'
 import { LimitingFactorCard } from '@/components/cards/limiting-factor-card'
+import { NightQualityCard } from '@/components/cards/night-quality-card'
 import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -394,6 +395,8 @@ export default function App() {
 
                   <LimitingFactorCard snapshots={rangedWithForecast} />
 
+                  <NightQualityCard snapshots={rangedWithForecast} variant="summary" />
+
                 </div>
               )}
             </SurfaceFrame>
@@ -452,6 +455,8 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
+                  <NightQualityCard snapshots={rangedWithForecast} />
+
                   <SleepStagesChart snapshots={ranged} />
 
                   <SleepDebtChart snapshots={ranged} />

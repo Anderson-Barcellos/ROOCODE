@@ -10,8 +10,8 @@ USER_PROFILE: Final[dict] = {
     "name": "Anders",
     "weight_kg": 91.0,
     "birth_year": 1987,
-    "age": 38,
-    "hr_max_bpm": 182,  # 220 − 38
+    "age": 39,
+    "hr_max_bpm": 181,  # 220 − 39
     "sex": "M",
     "timezone": "America/Sao_Paulo",
 }

@@ -88,7 +88,7 @@ assert.equal(HRR_BANDS[3].label, 'Excelente')
 // ─── Test 1: Basic reserve computation ───────────────────────────────────────
 
 const [basic] = buildSeries({ rhr: 60 })
-assert.equal(basic.hrr, ANDERS_HRMAX_BPM - 60) // 182 - 60 = 122
+assert.equal(basic.hrr, ANDERS_HRMAX_BPM - 60) // 181 - 60 = 121
 assert.equal(basic.rhr, 60)
 
 // ─── Test 2: Band classification ─────────────────────────────────────────────
@@ -111,11 +111,12 @@ assert.equal(getHrrBand(null), null)
 // ─── Test 5: Walking reserve % ───────────────────────────────────────────────
 
 const [walkingPoint] = buildSeries({ rhr: 60, walkingHR: 90 })
-// hrr = 122, pct = (90 - 60) / 122 * 100 ≈ 24.59%
+// hrr = 121, pct = (90 - 60) / 121 * 100 ≈ 24.79%
+const expectedReserveDenom = ANDERS_HRMAX_BPM - 60
 assert.ok(walkingPoint.walkingReservePct != null)
 assert.ok(
-  Math.abs(walkingPoint.walkingReservePct - (30 / 122) * 100) < 0.01,
-  `Expected ~${((30 / 122) * 100).toFixed(2)}%, got ${walkingPoint.walkingReservePct?.toFixed(2)}%`,
+  Math.abs(walkingPoint.walkingReservePct - (30 / expectedReserveDenom) * 100) < 0.01,
+  `Expected ~${((30 / expectedReserveDenom) * 100).toFixed(2)}%, got ${walkingPoint.walkingReservePct?.toFixed(2)}%`,
 )
 
 // ─── Test 6: walkingReservePct null when walkingHR is null ───────────────────
@@ -138,16 +139,17 @@ assert.equal(lowWalking.walkingReservePct, 0)
 
 // ─── Test 9: walkingReservePct can exceed 100% ───────────────────────────────
 
-// rhr=60, walkingHR=190, hrr=122 → (190-60)/122*100 ≈ 106.56%
+// rhr=60, walkingHR=190, hrr=121 → (190-60)/121*100 ≈ 107.44%
 const [highWalking] = buildSeries({ rhr: 60, walkingHR: 190 })
+const highWalkingDenom = ANDERS_HRMAX_BPM - 60
 assert.ok(highWalking.walkingReservePct != null)
 assert.ok(
   highWalking.walkingReservePct > 100,
   `Expected >100%, got ${highWalking.walkingReservePct?.toFixed(2)}%`,
 )
 assert.ok(
-  Math.abs(highWalking.walkingReservePct - (130 / 122) * 100) < 0.01,
-  `Expected ~${((130 / 122) * 100).toFixed(2)}%, got ${highWalking.walkingReservePct?.toFixed(2)}%`,
+  Math.abs(highWalking.walkingReservePct - (130 / highWalkingDenom) * 100) < 0.01,
+  `Expected ~${((130 / highWalkingDenom) * 100).toFixed(2)}%, got ${highWalking.walkingReservePct?.toFixed(2)}%`,
 )
 
 // ─── Test 10: SMA-7 available after sufficient points ────────────────────────

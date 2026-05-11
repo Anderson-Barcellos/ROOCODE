@@ -6,11 +6,11 @@ import {
 } from '../src/utils/health-policies'
 
 // Sanity da fórmula Uth-Sørensen: VO2max ≈ 15 × (HRmax / RHR).
-// HRmax pro Anders: 220 - 38 = 182 bpm.
+// HRmax pro Anders: 220 - 39 = 181 bpm.
 
 const baseline = estimateVo2MaxUthSorensen(60, ANDERS_HRMAX_BPM)
 assert.ok(baseline)
-assert.equal(Math.round(baseline * 10) / 10, 45.5) // 15 * 182/60 = 45.5
+assert.equal(Math.round(baseline * 10) / 10, 45.3) // 15 * 181/60 ≈ 45.25 → 45.3
 
 const recovered = estimateVo2MaxUthSorensen(50, ANDERS_HRMAX_BPM)
 assert.ok(recovered)
@@ -41,12 +41,12 @@ const customMax = estimateVo2MaxUthSorensen(60, 200)
 assert.ok(customMax)
 assert.equal(Math.round(customMax * 10) / 10, 50.0) // 15 * 200/60 = 50
 
-// Range fisiológico esperado pra Anders (RHR 55-65, HRmax 182):
-// Min: 15 * 182/65 ≈ 42.0; Max: 15 * 182/55 ≈ 49.6
+// Range fisiológico esperado pra Anders (RHR 55-65, HRmax 181):
+// Min: 15 * 181/65 ≈ 41.8; Max: 15 * 181/55 ≈ 49.4
 const lowEnd = estimateVo2MaxUthSorensen(65, ANDERS_HRMAX_BPM)
 const highEnd = estimateVo2MaxUthSorensen(55, ANDERS_HRMAX_BPM)
 assert.ok(lowEnd && lowEnd >= 41 && lowEnd <= 43)
 assert.ok(highEnd && highEnd >= 49 && highEnd <= 51)
 
 // Constante exposta corretamente
-assert.equal(ANDERS_HRMAX_BPM, 182)
+assert.equal(ANDERS_HRMAX_BPM, 181)

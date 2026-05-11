@@ -16,6 +16,8 @@ import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { computeHeartRateReserveSeries, HRR_BANDS, type HrrBand } from '@/utils/heart-rate-reserve'
+import { ANDERS_HRMAX_BPM } from '@/utils/health-policies'
+import { USER_PROFILE } from '@/utils/user-profile'
 
 interface HeartRateReserveChartProps {
   snapshots: DailySnapshot[]
@@ -139,7 +141,7 @@ function HrrTooltip({ active, payload }: HrrTooltipProps) {
         )}
         <div className="flex justify-between gap-3">
           <span>FC Máx estimada</span>
-          <span className="font-semibold text-slate-800">182 bpm</span>
+          <span className="font-semibold text-slate-800">{ANDERS_HRMAX_BPM} bpm</span>
         </div>
         {(row.walkingReservePct != null || row.walkingHR != null) && (
           <div className="mt-1 border-t border-slate-100 pt-1">
@@ -317,7 +319,7 @@ export function HeartRateReserveChart({ snapshots }: HeartRateReserveChartProps)
             Reserva Cardíaca
           </h3>
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-            HRmax estimada (182 bpm) − FC Repouso. Representa a capacidade cardiovascular de
+            HRmax estimada ({ANDERS_HRMAX_BPM} bpm) − FC Repouso. Representa a capacidade cardiovascular de
             resposta ao esforço. Linha rosa tracejada = % da reserva utilizada durante caminhada
             (fórmula de Karvonen).
           </p>
@@ -360,7 +362,7 @@ export function HeartRateReserveChart({ snapshots }: HeartRateReserveChartProps)
             30% indicam caminhada muito leve; acima de 70% indica esforço vigoroso para caminhada.
           </p>
           <p>
-            FC Máxima estimada = 220 − idade (38) = 182 bpm (Fox-Haskell). Estimativa populacional
+            FC Máxima estimada = 220 − idade ({USER_PROFILE.age}) = {ANDERS_HRMAX_BPM} bpm (Fox-Haskell). Estimativa populacional
             — a FC máxima individual pode variar ±10-12 bpm.
           </p>
         </div>

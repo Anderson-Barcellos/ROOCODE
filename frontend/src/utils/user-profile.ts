@@ -20,8 +20,8 @@ export const USER_PROFILE = {
   name: 'Anders',
   weightKg: 91,
   birthYear: 1987,
-  age: 38,
-  hrMaxBpm: 182, // 220 − 38
+  age: 39,
+  hrMaxBpm: 181, // 220 − 39
   sex: 'M',
   timezone: 'America/Sao_Paulo',
 } as const

@@ -56,14 +56,14 @@ git diff --check
 - `/interpolate` (POST)
 - `/forecast` (POST)
 
-## Componentes ativos por aba (22 total — 2026-05-11)
+## Componentes ativos por aba (25 total — 2026-05-11)
 
 | Aba | Componentes |
 |---|---|
 | **Panorama** | MetricGrid (KPIs) · WeekdayWeekendCard · ForecastAccuracyCard · RecoveryScoreChart |
 | **Farmaco** | MoodTimeline · PKMedicationGrid · PKStandardDoseComparison · PKHumorCorrelation · DoseLogger · DoseCalendarView |
 | **Sono** | SleepStagesChart · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline |
-| **Coração** | AutonomicBalanceChart · HRRangeChart · CardioRecoveryChart (⚪ empty sem HRR) |
+| **Coração** | AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart (⚪ empty sem HRR) |
 | **Atividade** | ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart |
 | **Insights** | CorrelationHeatmap · SleepDebtHrvCard · ScatterCorrelation · PKMoodScatterChart · PkRemSuppression · LagCorrelationChart |
 
@@ -86,12 +86,13 @@ git diff --check
 - VitalSignsTimeline com Wrist Temp Deviation + FR variability (commit `bb4cad6`): badge "Hipotermia" removido, painel temp passa a delta da baseline pessoal (média 30d, mín 14 reais), painel FR ganha YAxis secundário com SD rolling 7d. `s.health.pulseTemperatureC` preservado intacto no tipo/adapter/consumers.
 - Utility `personal-baselines.ts` (`computeRollingBaseline` + `rollingStandardDeviation`) consolidada — reusada em M3 (Wrist Temp), M4 (Recovery Score) e M5 (ABI).
 - Panorama tab exibe `RecoveryScoreChart` (commit `322781e`): score 0-100 composto (30% HRV z / 25% sleep eff / 20% RHR z invertido / 15% sleep debt 7d invertido / 10% mood reescalado). Regra interim M6 aplicada — score=null em interp/forecast. `timeline-chart.tsx` segue intacto (consumo em InterpolationDemo). Pesos preliminary calibration. **UI manual não validada nessa sessão** — Chrome DevTools MCP indisponível.
-- Coração tab exibe `AutonomicBalanceChart` (commit `7fab71b`): z-score pessoal de `ln(HRV/RHR)`, baseline única do dataset (30/14, padrão M3/M4), 3 bandas (z<-1 simpático / -1..+1 equilibrado / z≥+1 parassimpático), SMA-7d sobreposto, tooltip educativo com HRV/RHR/ratio/log-ratio/z. Aba agora tem 3 charts (era 4): ABI → HRRangeChart → CardioRecoveryChart. **Hard-remove** dos antigos `hrv-analysis.tsx` e `heart-rate-bands.tsx`; hook `useCardioAnalysis` enxugado mantendo só `RecoveryScore` legacy (alimenta MetricGrid do Panorama). **UI manual não validada nessa sessão**.
+- Coração tab exibe `AutonomicBalanceChart` (commit `7fab71b`): z-score pessoal de `ln(HRV/RHR)`, baseline única do dataset (30/14, padrão M3/M4), 3 bandas (z<-1 simpático / -1..+1 equilibrado / z≥+1 parassimpático), SMA-7d sobreposto, tooltip educativo com HRV/RHR/ratio/log-ratio/z. **Hard-remove** dos antigos `hrv-analysis.tsx` e `heart-rate-bands.tsx`; hook `useCardioAnalysis` enxugado mantendo só `RecoveryScore` legacy (alimenta MetricGrid do Panorama). **UI manual não validada nessa sessão**.
+- Sprint M7 — Coração expandida de 3 → 6 charts (commit `2380d20`): HrvVariabilityChart (SDNN bruto + SMA-7d/30d + rolling SD 7d + bandas populacionais + painel educativo 7 métricas HRV), HeartRateReserveChart (reserva bpm + dual Y-axis % caminhada via Karvonen), ChronotropicResponseChart (z-score pessoal walkingHR−RHR, padrão ABI). Bandas clínicas em utilities (HRV_BANDS_MALE_39, HRR_BANDS). 38 test cases novos. Análise IA ajustada: gpt-5.4-mini → gpt-5.1, reasoning medium, timeout 180s (commit `5c48c94`). **UI manual não validada nessa sessão**.
 - Análise IA verbose em modal fullscreen (commits 137d63a → 3175be7): endpoint `POST /forecast/report` retorna narrative estruturada em 6 seções (contexto/hipóteses/tendências/drivers/projeção 5d/monitoramento) + drivers + signals + forecast cru, persistido em `Forecast/reports_history.json`. Frontend consome via `useForecastReport` mutation + `useForecastReportsList`/`useForecastReportById` queries. Modal Radix Dialog acessível pelo botão "🔮 Análise IA" no TabNav (cor violet, junto ao range selector). Histórico de relatórios clicável na sidebar. **Mudança comportamental:** forecast simples (linhas tracejadas nos charts) agora sempre on (não mais toggle ON/OFF — segmento removido do TabNav), 1 request OpenAI por sessão (cached 1h). `ForecastSignalsPanel.tsx` órfão (sem consumers) — backlog de limpeza. **UI manual não validada nessa sessão**.
 
 ## Próxima sprint planejada
 
-**Sprint Maturation completa — M1-M6 ✅**. **KICKOFF da próxima sprint no fim do `ROADMAP_maturation.md`** — aguardando definição com Anders.
+**Sprint Maturation completa — M1-M7 ✅**. **KICKOFF da próxima sprint no fim do `ROADMAP_maturation.md`** — aguardando definição com Anders.
 
 Concluídas:
 - Sprint M1 (Farma debug do `PKStandardDoseComparison`) em 2026-05-09 — commits `b0622ff` + `6b1bc07`.
@@ -100,6 +101,7 @@ Concluídas:
 - Sprint M4 (Recovery Score composto na aba Panorama) em 2026-05-10 — commit `322781e`.
 - Sprint M5 (Autonomic Balance Index na aba Coração + hard-remove HrvAnalysis/HeartRateBands) em 2026-05-10 — commit `7fab71b`.
 - Sprint M6 (Interp policy + payload IA enriquecido + relatório IA modal) em 2026-05-10 — commits 137d63a → 3175be7 (14 commits, 13 feature + 1 docs intermediário).
+- Sprint M7 (3 charts cardíacos educativos: HRV Variability + Reserva Cardíaca + Resposta Cronotrópica) em 2026-05-11 — commits `5c48c94` + `2380d20`.
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 

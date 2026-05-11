@@ -250,6 +250,20 @@ FORECAST_SIGNAL_FIELDS = (
     "valence",
 )
 
+FORECAST_SLEEP_DETAIL_FIELDS = (
+    "sleepRemHours",
+    "sleepDeepHours",
+    "sleepCoreHours",
+    "sleepAwakeHours",
+    "sleepEfficiencyPct",
+)
+
+FORECAST_DERIVATION_FIELDS = (
+    "recoveryScore",
+    "abi",
+    "wristTempDeviation",
+)
+
 
 def _to_float_or_none(value: Any) -> Optional[float]:
     try:
@@ -283,7 +297,29 @@ def _compact_snapshot(snapshot: dict[str, Any]) -> Optional[dict[str, Any]]:
     if not has_signal:
         return None
 
-    return {"date": d, "values": compact_values}
+    health_block = snapshot.get("health") if isinstance(snapshot.get("health"), dict) else {}
+    sleep_source = values if any(f in values for f in FORECAST_SLEEP_DETAIL_FIELDS) else health_block
+    sleep_detail = {f: _to_float_or_none(sleep_source.get(f)) for f in FORECAST_SLEEP_DETAIL_FIELDS}
+
+    derivations_input = snapshot.get("derivations") if isinstance(snapshot.get("derivations"), dict) else {}
+    derivations = {
+        field: _to_float_or_none(derivations_input.get(field))
+        for field in FORECAST_DERIVATION_FIELDS
+    }
+
+    is_interpolated = bool(snapshot.get("is_interpolated") or snapshot.get("interpolated"))
+    confidence = _to_float_or_none(snapshot.get("confidence"))
+
+    out: dict[str, Any] = {"date": d, "values": compact_values}
+    if any(v is not None for v in sleep_detail.values()):
+        out["sleep_detail"] = sleep_detail
+    if any(v is not None for v in derivations.values()):
+        out["derivations"] = derivations
+    if is_interpolated:
+        out["is_interpolated"] = True
+    if confidence is not None:
+        out["confidence"] = confidence
+    return out
 
 
 def _select_recent_context(snapshots: list[dict[str, Any]], max_days: int = FORECAST_CONTEXT_MAX_DAYS) -> list[dict[str, Any]]:
@@ -343,11 +379,14 @@ def _build_recent_summary(
             "rolling_summary": rolling_summary or {},
             "field_trends": {},
             "weekday_effect": {},
+            "derivations_summary": {},
+            "interpolated_days_in_context": 0,
             "recent_trace": [],
         }
 
     weekend_flags: list[bool] = []
-    series_by_field: dict[str, list[Optional[float]]] = {field: [] for field in FORECAST_SIGNAL_FIELDS}
+    all_fields = FORECAST_SIGNAL_FIELDS + FORECAST_SLEEP_DETAIL_FIELDS
+    series_by_field: dict[str, list[Optional[float]]] = {field: [] for field in all_fields}
     recent_trace: list[dict[str, Any]] = []
 
     for snapshot in rows:
@@ -362,12 +401,20 @@ def _build_recent_summary(
 
         weekend_flags.append(is_weekend)
         values = snapshot.get("values") if isinstance(snapshot.get("values"), dict) else {}
+        sleep_detail = snapshot.get("sleep_detail") if isinstance(snapshot.get("sleep_detail"), dict) else {}
 
         trace_row: dict[str, Any] = {"date": d, "weekday": wd_name}
         for field in FORECAST_SIGNAL_FIELDS:
             value = _to_float_or_none(values.get(field))
             series_by_field[field].append(value)
             trace_row[field] = _round_or_none(value)
+        for field in FORECAST_SLEEP_DETAIL_FIELDS:
+            value = _to_float_or_none(sleep_detail.get(field))
+            series_by_field[field].append(value)
+            if value is not None:
+                trace_row[field] = _round_or_none(value)
+        if snapshot.get("is_interpolated"):
+            trace_row["interp"] = True
         recent_trace.append(trace_row)
 
     field_trends: dict[str, Any] = {}
@@ -402,12 +449,46 @@ def _build_recent_summary(
             ),
         }
 
+    for field in FORECAST_SLEEP_DETAIL_FIELDS:
+        series = series_by_field[field]
+        present = [v for v in series if v is not None]
+        if not present:
+            continue
+        last_value = next((v for v in reversed(series) if v is not None), None)
+        last7_vals = [v for v in series[-7:] if v is not None]
+        field_trends[field] = {
+            "available_days": len(present),
+            "last_value": _round_or_none(last_value),
+            "mean_last7": _round_or_none(_mean(last7_vals)),
+        }
+
+    derivations_summary: dict[str, Any] = {}
+    for field in FORECAST_DERIVATION_FIELDS:
+        series_d = [
+            _to_float_or_none((s.get("derivations") or {}).get(field))
+            for s in rows
+        ]
+        present_d = [v for v in series_d if v is not None]
+        if not present_d:
+            continue
+        last_value_d = next((v for v in reversed(series_d) if v is not None), None)
+        last7_d = [v for v in series_d[-7:] if v is not None]
+        derivations_summary[field] = {
+            "available_days": len(present_d),
+            "last_value": _round_or_none(last_value_d),
+            "mean_last7": _round_or_none(_mean(last7_d)),
+        }
+
+    interpolated_count = sum(1 for s in rows if s.get("is_interpolated"))
+
     return {
         "context_days": len(rows),
         "context_range": {"from": rows[0].get("date"), "to": rows[-1].get("date")},
         "rolling_summary": rolling_summary or {},
         "field_trends": field_trends,
         "weekday_effect": weekday_effect,
+        "derivations_summary": derivations_summary,
+        "interpolated_days_in_context": interpolated_count,
         # Mantém só traço curto recente para reduzir tokens.
         "recent_trace": recent_trace[-10:],
     }

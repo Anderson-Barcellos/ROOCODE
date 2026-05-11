@@ -357,5 +357,184 @@ class ForecastAccuracyEndpointTests(unittest.TestCase):
         self.assertIsNone(body["warning"])
 
 
+class CompactSnapshotEnrichedTests(unittest.TestCase):
+    """M6.2.b — _compact_snapshot extrai sleep_detail, derivations, interp flag."""
+
+    def test_extracts_sleep_detail_from_health_block(self):
+        snapshot = {
+            "date": "2026-04-15",
+            "health": {
+                "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0,
+                "sleepRemHours": 1.6, "sleepDeepHours": 1.2,
+                "sleepCoreHours": 3.8, "sleepAwakeHours": 0.4,
+                "sleepEfficiencyPct": 92.5,
+            },
+            "mood": {"valence": 0.3},
+        }
+        out = forecast_router._compact_snapshot(snapshot)
+        self.assertIsNotNone(out)
+        self.assertIn("sleep_detail", out)
+        self.assertEqual(out["sleep_detail"]["sleepRemHours"], 1.6)
+        self.assertEqual(out["sleep_detail"]["sleepEfficiencyPct"], 92.5)
+
+    def test_extracts_sleep_detail_from_values_block(self):
+        snapshot = {
+            "date": "2026-04-15",
+            "values": {
+                "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.3,
+                "sleepRemHours": 1.6, "sleepDeepHours": 1.2,
+            },
+        }
+        out = forecast_router._compact_snapshot(snapshot)
+        self.assertIsNotNone(out)
+        self.assertEqual(out["sleep_detail"]["sleepRemHours"], 1.6)
+        self.assertEqual(out["sleep_detail"]["sleepDeepHours"], 1.2)
+        # Campos não fornecidos viram None
+        self.assertIsNone(out["sleep_detail"]["sleepEfficiencyPct"])
+
+    def test_extracts_derivations_block(self):
+        snapshot = {
+            "date": "2026-04-15",
+            "values": {
+                "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.3,
+            },
+            "derivations": {"recoveryScore": 72.5, "abi": 0.4, "wristTempDeviation": -0.1},
+        }
+        out = forecast_router._compact_snapshot(snapshot)
+        self.assertIn("derivations", out)
+        self.assertEqual(out["derivations"]["recoveryScore"], 72.5)
+        self.assertEqual(out["derivations"]["abi"], 0.4)
+        self.assertEqual(out["derivations"]["wristTempDeviation"], -0.1)
+
+    def test_propagates_interpolated_flag_and_confidence(self):
+        snapshot = {
+            "date": "2026-04-15",
+            "values": {
+                "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.3,
+            },
+            "is_interpolated": True,
+            "confidence": 0.5,
+        }
+        out = forecast_router._compact_snapshot(snapshot)
+        self.assertTrue(out["is_interpolated"])
+        self.assertEqual(out["confidence"], 0.5)
+
+    def test_legacy_interpolated_key_also_recognized(self):
+        # Frontend usa `interpolated`; backend de outras rotas usa `is_interpolated`.
+        # Aceita ambos pra compatibilidade com snapshots já no formato DailySnapshot.
+        snapshot = {
+            "date": "2026-04-15",
+            "values": {
+                "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.3,
+            },
+            "interpolated": True,
+        }
+        out = forecast_router._compact_snapshot(snapshot)
+        self.assertTrue(out["is_interpolated"])
+
+    def test_omits_optional_blocks_when_absent(self):
+        # Backward compat: snapshot só com 6 campos antigos ainda funciona, sem ruído.
+        snapshot = {
+            "date": "2026-04-15",
+            "values": {
+                "sleepTotalHours": 7.0, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.3,
+            },
+        }
+        out = forecast_router._compact_snapshot(snapshot)
+        self.assertNotIn("sleep_detail", out)
+        self.assertNotIn("derivations", out)
+        self.assertNotIn("is_interpolated", out)
+        self.assertNotIn("confidence", out)
+
+
+class BuildRecentSummaryEnrichedTests(unittest.TestCase):
+    """M6.2.b — _build_recent_summary agrega sleep_detail + derivations + interp count."""
+
+    def _enriched_snapshots(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "date": "2026-04-08",
+                "values": {
+                    "sleepTotalHours": 7.2, "hrvSdnn": 110.0, "restingHeartRate": 55.0,
+                    "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0, "valence": 0.2,
+                },
+                "sleep_detail": {
+                    "sleepRemHours": 1.6, "sleepDeepHours": 1.2,
+                    "sleepCoreHours": 4.0, "sleepAwakeHours": 0.4,
+                    "sleepEfficiencyPct": 92.0,
+                },
+                "derivations": {"recoveryScore": 72.0, "abi": 0.4, "wristTempDeviation": -0.1},
+            },
+            {
+                "date": "2026-04-09",
+                "values": {
+                    "sleepTotalHours": 6.8, "hrvSdnn": 105.0, "restingHeartRate": 56.0,
+                    "activeEnergyKcal": 480.0, "exerciseMinutes": 30.0, "valence": 0.1,
+                },
+                "sleep_detail": {
+                    "sleepRemHours": 1.4, "sleepDeepHours": 1.1,
+                    "sleepCoreHours": 3.9, "sleepAwakeHours": 0.4,
+                    "sleepEfficiencyPct": 90.5,
+                },
+                "derivations": {"recoveryScore": 68.0, "abi": 0.2, "wristTempDeviation": 0.0},
+                "is_interpolated": True,
+            },
+        ]
+
+    def test_field_trends_includes_sleep_detail(self):
+        out = forecast_router._build_recent_summary(self._enriched_snapshots(), None)
+        trends = out["field_trends"]
+        self.assertIn("sleepRemHours", trends)
+        self.assertIn("sleepEfficiencyPct", trends)
+        self.assertEqual(trends["sleepRemHours"]["available_days"], 2)
+        self.assertEqual(trends["sleepRemHours"]["last_value"], 1.4)
+        # mean_last7 = (1.6 + 1.4) / 2 = 1.5
+        self.assertEqual(trends["sleepRemHours"]["mean_last7"], 1.5)
+
+    def test_derivations_summary_aggregates_composite_indices(self):
+        out = forecast_router._build_recent_summary(self._enriched_snapshots(), None)
+        d_summary = out["derivations_summary"]
+        self.assertIn("recoveryScore", d_summary)
+        self.assertIn("abi", d_summary)
+        self.assertIn("wristTempDeviation", d_summary)
+        self.assertEqual(d_summary["recoveryScore"]["available_days"], 2)
+        self.assertEqual(d_summary["recoveryScore"]["last_value"], 68.0)
+        self.assertEqual(d_summary["recoveryScore"]["mean_last7"], 70.0)
+
+    def test_interpolated_days_in_context_counts_correctly(self):
+        out = forecast_router._build_recent_summary(self._enriched_snapshots(), None)
+        self.assertEqual(out["interpolated_days_in_context"], 1)
+
+    def test_recent_trace_marks_interp_days(self):
+        out = forecast_router._build_recent_summary(self._enriched_snapshots(), None)
+        trace = out["recent_trace"]
+        self.assertTrue(any(row.get("interp") is True for row in trace))
+        # Real days NÃO carregam o flag (evita ruído visual no payload)
+        self.assertFalse(all(row.get("interp") is True for row in trace))
+
+    def test_legacy_payload_still_works_no_enriched_fields(self):
+        # Backward compat: payload velho sem sleep_detail/derivations não quebra
+        legacy_snapshots = _build_snapshots()  # 7 dias só com 6 fields
+        # Compactar primeiro pra simular o pipeline real
+        compact = [forecast_router._compact_snapshot(s) for s in legacy_snapshots]
+        compact = [c for c in compact if c is not None]
+        out = forecast_router._build_recent_summary(compact, None)
+        self.assertEqual(out["derivations_summary"], {})
+        self.assertEqual(out["interpolated_days_in_context"], 0)
+        # Sleep detail ausente em todos os snapshots → não deve aparecer em field_trends
+        self.assertNotIn("sleepRemHours", out["field_trends"])
+
+    def test_empty_snapshots_returns_empty_enriched_blocks(self):
+        out = forecast_router._build_recent_summary([], None)
+        self.assertEqual(out["derivations_summary"], {})
+        self.assertEqual(out["interpolated_days_in_context"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

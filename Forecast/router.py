@@ -110,17 +110,21 @@ def _load_openai_api_key() -> str:
     return ""
 
 
-def _call_openai(prompt: str) -> str:
+def _call_openai(prompt: str, verbosity: Optional[str] = None) -> str:
     api_key = _load_openai_api_key()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY não configurada (env var ou /root/RooCode/.env.yml)")
 
-    payload = {
+    payload: dict[str, Any] = {
         "model": OPENAI_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "reasoning_effort": OPENAI_REASONING_EFFORT,
         "response_format": {"type": "json_object"},
     }
+    if verbosity:
+        # Param novo da OpenAI pra GPT-5 — se a API rejeitar, _call_openai
+        # propaga o HTTPError 400 e o endpoint trata como erro do provider.
+        payload["verbosity"] = verbosity
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"{OPENAI_API_BASE}/chat/completions",
@@ -152,10 +156,10 @@ def _call_openai(prompt: str) -> str:
     raise ValueError("OpenAI retornou content vazio ou em formato não suportado")
 
 
-def _call_model(prompt: str) -> str:
+def _call_model(prompt: str, verbosity: Optional[str] = None) -> str:
     if AI_PROVIDER not in ("openai", "gpt"):
         raise RuntimeError(f"FORECAST_AI_PROVIDER inválido para forecast OpenAI-only: {AI_PROVIDER}")
-    return _call_openai(prompt)
+    return _call_openai(prompt, verbosity=verbosity)
 
 
 def _strip_fences(raw: str) -> str:
@@ -894,3 +898,177 @@ async def forecast_accuracy(body: ForecastAccuracyRequest) -> JSONResponse:
         snapshots, history, days_back=body.days_back
     )
     return JSONResponse(content=result)
+
+
+# ─── Endpoint /report (M6.3.b — análise narrativa verbose) ──────────────────
+
+class ForecastReportRequest(BaseModel):
+    snapshots: list[dict]
+    horizon: int = Field(default=5, ge=1, le=14)
+    valid_real_days: int = Field(default=0)
+    rolling_summary: Optional[dict[str, Any]] = None
+
+
+def _build_report_prompt(
+    recent: list[dict],
+    future_dates: list[dict[str, str]],
+    cap: float,
+    rolling_summary: Optional[dict[str, Any]] = None,
+) -> str:
+    """Prompt narrativo verbose. Reusa contexto do _build_prompt + pede análise estruturada."""
+    base_prompt = _build_prompt(recent, future_dates, cap, rolling_summary)
+    # Substitui o bloco RETORNO do prompt base por schema novo de relatório.
+    narrative_request = """
+RETORNO (JSON válido, sem markdown, sem texto fora do JSON):
+{
+  "narrative": {
+    "contexto_recente": "Análise dos últimos 7-14 dias em parágrafos. Cite números específicos.",
+    "hipoteses_ativas": "Correlações ou padrões detectados nos dados. Inclua HRV/RHR, sono, mood, atividade.",
+    "tendencias": "Para cada métrica relevante: direção e magnitude da mudança recente.",
+    "drivers_principais": "Os 3-5 fatores que mais influenciam o estado atual (PK, sono, atividade, mood).",
+    "projecao_5d": "Texto narrativo descrevendo o que esperar nos próximos 5 dias.",
+    "recomendacoes_monitoramento": "O que observar (não prescrição médica)."
+  },
+  "forecasts": [
+    {
+      "date": "YYYY-MM-DD",
+      "weekday": "Nome-do-dia",
+      "values": {
+        "sleepTotalHours": number | null,
+        "hrvSdnn": number | null,
+        "restingHeartRate": number | null,
+        "activeEnergyKcal": number | null,
+        "exerciseMinutes": number | null,
+        "valence": number | null
+      },
+      "confidence": 0.0-CAP,
+      "rationale": "justificativa curta em PT-BR"
+    }
+  ],
+  "signals": [
+    {"field": "campo_relevante", "observation": "observação descritiva em PT-BR"}
+  ],
+  "drivers": [
+    {"name": "nome do driver", "impact": "alto|medio|baixo", "direction": "positivo|negativo|neutro", "rationale": "por quê"}
+  ]
+}
+
+Use TONS DESCRITIVOS E DETALHADOS. Cada seção do `narrative` deve ter pelo menos 2-3 frases substantivas. Não use listas-bullet dentro das strings — use parágrafos."""
+    # Strip o RETORNO antigo do base_prompt e cola o novo
+    cutoff = base_prompt.find("RETORNO (JSON válido")
+    if cutoff > 0:
+        base_prompt = base_prompt[:cutoff].rstrip()
+    return base_prompt + "\n" + narrative_request
+
+
+@router.post("/report")
+async def forecast_report(body: ForecastReportRequest) -> JSONResponse:
+    """Gera relatório IA narrativo verbose. Persiste em reports_history.json.
+
+    Diferenças do `/forecast`:
+    - Retorna `narrative` (6 seções estruturadas) + `drivers` além do forecast cru.
+    - Usa verbosity=high tentando o param novo da API GPT-5 (fallback: prompt já pede verbose).
+    - Persiste cada chamada com report_id pra histórico comparável.
+    """
+    try:
+        _validate_horizon(body.horizon)
+        _validate_valid_real_days(body.valid_real_days)
+        validated_snapshots = _validate_snapshots_payload(body.snapshots)
+    except ForecastBadRequest as exc:
+        return _error_response(str(exc), 400, 0.0)
+
+    context = _select_recent_context(validated_snapshots)
+    if not context:
+        return _error_response("Sem snapshots válidos com sinais para análise", 400, 0.0)
+
+    future_dates = _build_future_dates(context, FORECAST_HORIZON)
+    if not future_dates:
+        return _error_response("Sem datas futuras derivadas do contexto", 400, 0.0)
+
+    cap = _compute_confidence_cap(body.valid_real_days)
+    recent = context[-30:]
+    rolling_summary = body.rolling_summary if isinstance(body.rolling_summary, dict) else None
+    prompt = _build_report_prompt(recent, future_dates, cap, rolling_summary)
+
+    try:
+        raw = await asyncio.to_thread(_call_model, prompt, "high")
+    except RuntimeError as exc:
+        # Se OpenAI rejeitou verbosity (param novo), retry sem ele
+        if "verbosity" in str(exc).lower():
+            raw = await asyncio.to_thread(_call_model, prompt, None)
+        else:
+            return _error_response(f"{type(exc).__name__}: {exc}", 502, cap)
+    except Exception as exc:
+        return _error_response(f"{type(exc).__name__}: {exc}", 502, cap)
+
+    try:
+        clean = _strip_fences(raw)
+        parsed = json.loads(clean)
+        if not isinstance(parsed, dict):
+            raise ValueError(f"Modelo retornou {type(parsed).__name__}, esperado dict")
+
+        narrative = parsed.get("narrative") or {}
+        forecasts_raw = parsed.get("forecasts", [])
+        signals_raw = parsed.get("signals", [])
+        drivers_raw = parsed.get("drivers", [])
+
+        if not isinstance(forecasts_raw, list):
+            forecasts_raw = []
+        if not isinstance(signals_raw, list):
+            signals_raw = []
+        if not isinstance(drivers_raw, list):
+            drivers_raw = []
+
+        expected_dates: list[str] = [str(item.get("date")) for item in future_dates if item.get("date")]
+        forecasted = _apply_forecasted(
+            [e for e in forecasts_raw if isinstance(e, dict)], cap, expected_dates,
+        )
+        signals = [
+            {"field": s.get("field", ""), "observation": s.get("observation", "")}
+            for s in signals_raw
+            if isinstance(s, dict) and s.get("observation")
+        ]
+        drivers = [d for d in drivers_raw if isinstance(d, dict) and d.get("name")]
+
+        generated_at = datetime.now(timezone.utc).isoformat()
+        report_payload = {
+            "narrative": narrative if isinstance(narrative, dict) else {},
+            "forecast_snapshots": forecasted,
+            "signals": signals,
+            "drivers": drivers,
+            "max_confidence": cap,
+        }
+        try:
+            report_id = forecast_storage.record_report(report_payload, generated_at)
+        except Exception:
+            report_id = ""
+
+        # Persiste forecasts no history regular pra alimentar /accuracy
+        try:
+            forecast_storage.record_forecast(forecasted, generated_at)
+        except Exception:
+            pass
+
+        return JSONResponse(content={
+            "report_id": report_id,
+            "generated_at": generated_at,
+            **report_payload,
+        })
+    except Exception as exc:
+        return _error_response(f"{type(exc).__name__}: {exc}", 502, cap)
+
+
+@router.get("/reports")
+async def forecast_reports_list(days_back: int = 30, limit: int = 30) -> JSONResponse:
+    """Lista relatórios persistidos (mais recente primeiro)."""
+    reports = forecast_storage.load_reports(days_back=days_back, limit=limit)
+    return JSONResponse(content={"reports": reports, "count": len(reports)})
+
+
+@router.get("/reports/{report_id}")
+async def forecast_reports_get(report_id: str) -> JSONResponse:
+    """Recupera um relatório específico pelo report_id."""
+    report = forecast_storage.get_report(report_id)
+    if report is None:
+        return JSONResponse(status_code=404, content={"error": f"Report {report_id} não encontrado"})
+    return JSONResponse(content=report)

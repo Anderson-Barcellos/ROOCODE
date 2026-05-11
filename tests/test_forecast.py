@@ -694,5 +694,138 @@ class ReportsStorageTests(unittest.TestCase):
         self.assertEqual(reports, [])
 
 
+class ForecastReportEndpointTests(unittest.TestCase):
+    """M6.3.b — POST /forecast/report + GET /forecast/reports + /reports/{id}."""
+
+    def setUp(self) -> None:
+        forecast_router._cache.clear()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_history = forecast_storage.HISTORY_PATH
+        self.original_reports = forecast_storage.REPORTS_PATH
+        forecast_storage.HISTORY_PATH = Path(self.temp_dir.name) / "history.json"
+        forecast_storage.REPORTS_PATH = Path(self.temp_dir.name) / "reports.json"
+        app = FastAPI()
+        app.include_router(forecast_router.router, prefix="/forecast")
+        self.client = TestClient(app)
+
+    def tearDown(self) -> None:
+        forecast_storage.HISTORY_PATH = self.original_history
+        forecast_storage.REPORTS_PATH = self.original_reports
+        self.temp_dir.cleanup()
+
+    def _mock_report_payload(self) -> Dict[str, Any]:
+        return {
+            "narrative": {
+                "contexto_recente": "Últimos 7 dias mostram HRV estável em ~110 ms…",
+                "hipoteses_ativas": "Padrão semanal preservado, sem picos atípicos…",
+                "tendencias": "Sleep total trending up em 0.3h/d…",
+                "drivers_principais": "PK do Lexapro estável, atividade matinal mantida…",
+                "projecao_5d": "Espera-se HRV mantido com leve queda no fim de semana…",
+                "recomendacoes_monitoramento": "Acompanhar wrist temp se >+0.5°C…",
+            },
+            "forecasts": [
+                {"date": "2026-04-08", "values": {"sleepTotalHours": 7.2, "hrvSdnn": 108.0,
+                  "restingHeartRate": 56.0, "activeEnergyKcal": 480.0, "exerciseMinutes": 40.0,
+                  "valence": 0.2}, "confidence": 0.4, "rationale": "estável"},
+                {"date": "2026-04-09", "values": {"sleepTotalHours": 7.0, "hrvSdnn": 106.0,
+                  "restingHeartRate": 57.0, "activeEnergyKcal": 470.0, "exerciseMinutes": 35.0,
+                  "valence": 0.15}, "confidence": 0.38, "rationale": "estável"},
+                {"date": "2026-04-10", "values": {"sleepTotalHours": 6.8, "hrvSdnn": 104.0,
+                  "restingHeartRate": 58.0, "activeEnergyKcal": 460.0, "exerciseMinutes": 30.0,
+                  "valence": 0.1}, "confidence": 0.36, "rationale": "estável"},
+                {"date": "2026-04-11", "values": {"sleepTotalHours": 7.5, "hrvSdnn": 110.0,
+                  "restingHeartRate": 55.0, "activeEnergyKcal": 500.0, "exerciseMinutes": 45.0,
+                  "valence": 0.25}, "confidence": 0.34, "rationale": "fim de semana"},
+                {"date": "2026-04-12", "values": {"sleepTotalHours": 7.8, "hrvSdnn": 112.0,
+                  "restingHeartRate": 54.0, "activeEnergyKcal": 510.0, "exerciseMinutes": 50.0,
+                  "valence": 0.3}, "confidence": 0.32, "rationale": "fim de semana"},
+            ],
+            "signals": [{"field": "hrvSdnn", "observation": "HRV estável"}],
+            "drivers": [
+                {"name": "PK Lexapro steady-state", "impact": "alto", "direction": "neutro",
+                 "rationale": "regime estável há 30+ dias"},
+                {"name": "atividade matinal Venvanse", "impact": "medio", "direction": "positivo",
+                 "rationale": "consistente weekdays"},
+            ],
+        }
+
+    @patch("Forecast.router._call_model")
+    def test_report_returns_narrative_and_persists(self, mock_call):
+        mock_call.return_value = json.dumps(self._mock_report_payload())
+
+        response = self.client.post("/forecast/report", json=_build_payload())
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("report_id", data)
+        self.assertIn("generated_at", data)
+        self.assertIn("narrative", data)
+        self.assertIn("contexto_recente", data["narrative"])
+        self.assertEqual(len(data["forecast_snapshots"]), 5)
+        self.assertEqual(len(data["drivers"]), 2)
+        # Persistido
+        self.assertTrue(forecast_storage.REPORTS_PATH.exists())
+
+    @patch("Forecast.router._call_model")
+    def test_report_call_uses_verbosity_high(self, mock_call):
+        mock_call.return_value = json.dumps(self._mock_report_payload())
+        self.client.post("/forecast/report", json=_build_payload())
+        # Verifica que _call_model foi chamado com verbosity="high"
+        args, kwargs = mock_call.call_args
+        self.assertEqual(args[1] if len(args) > 1 else kwargs.get("verbosity"), "high")
+
+    @patch("Forecast.router._call_model")
+    def test_report_retries_without_verbosity_when_param_rejected(self, mock_call):
+        # Primeiro call falha com mensagem mencionando verbosity
+        first_payload = self._mock_report_payload()
+        mock_call.side_effect = [
+            RuntimeError("OpenAI HTTP 400: unknown parameter 'verbosity'"),
+            json.dumps(first_payload),
+        ]
+        response = self.client.post("/forecast/report", json=_build_payload())
+        self.assertEqual(response.status_code, 200)
+        # 2 calls feitas
+        self.assertEqual(mock_call.call_count, 2)
+        # Segundo call sem verbosity
+        second_args, second_kwargs = mock_call.call_args_list[1]
+        verbosity_arg = second_args[1] if len(second_args) > 1 else second_kwargs.get("verbosity")
+        self.assertIsNone(verbosity_arg)
+
+    @patch("Forecast.router._call_model")
+    def test_report_provider_failure_returns_502(self, mock_call):
+        mock_call.side_effect = RuntimeError("provider offline")
+        response = self.client.post("/forecast/report", json=_build_payload())
+        self.assertEqual(response.status_code, 502)
+
+    @patch("Forecast.router._call_model")
+    def test_get_reports_list_returns_persisted(self, mock_call):
+        mock_call.return_value = json.dumps(self._mock_report_payload())
+        # Gera 2 relatórios
+        self.client.post("/forecast/report", json=_build_payload())
+        forecast_router._cache.clear()  # força segunda chamada não-cached
+        # Modifica payload pra invalidar hash
+        payload2 = _build_payload()
+        payload2["valid_real_days"] = 11
+        self.client.post("/forecast/report", json=payload2)
+
+        listing = self.client.get("/forecast/reports?days_back=30&limit=5")
+        self.assertEqual(listing.status_code, 200)
+        body = listing.json()
+        self.assertEqual(body["count"], 2)
+        self.assertEqual(len(body["reports"]), 2)
+
+    @patch("Forecast.router._call_model")
+    def test_get_report_by_id_returns_specific(self, mock_call):
+        mock_call.return_value = json.dumps(self._mock_report_payload())
+        first = self.client.post("/forecast/report", json=_build_payload()).json()
+        rid = first["report_id"]
+        fetched = self.client.get(f"/forecast/reports/{rid}")
+        self.assertEqual(fetched.status_code, 200)
+        self.assertEqual(fetched.json()["report_id"], rid)
+
+    def test_get_report_by_id_not_found_returns_404(self):
+        response = self.client.get("/forecast/reports/nonexistent_id")
+        self.assertEqual(response.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()

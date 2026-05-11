@@ -31,6 +31,7 @@ import { HRRangeChart } from '@/components/charts/hr-range-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { RecoveryScoreChart } from '@/components/charts/recovery-score-chart'
+import { LimitingFactorCard } from '@/components/cards/limiting-factor-card'
 import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -390,6 +391,8 @@ export default function App() {
                   <ForecastAccuracyCard snapshots={ranged} />
 
                   <RecoveryScoreChart snapshots={rangedWithForecast} />
+
+                  <LimitingFactorCard snapshots={rangedWithForecast} />
 
                 </div>
               )}

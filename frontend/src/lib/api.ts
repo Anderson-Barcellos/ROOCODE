@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import type { MedicationRegimenEntry } from '@/types/pharmacology'
+import type { ForecastReport } from '@/hooks/useForecastReport'
 
 const BASE = '/health/api'
 
@@ -288,6 +289,30 @@ export const useForecastSummary = (snapshots: ForecastSummaryInputSnapshot[]) =>
     enabled: snapshots.length >= 7,
   })
 }
+
+// ─── Forecast reports (M6.3.c — listagem + lookup) ──────────────────────────
+
+export interface ForecastReportsListResponse {
+  reports: ForecastReport[]
+  count: number
+}
+
+export const useForecastReportsList = (daysBack = 30, limit = 30) =>
+  useQuery<ForecastReportsListResponse>({
+    queryKey: ['forecast-reports-list', daysBack, limit],
+    queryFn: () =>
+      get<ForecastReportsListResponse>(`/forecast/reports?days_back=${daysBack}&limit=${limit}`),
+    staleTime: 60 * 1000,
+  })
+
+export const useForecastReportById = (reportId: string | null) =>
+  useQuery<ForecastReport>({
+    queryKey: ['forecast-report-by-id', reportId],
+    queryFn: () =>
+      get<ForecastReport>(`/forecast/reports/${encodeURIComponent(reportId ?? '')}`),
+    enabled: Boolean(reportId),
+    staleTime: Infinity,
+  })
 
 export const useLogDose = () => {
   const qc = useQueryClient()

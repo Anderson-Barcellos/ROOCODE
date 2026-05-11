@@ -26,6 +26,12 @@
     "src/utils/pharmacokinetics.ts",
     "src/utils/medication-bridge.ts",
     "src/utils/statistics.ts",
+    "src/utils/personal-baselines.ts",
+    "src/utils/interp-policy.ts",
+    "src/utils/sleep-debt.ts",
+    "src/utils/recovery-score.ts",
+    "src/utils/autonomic-balance.ts",
+    "src/utils/forecast-payload-enrichment.ts",
     "tests/**/*.ts"
   ]
 }

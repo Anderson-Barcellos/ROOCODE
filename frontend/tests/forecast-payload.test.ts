@@ -78,9 +78,20 @@ const snapshots = [
 
 const payload = buildForecastPayload(snapshots, 20)
 
-assert.equal(payload.snapshots.length, 8)
+// Sprint M6.2.e: interp days agora ENTRAM no payload com flag is_interpolated.
+// 9 snapshots no input (8 reais + 1 interp) → 9 no payload.
+assert.equal(payload.snapshots.length, 9)
 assert.equal(payload.snapshots[0].date, '2026-04-01')
-assert.equal(payload.snapshots[payload.snapshots.length - 1].date, '2026-04-08')
+assert.equal(payload.snapshots[payload.snapshots.length - 1].date, '2026-04-09')
+
+// Último snapshot é o interp day, deve carregar a flag.
+const lastSnap = payload.snapshots[payload.snapshots.length - 1]
+assert.equal(lastSnap.is_interpolated, true)
+// Confidence default 0.5 quando interp sem confidence explícito no snapshot.
+assert.equal(lastSnap.confidence, 0.5)
+
+// Rolling means continuam puras: filtram interp antes da janela 7d.
+// Janela = últimos 7 reais [02..08] → mean = (2+3+4+5+6+7+8)/7 = 5
 assert.equal(payload.rolling_summary.window_days, 7)
 assert.equal(payload.rolling_summary.sample_days, 7)
 assert.equal(payload.rolling_summary.means.sleepTotalHours, 5)

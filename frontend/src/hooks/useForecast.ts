@@ -2,6 +2,10 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import type { DailySnapshot, ForecastSignal } from '@/types/apple-health'
+import {
+  enrichSnapshotsWithDerivations,
+  type SnapshotDerivations,
+} from '../utils/forecast-payload-enrichment'
 
 const BASE = '/health/api'
 const FORECAST_HORIZON_DAYS = 5
@@ -18,7 +22,16 @@ const FORECAST_FIELDS = [
   'valence',
 ] as const
 
+const SLEEP_DETAIL_FIELDS = [
+  'sleepRemHours',
+  'sleepDeepHours',
+  'sleepCoreHours',
+  'sleepAwakeHours',
+  'sleepEfficiencyPct',
+] as const
+
 type ForecastField = (typeof FORECAST_FIELDS)[number]
+type SleepDetailField = (typeof SLEEP_DETAIL_FIELDS)[number]
 
 export type ForecastMode = 'off' | 'on'
 
@@ -51,6 +64,14 @@ interface ForecastApiError extends Error {
 export interface ForecastCompactSnapshot {
   date: string
   values: Record<ForecastField, number | null>
+  sleep_detail?: Partial<Record<SleepDetailField, number | null>>
+  derivations?: {
+    recoveryScore: number | null
+    abi: number | null
+    wristTempDeviation: number | null
+  }
+  is_interpolated?: boolean
+  confidence?: number
 }
 
 export interface ForecastRollingSummary {
@@ -72,8 +93,12 @@ function mean(values: Array<number | null>): number | null {
   return numeric.reduce((sum, value) => sum + value, 0) / numeric.length
 }
 
-function toCompactSnapshot(snapshot: DailySnapshot): ForecastCompactSnapshot | null {
-  if (snapshot.forecasted || snapshot.interpolated) return null
+function toCompactSnapshot(
+  snapshot: DailySnapshot,
+  derivations: SnapshotDerivations | undefined,
+): ForecastCompactSnapshot | null {
+  // Sprint M6.2.e: interp/forecast agora ENTRAM no payload com flag explícita.
+  // IA recebe contexto completo + sinaliza qual peso dar via is_interpolated.
 
   const values: Record<ForecastField, number | null> = {
     sleepTotalHours: snapshot.health?.sleepTotalHours ?? null,
@@ -87,20 +112,59 @@ function toCompactSnapshot(snapshot: DailySnapshot): ForecastCompactSnapshot | n
   const hasSignal = FORECAST_FIELDS.some((field) => values[field] != null)
   if (!hasSignal) return null
 
-  return { date: snapshot.date, values }
+  const sleepDetail: Partial<Record<SleepDetailField, number | null>> = {}
+  let hasSleepDetail = false
+  for (const field of SLEEP_DETAIL_FIELDS) {
+    const v = snapshot.health?.[field]
+    if (typeof v === 'number') {
+      sleepDetail[field] = v
+      hasSleepDetail = true
+    }
+  }
+
+  const out: ForecastCompactSnapshot = { date: snapshot.date, values }
+  if (hasSleepDetail) out.sleep_detail = sleepDetail
+
+  const isInterp = Boolean(snapshot.interpolated || snapshot.forecasted)
+  if (isInterp) out.is_interpolated = true
+  if (typeof snapshot.confidence === 'number') {
+    out.confidence = snapshot.confidence
+  } else if (isInterp) {
+    out.confidence = 0.5
+  }
+
+  if (derivations) {
+    const hasAnyDerivation =
+      derivations.recoveryScore !== null ||
+      derivations.abi !== null ||
+      derivations.wristTempDeviation !== null
+    if (hasAnyDerivation) {
+      out.derivations = {
+        recoveryScore: derivations.recoveryScore,
+        abi: derivations.abi,
+        wristTempDeviation: derivations.wristTempDeviation,
+      }
+    }
+  }
+
+  return out
 }
 
 export function buildForecastPayload(
   snapshots: DailySnapshot[],
   validRealDays: number,
 ): ForecastPayload {
+  const derivationsByDate = enrichSnapshotsWithDerivations(snapshots)
   const compact = snapshots
-    .map(toCompactSnapshot)
+    .map((s) => toCompactSnapshot(s, derivationsByDate.get(s.date)))
     .filter((row): row is ForecastCompactSnapshot => row !== null)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-FORECAST_CONTEXT_MAX_DAYS)
 
-  const summarySlice = compact.slice(-FORECAST_SUMMARY_WINDOW_DAYS)
+  // Rolling means só sobre dias reais — mesmo padrão das baselines (M3).
+  // Inclui interp no payload (com flag) mas não inflar média estatística.
+  const realCompact = compact.filter((row) => !row.is_interpolated)
+  const summarySlice = realCompact.slice(-FORECAST_SUMMARY_WINDOW_DAYS)
   const means: Record<ForecastField, number | null> = {
     sleepTotalHours: mean(summarySlice.map((row) => row.values.sleepTotalHours)),
     hrvSdnn: mean(summarySlice.map((row) => row.values.hrvSdnn)),
@@ -131,7 +195,19 @@ function hashForecastPayload(payload: ForecastPayload): string {
           return value == null ? '∅' : value.toFixed(3)
         })
         .join('|')
-      return `${snapshot.date}|${values}`
+      const sleep = SLEEP_DETAIL_FIELDS
+        .map((field) => {
+          const value = snapshot.sleep_detail?.[field]
+          return value == null ? '∅' : value.toFixed(2)
+        })
+        .join('|')
+      const deriv = snapshot.derivations
+        ? `r:${snapshot.derivations.recoveryScore?.toFixed(1) ?? '∅'}` +
+          `|a:${snapshot.derivations.abi?.toFixed(2) ?? '∅'}` +
+          `|w:${snapshot.derivations.wristTempDeviation?.toFixed(2) ?? '∅'}`
+        : '∅'
+      const flag = snapshot.is_interpolated ? '#interp' : ''
+      return `${snapshot.date}|${values}|s:${sleep}|d:${deriv}${flag}`
     })
     .join(';')
 

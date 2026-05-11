@@ -33,6 +33,7 @@ import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { RecoveryScoreChart } from '@/components/charts/recovery-score-chart'
 import { LimitingFactorCard } from '@/components/cards/limiting-factor-card'
 import { NightQualityCard } from '@/components/cards/night-quality-card'
+import { PKCoverageCard } from '@/components/cards/pk-coverage-card'
 import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -397,6 +398,8 @@ export default function App() {
 
                   <NightQualityCard snapshots={rangedWithForecast} variant="summary" />
 
+                  <PKCoverageCard variant="summary" />
+
                 </div>
               )}
             </SurfaceFrame>
@@ -425,6 +428,8 @@ export default function App() {
                 <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
                 <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+
+                <PKCoverageCard />
 
                 <PKMedicationGrid hoursWindow={168} />
 

@@ -103,7 +103,7 @@ Concluídas:
 - Sprint M5 (Autonomic Balance Index na aba Coração + hard-remove HrvAnalysis/HeartRateBands) em 2026-05-10 — commit `7fab71b`.
 - Sprint M6 (Interp policy + payload IA enriquecido + relatório IA modal) em 2026-05-10 — commits 137d63a → 3175be7 (14 commits, 13 feature + 1 docs intermediário).
 - Sprint M7 (3 charts cardíacos educativos: HRV Variability + Reserva Cardíaca + Resposta Cronotrópica) em 2026-05-11 — commits `5c48c94` + `2380d20`.
-- **Sprint R (Regularização Pré-Daily Decision Layer)** em 2026-05-11 — Profile centralizado + remove ForecastSignalsPanel órfão + drift documental sincronizado.
+- **Sprint R (Regularização Pré-Daily Decision Layer)** em 2026-05-11 — commit `4e3ed46`. Profile centralizado + remove ForecastSignalsPanel órfão + drift documental sincronizado.
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 1 item em ⏳ (pk-rem-suppression refino — `peso corporal hardcoded` resolvido na Sprint R).
 

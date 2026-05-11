@@ -21,7 +21,7 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M5 | Coracao | Autonomic Balance Index | Médio | ✅ 2026-05-10 (`7fab71b`) |
 | M6 | Cross-cutting | Interp policy + payload IA enriquecido + relatório modal | Médio | ✅ 2026-05-10 (commits 137d63a → 3175be7) |
 | M7 | Coração | 3 charts educativos (HRV Variability + HRR + Chronotropic Response) | Baixo | ✅ 2026-05-11 (`5c48c94` + `2380d20`) |
-| R  | Regularização | Profile centralizado + drift docs + remove ForecastSignalsPanel órfão | Baixo | ✅ 2026-05-11 |
+| R  | Regularização | Profile centralizado + drift docs + remove ForecastSignalsPanel órfão | Baixo | ✅ 2026-05-11 (`4e3ed46`) |
 
 Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual. **Sprint R** é gate antes da Sprint D (Daily Decision Layer) — consolida hardcodes de perfil pessoal e sincroniza drift documental.
 
@@ -430,7 +430,7 @@ Até M6 ser brainstormada e executada, **regra conservadora**:
 
 ## Sprint R — Regularização Pré-Daily Decision Layer ✅ CONCLUÍDA
 
-**Status:** CONCLUÍDA em 2026-05-11 — sprint inteira em 1 sessão.
+**Status:** CONCLUÍDA em 2026-05-11 — sprint inteira em 1 sessão. Commit: `4e3ed46`.
 
 **Origem:** auditoria de produto em `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (seção 4 — Achados de redundância e limpeza; seção 8.1 — Config pessoal centralizada). Gate obrigatório antes da Sprint D.
 

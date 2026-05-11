@@ -22,8 +22,9 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M6 | Cross-cutting | Interp policy + payload IA enriquecido + relatório modal | Médio | ✅ 2026-05-10 (commits 137d63a → 3175be7) |
 | M7 | Coração | 3 charts educativos (HRV Variability + HRR + Chronotropic Response) | Baixo | ✅ 2026-05-11 (`5c48c94` + `2380d20`) |
 | R  | Regularização | Profile centralizado + drift docs + remove ForecastSignalsPanel órfão | Baixo | ✅ 2026-05-11 (`4e3ed46`) |
+| D  | Daily Decision Layer | 3 cards acionáveis (Limitante · Noite · PK Coverage) + idade 39 canônica | Baixo-médio | ✅ 2026-05-11 (`32efb09` → `718a596`) |
 
-Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual. **Sprint R** é gate antes da Sprint D (Daily Decision Layer) — consolida hardcodes de perfil pessoal e sincroniza drift documental.
+Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual. **Sprint R** é gate antes da Sprint D (Daily Decision Layer) — consolida hardcodes de perfil pessoal e sincroniza drift documental. **Sprint D** transforma dados existentes em 3 cards acionáveis de uso diário (sem expandir backend).
 
 ---
 
@@ -465,58 +466,84 @@ Até M6 ser brainstormada e executada, **regra conservadora**:
 
 ---
 
-## KICKOFF — Sprint D — Daily Health Decision Layer
+## Sprint D — Daily Health Decision Layer ✅ CONCLUÍDA
+
+**Status:** CONCLUÍDA em 2026-05-11 — sprint inteira em 1 sessão. Commits: `32efb09` (T1 idade canônica) → `ddb9fba` (T2 Limitante) → `38702ff` (T3 Noite) → `718a596` (T4 PK Coverage).
+
+**Resultado real:**
+
+- **T1 — Idade canônica 38 → 39 (Q2 = B):** `Profile.age` passa pra 39, `hr_max_bpm` recalculado pra 181 (220−39). Reaproveita prompts IA "39 anos" já validados em `test_forecast.py:573` — zera drift documental herdado da R. Strings hardcoded em `heart-rate-reserve-chart.tsx` (3 lugares) convertidas pra `{ANDERS_HRMAX_BPM}` + `{USER_PROFILE.age}` dinâmicos. Testes `health-policies` (VO2 45.5 → 45.3) e `heart-rate-reserve` (Karvonen 24.59% → 24.79%) recalibrados; uso de constantes dinâmicas em vez de literais hardcoded pra sobreviver mudanças futuras de idade.
+
+- **T2 — Card "Limitante principal" (Panorama):** Helper puro `recovery-score-ranking.ts` rankeia os 5 componentes do Recovery Score por `weightedShortfall = (100 − componentValue) × weight`. Card mostra top-2 limitantes com headline coaching ("Sono fragmentado pesou", "Autonômico em alerta") + tooltip médico expandível com valores brutos, pesos, componentes 0-100. Lembrete (Q3=A+) quando score=null com motivo específico ("baselines em formação" vs "faltam inputs X, Y").
+
+- **T3 — Card "Noite boa/média/ruim" (Sono + summary Panorama):** Score composto 0-100 com 6 inputs (sleepEff 30% · deep 15% · REM 15% · awake 15% · respiratory 15% · SpO2 10%) + 2 anomaly flags via baselines pessoais (temp punho + FR z>+1.5σ). 5 classes em prioridade clínica: respiratoria > autonomica > fragmentada > reparadora (≥75) > regular. Headline coaching por classe + badges de flags adicionais. Variante `full` (aba Sono) com detalhe médico expandível; variante `summary` (Panorama) compacta. Reusa `personal-baselines.ts` cross-sprint.
+
+- **T4 — Card "Dose coverage / janela de vulnerabilidade" (Farmaco + summary Panorama):** Util `pk-coverage.ts` classifica últimas 48h por substância com therapeutic range (Lexapro, Venvanse, Lamictal, Clonazepam). 4 classes priorizadas: vulnerabilidade (conc < min) > nao_registrada (regime esperava dose sem log) > queda (projeta < min em ≤12h) > adequada. Trend %/24h por substância + projeção de cruzamento horário do min. Reusa engine `calculateConcentration` + `findPresetKey` de `pharmacokinetics.ts`.
+
+**Trade-offs aceitos:**
+
+- **Idade real do Anders é 40 (mencionado no chat), canônico oficial = 39.** Escolha B aceita o drift de 1 ano pra zerar drift com prompts IA. Diferença clínica de 39 vs 40 é ~1 bpm em VO2 Uth-Sørensen e Karvonen — irrelevante. Registrar nas sprints futuras se for revisar.
+- **Pesos preliminary calibration em ambos scores (Recovery + Sleep Quality).** Sem validação empírica contra outcomes Anders. Sprint futura pode recalibrar via correlação com sintomas reportados.
+- **Anomaly thresholds em Night Quality são populacionais aproximados** (respDist ≥15, SpO2 <92, awake ≥1h, sleepEff <80). Ajustáveis no util sem mudar API.
+- **Coverage projection só olha 48h pra frente** com probe a cada hora. Custo: 48 chamadas extra de `calculateConcentration` por substância por render. Não cacheado — render única do card. Se virar gargalo, memoizar por timestamp.
+- **PK Coverage não considera horário do dia.** "Dose esperada às 8h" vs "às 22h" entra como única expectativa de count na janela 48h. Falhas sequenciais (perdeu dose A e B no mesmo dia) viram missedDoses=2 mas a classificação não diferencia entre "perdeu 1 dose só" e "perdeu 2".
+
+**Validação executada nesta sessão:**
+
+- Backend: **79/79 tests verdes** (`test_farma` + `test_forecast` + `test_forecast_payload_helpers` + `test_mood`).
+- Frontend: `tsc --noEmit` ✅, `npm run test:unit` ✅ (4 testes novos: recovery-score-ranking · sleep-quality-score · pk-coverage), `npm run build` ✅, `npm run lint` ✅ (0 errors, 1 warning pré-existente).
+- **UI manual não validada nessa sessão** — Chrome DevTools MCP indisponível. Anders precisa validar cada card no browser antes de fechar o gate de produto.
+
+---
+
+## KICKOFF — Sprint D2 — Daily Decision Layer (Round 2)
 
 > Esta seção é single-source-of-truth pra próxima sessão fresh — leia primeiro.
 
-**Status:** Aguardando aprovação do Anders (Q1 abaixo deve ser respondida antes de codar).
+**Status:** Aguardando UI manual validation da Sprint D + decisões Anders abaixo.
 
-**Origem:** `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (auditoria 2026-05-11) — seção 9. Documento sobreviveu à Sprint R com escopo intacto (R foi gate de regularização, não consumiu cards do plano D).
+**Pré-requisito gate (não pular):** Anders precisa abrir browser e validar visualmente os 3 cards da Sprint D (Limitante, Noite, Coverage) antes desta sprint começar. Se algum card estiver visualmente quebrado ou semanticamente confuso, abrir patch sprint pequena ANTES da D2.
 
-**Objetivo:** Transformar dados existentes em **3 cards acionáveis de uso diário**, sem expandir backend. Tirar o RooCode do "painel de avião" e virar "copiloto clínico pessoal". Sprint cirúrgica, baixo risco — reusa código existente.
+**Origem:** Cards adiados na D + UX papers em `ACHADOS_E_IDEIAS_SAUDE.md` (seções 5.1, 5.5, 7.2).
 
-**Escopo (3 cards prioritários, ordem crescente de esforço):**
+**Objetivo:** Completar a camada decisional diária com 1-2 cards adicionais + 1 melhoria UX. Continuar o tema "copiloto clínico pessoal" sem expandir backend.
 
-1. **Card "Limitante principal da recuperação"** (Panorama, junto do `RecoveryScoreChart`)
-   - **Pergunta clínica:** "Se recovery caiu hoje, foi sono, autonômico, humor ou débito acumulado?"
-   - **Inputs:** os 5 componentes já decompostos em `recovery-score.ts` (HRV z, sleepEff, RHR z invertido, sleepDebt 7d invertido, mood reescalado).
-   - **Saída:** ranking dos 1-2 componentes que mais puxaram o score pra baixo no dia. UI compacta — chip por componente com seta vermelha + delta vs baseline.
-   - **Esforço:** **baixo** — só ranking + UI card. Quick win.
+**Escopo proposto (Anders escolhe antes de codar):**
 
-2. **Card "Noite boa, média ou ruim?"** (Sono + resumo no Panorama)
-   - **Pergunta clínica:** "A noite foi reparadora ou fisiologicamente ruim?"
-   - **Inputs:** sleep efficiency, deep sleep, REM, awake time, respiratory disturbances, SpO2, FR noturna, wrist temp deviation.
-   - **Saída:** score 0-100 + classe (`reparadora`, `fragmentada`, `respiratória ruim`, `alerta autonômico`).
-   - **Esforço:** **médio** — integra 5 charts da aba Sono em uma leitura diária. Define pesos preliminary, refinar com dados reais depois.
+1. **Card "Hoje: usar energia ou poupar?"** (Panorama, BAIXO esforço)
+   - **Pergunta clínica:** "É dia de treinar ou de recuperar?"
+   - **Inputs:** Recovery Score do dia + sleepDebt 7d + ABI (Autonomic Balance Index, Sprint M5).
+   - **Saída:** classe (`bom dia pra carga`, `dia neutro`, `pega leve`, `descanso ativo`) + 1 frase coaching.
+   - **Reuso:** Recovery Score já existe (M4); ABI já existe (M5); sleepDebt já existe.
 
-3. **Card "Dose coverage / janela de vulnerabilidade"** (Farmaco + resumo no Panorama)
-   - **Pergunta clínica:** "Houve buraco farmacocinético relevante nas últimas 24-48h?"
-   - **Inputs:** dose log, regimen fallback, série PK por substância, humor valence nos dias seguintes.
-   - **Saída:** classe (`Cobertura adequada`, `queda de cobertura`, `janela de vulnerabilidade`, `dose não registrada`). Mais acionável que r/p-value pra uso cotidiano.
-   - **Esforço:** **médio** — regras farmacológicas. Conecta ao achado pré-registrado: perda de efeito ~48h após falha de dose.
+2. **UX: Insights tab em accordions/sections** (BAIXO esforço)
+   - Hoje todos os 8 charts ficam jogados na vertical sem hierarquia.
+   - Proposta: organizar em 3 grupos colapsáveis: "Drivers de humor" (3 charts), "Lag analysis" (3), "Correlações brutas" (2).
+   - Adia "label de laboratório" pra esses charts vs aba Panorama (uso diário).
 
-**Cards adiados pra Sprint D+1 ou D+2:**
-- 5.1 "Hoje: usar energia ou poupar?" — depende da decisão Q1 (médico vs coaching) abaixo.
-- 5.5 "Consistência circadiana" — precisa confirmar se horário início/fim sono está no AutoExport antes (risco de virar proxy fraco).
+3. **(Opcional) Card "Consistência circadiana"** (BAIXO/MÉDIO esforço — bloqueado por research)
+   - **Pré-research necessário:** confirmar se `taken_at` do AutoExport tem horário início/fim sono. Hoje só temos `sleepTotalHours` (sem timestamps).
+   - Se houver: card baseado em estabilidade do bedtime/wakeup ±30min/SD 7d.
+   - Se não houver: proxy fraco com daylight + exercise + sleep total stability.
 
 **Decisões pendentes antes de codar (Q1-Q3):**
 
-1. **Tom dos cards: médico ou coaching?** (pergunta #2 do `ACHADOS_E_IDEIAS_SAUDE.md`). Afeta TODOS os 3 cards.
-   - **Médico:** "HRV z=-1.4, alerta autonômico — investigar."
-   - **Coaching:** "Pega leve hoje — corpo dando sinais."
-   - **Recomendação:** misto. Headline coaching, motivo médico no tooltip/detalhe.
+1. **Card 5.1 (usar energia ou poupar) deve aparecer como** *card separado* **ou** *frase única integrada ao Limitante*?
+   - Card separado: redundância visual com Limitante.
+   - Frase integrada: mais compacto, mas mistura "diagnóstico" (limitante) com "prescrição" (treinar/poupar).
+   - **Recomendação:** card separado, abaixo do Limitante. Limitante diz o quê, energia diz o que fazer.
 
-2. **Idade canônica do Anders (38 ou 39)?** Trade-off herdado da Sprint R. Precisa alinhar `Profile.age` + prompts IA + teste `tests/test_forecast.py:573`.
+2. **UX accordions na Insights — toggle aberto ou fechado por default?**
+   - **Recomendação:** fechado por default ("laboratório" não precisa abrir no scroll).
 
-3. **Recovery Score: parcial ou 5/5 obrigatório?** (pergunta #3 do documento). Hoje (M4) é 5/5 + null em interp. Card "Limitante" precisa de score pra rankear componentes — se score é null, o card também é null OU mostra ranking parcial com badge de confiança?
+3. **Sprint D2 deve incluir verificação do AutoExport pra Card 5.5?**
+   - **Recomendação:** **NÃO**. Se for incluir Card 5.5 com horário real, fazer Sprint D3 dedicada pra investigação backend + chart. Aqui foca no quick win.
 
 **Arquivos prováveis de tocar:**
-- `frontend/src/components/charts/recovery-score-chart.tsx` (extender com ranking) ou novo `limiting-factor-card.tsx`
-- `frontend/src/utils/recovery-score.ts` (helper que retorna ranking dos componentes)
-- `frontend/src/components/charts/night-quality-card.tsx` (NOVO)
-- `frontend/src/components/charts/pk-coverage-card.tsx` (NOVO)
-- Possíveis utilities: `utils/sleep-quality-score.ts`, `utils/pk-coverage.ts`
-- `frontend/src/App.tsx` (mount dos cards nas abas)
+- `frontend/src/utils/training-readiness.ts` (NOVO; helper para "usar/poupar")
+- `frontend/src/components/cards/training-readiness-card.tsx` (NOVO)
+- `frontend/src/App.tsx` (mount na Panorama + reorg da Insights tab)
+- Possivelmente novos componentes wrapper de accordion pra Insights
 
 **Como retomar (sessão fresh):**
 
@@ -525,23 +552,25 @@ Olá Claude! Sou o Anders. Retomando RooCode (`/root/RooCode`).
 Sessão fresh — siga sprint-system.md (especialmente Pós-Sprint Protocol,
 regra 7) e o protocolo de fresh start do CLAUDE.md.
 
-Sprint R concluída (Pré-Daily Decision Layer). KICKOFF da Sprint D
-está no fim do ROADMAP_maturation.md. Documento-fonte:
-/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md.
+Sprint D concluída (3 cards + idade canônica). KICKOFF da Sprint D2
+está no ROADMAP_maturation.md — última seção ## KICKOFF ativa
+(o bloco "## KICKOFF — Brainstorm M6 ORIGINAL" depois dele é só
+registro histórico preservado). Antes de codar, validei visualmente
+os 3 cards da Sprint D? Se não, fazer isso PRIMEIRO.
 
-Antes de codar, resolva Q1-Q3 do KICKOFF comigo.
+Depois, resolver Q1-Q3 do KICKOFF da D2 comigo.
 
 Bora!
 ```
 
-**Pós-Sprint Protocol obrigatório** (ver `~/.claude/rules/sprint-system.md` regra 7) — ao fechar a Sprint D:
-- Marcar Sprint D na tabela executiva (✅ + commits range).
-- Bloco Status no topo da seção D com 1-3 linhas resumindo resultado real.
-- Documentar trade-offs aceitos (especialmente decisões Q1/Q2/Q3).
-- Reescrever este KICKOFF apontando pra Sprint D+1 (próximos cards do documento ou nova frente).
-- Atualizar CLAUDE.md raiz: Sprint D nas concluídas + linha no Status local validado.
+**Pós-Sprint Protocol obrigatório** (ver `~/.claude/rules/sprint-system.md` regra 7) — ao fechar a Sprint D2:
+- Marcar Sprint D2 na tabela executiva (✅ + commits range).
+- Bloco Status no topo da seção D2 com 1-3 linhas resumindo resultado real.
+- Documentar trade-offs aceitos.
+- Reescrever este KICKOFF apontando pra Sprint D3 (cards adiados ou nova frente).
+- Atualizar CLAUDE.md raiz: Sprint D2 nas concluídas + linha no Status local validado.
 
-**Documento-fonte:** `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (auditoria de produto 2026-05-11, sobreviveu à Sprint R intacta).
+**Documento-fonte:** `/root/RooCode/ACHADOS_E_IDEIAS_SAUDE.md` (auditoria de produto 2026-05-11).
 
 ---
 

@@ -23,6 +23,7 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M7 | Coração | 3 charts educativos (HRV Variability + HRR + Chronotropic Response) | Baixo | ✅ 2026-05-11 (`5c48c94` + `2380d20`) |
 | R  | Regularização | Profile centralizado + drift docs + remove ForecastSignalsPanel órfão | Baixo | ✅ 2026-05-11 (`4e3ed46`) |
 | D  | Daily Decision Layer | 3 cards acionáveis (Limitante · Noite · PK Coverage) + idade 39 canônica | Baixo-médio | ✅ 2026-05-11 (`32efb09` → `718a596`) |
+| D-patch1 | Quick wins SIDEEFFECTS | Clonazepam range ansiolítico + Lisdex TS alinha com DB (Vd/F + range) | Baixo | ✅ 2026-05-11 (`c005464` + `3ceca20`) |
 
 Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual. **Sprint R** é gate antes da Sprint D (Daily Decision Layer) — consolida hardcodes de perfil pessoal e sincroniza drift documental. **Sprint D** transforma dados existentes em 3 cards acionáveis de uso diário (sem expandir backend).
 
@@ -496,9 +497,130 @@ Até M6 ser brainstormada e executada, **regra conservadora**:
 
 ---
 
-## KICKOFF — Sprint D2 — Daily Decision Layer (Round 2)
+## Sprint D-patch1 — Quick wins SIDEEFFECTS #2 + #3 ✅ CONCLUÍDA
+
+**Status:** CONCLUÍDA em 2026-05-11 — sprint inteira em 1 sessão. Commits: `c005464` (clonazepam) + `3ceca20` (lisdex) + `668dffc` (docs SIDEEFFECTS pós-validação #4).
+
+**Origem:** SIDEEFFECTS.md (auditoria 2026-05-11) — 3 P0 ALTA identificados (originalmente 4, com #4 rebaixado pra P2 após validação ao vivo na Phase 0 da sessão). Quick wins atacam #2 e #3; #1 (PKCoverageCard 3-em-1 redesign) fica pra D-patch2 com brainstorming prévio.
+
+**Resultado real:**
+
+- **Fase 0 — Validação ACHADO #4 (Mood valence):** falso positivo. Backend persiste em [0,100], frontend converte pra [-1,+1] via `normalizeMoodValence` (roocode-adapter:219) e `normalizeIntradayValence` (intraday-correlation:73), ambos tolerantes a ambas escalas. Forecast + Recovery Score recebem [-1,+1] coerente. Achado rebaixado pra P2/BAIXA com 4 sub-achados de cleanup catalogados (#24-27).
+- **T1 — Clonazepam (commit `c005464`):** preset TS em `pharmacokinetics.ts:358-367` estava em 20-80 ng/mL (epilepsia), divergindo do backend (`medDataBase.json:225-227`: 5-70 ng/mL ansiolítico, com nota explícita). Anders usa clonazepam como ansiolítico (~1 mg/dia → Css ~6 ng/mL), o que classificava falsamente como `vulnerabilidade` no PKCoverageCard. Alinhado pra `{ min: 5, max: 70 }` + comentário citando DailyMed + uso ansiedade vs epilepsia.
+- **T2 — Lisdex (commit `3ceca20`):** preset TS em `pharmacokinetics.ts:338-347` e `medDataBase.json` (venvanse) modelavam AMBOS dextroanfetamina, mas com parametrizações divergentes. TS usava Vd intrínseco (3.5 L/kg) + F=0.96 + range 50-150 ng/mL; DB usa Vd/F aparente (15.58 L/kg) + F=1.0 + range 10-30 ng/mL. Css simulado pra Anders (200 mg, 91 kg) divergia ~4×: TS=399 vs DB=95 ng/mL. Alinhado TS com DB completo (5 mudanças: halfLife 11→11.2; volumeOfDistribution 3.5→15.58; bioavailability 0.96→1.0; absorptionRate 1.5→0.604541; therapeuticRange 50-150→10-30) + comentário documentando analito + Vd basis + sources (DailyMed + PMC3689918).
+
+**Trade-offs aceitos:**
+
+- **PKHumorCorrelation re-roda inferências com Css lisdex ~95 ng/mL em vez de ~400.** Acurácia melhora, mas valores de r e CI podem mudar visualmente em sessões anteriores ao re-render. Anders valida no browser pós-deploy.
+- **PKCoverageCard reclassifica clonazepam de `vulnerabilidade` pra `adequada`** para o caso real Anders (~6 ng/mL agora dentro de [5, 70]). Comportamento esperado e correto.
+- **#1 (PKCoverageCard 3-em-1 redesign) não foi atacado** — vira Sprint D-patch2 com brainstorming-first (Q1-Q4 documentadas em SIDEEFFECTS.md #1).
+- **Pré-check de fixtures revelou zero tests fragéis:** pk-coverage.test.ts e intraday-correlation.test.ts usam Lexapro como fixture principal; backend test_farma.py invoca engine sobre medDataBase.json (DB), não sobre preset TS. Sprint passou sem precisar atualizar testes.
+
+**Validação executada nesta sessão:**
+
+- Frontend: `tsc --noEmit` ✅, `npm run lint` ✅ (0 errors, 1 warning pré-existente em pk-medication-grid:191), `npm run test:unit` ✅ (19 arquivos importados pelo run-all, exit 0), `npm run build` ✅ (1.47s, bundle 1062 kB / 296 kB gzip).
+- Backend: não tocado nesta sprint — 79/79 tests validados na Sprint D (2026-05-11) seguem como referência.
+- **UI manual não validada nessa sessão** — Chrome DevTools MCP indisponível. Anders valida visualmente no `/farmaco` (PKCoverageCard) + `/insights` (PKHumorCorrelation) no próximo deploy.
+
+---
+
+## KICKOFF — Sprint D-patch2 — Dose Coverage 3-em-1 Redesign (SIDEEFFECTS #1)
 
 > Esta seção é single-source-of-truth pra próxima sessão fresh — leia primeiro.
+
+**Status:** AGUARDANDO BRAINSTORM. Requer brainstorm dedicado ANTES de codar (4 decisões abertas Q1-Q4).
+
+**Pré-requisito gate (não pular):** Anders precisa abrir browser e validar visualmente que após Sprint D-patch1:
+- Clonazepam no PKCoverageCard saiu de `vulnerabilidade` pra `adequada` (caso real ~6 ng/mL agora dentro de [5,70]).
+- Lisdex no PKCoverageCard pode ter mudado classe — verificar coerência (Css simulado ~95 ng/mL pra 200mg, ainda acima de max=30, esperado).
+- PKHumorCorrelation com `r` e CI possivelmente recalculados — não validar números, só confirmar que renderiza sem regressão visual.
+
+Se algum dos 3 estiver visualmente quebrado, abrir patch sprint pequena ANTES da D-patch2.
+
+**Origem:** SIDEEFFECTS.md ACHADO #1 (P0 ALTA, último P0 pendente). Vrijens 2012 (ABC taxonomy), Chen 2013 (lamotrigine forgiveness), Ko 2021 (taking/dosing/timing), Boissel 2002 (drug forgiveness).
+
+**Objetivo:** Substituir o card único `PKCoverageCard` (que mistura 3 dimensões ortogonais — adesão, regularidade, cobertura PK) por 3 cards distintos (ou 1 card com 3 abas).
+
+**3 camadas-alvo (canônicas na literatura):**
+
+1. **ADESÃO (taking)** — Tomou a dose? (binário por dia natural). Métrica MPR ≥80%. Alarme: ≥1 dia perdido em 7d (LHL) ou 3d úteis (Venvanse).
+2. **REGULARIDADE (timing)** — Em que horário, vs padrão? Métrica `|Δt vs mediana 7d|`: ≤4h regular (verde), 4-8h variável (amarelo), >8h dispersão (vermelho). UI bonus: raster plot horário × dia.
+3. **COBERTURA (PK)** — Concentração no range? Engine atual mantido, com `personal_range` opcional per-substância (ver Q2).
+
+**Decisões abertas (Q1-Q4 do SIDEEFFECTS):**
+
+1. 3 cards separados OU 1 card com 3 tabs?
+2. `personal_range` — onde armazenar? Profile (`USER_PROFILE`) ou per-medication setting no preset/DB?
+3. Threshold de variabilidade 4h universal ou per-medication (Venvanse t½=11h talvez precise de 2h)?
+4. "Dia natural" pra Venvanse weekday-only — sáb/dom conta como esperado ou se exclui?
+
+**Workflow proposto (brainstorm-first):**
+
+Fase 1 — Reconhecimento (read-only):
+1. Read `frontend/src/utils/pk-coverage.ts` (engine atual).
+2. Read `frontend/src/components/cards/pk-coverage-card.tsx` (UI atual).
+3. Read `frontend/src/utils/user-profile.ts` (estado atual do Profile pra avaliar onde encaixar `personal_range`).
+4. Mapear consumers do PKCoverageCard via grep no App.tsx.
+
+Fase 2 — Brainstorm (`superpowers:brainstorming`):
+1. Apresentar Q1-Q4 com trade-offs.
+2. Anders escolhe direção.
+3. Plan mode pra documentar decisão antes de codar.
+
+Fase 3 — Execução:
+1. Refletir decisões em código (split em util(s) + components).
+2. Atualizar tests (pk-coverage.test.ts vai precisar reestruturar).
+3. Atualizar SIDEEFFECTS.md marcando #1 como ✅.
+4. Validação + commit + Pós-Sprint Protocol.
+
+**Arquivos prováveis de tocar:**
+- `frontend/src/utils/pk-coverage.ts` (refactor ou split em 3 utils — adherence, timing, coverage)
+- `frontend/src/components/cards/pk-coverage-card.tsx` (refactor ou split em 3 components)
+- `frontend/src/utils/user-profile.ts` (se decidido por Profile-level personal_range)
+- `frontend/tests/pk-coverage.test.ts` (reestruturar fixtures pras 3 dimensões)
+- `frontend/src/App.tsx` (atualizar mount na aba Farma + Panorama summary)
+
+**Como retomar (sessão fresh):**
+
+```
+Olá Claude! Sou o Anders. Retomando RooCode (`/root/RooCode`).
+Sessão fresh — siga sprint-system.md (especialmente Pós-Sprint Protocol,
+regra 7) e o protocolo de fresh start do CLAUDE.md.
+
+Sprint D-patch1 concluída (clonazepam + lisdex alinhamento). KICKOFF
+da Sprint D-patch2 está no ROADMAP_maturation.md — última seção ativa,
+acima do "## KICKOFF arquivado — Sprint D2".
+
+Antes de codar:
+1. Validei visualmente PKCoverageCard + PKHumorCorrelation pós Sprint
+   D-patch1? Se não, fazer isso PRIMEIRO. Patch sprint se quebrado.
+2. Brainstormar Q1-Q4 do KICKOFF D-patch2 — decisões abertas sobre
+   redesign do PKCoverageCard em 3 camadas.
+
+Alternativa: se preferir pivotar pra Sprint D2 (cards adicionais
+"usar energia ou poupar?" + reorg da Insights), o KICKOFF D2 está
+preservado logo abaixo neste mesmo arquivo (## KICKOFF arquivado).
+
+Bora!
+```
+
+**Pós-Sprint Protocol obrigatório** (ver `~/.claude/rules/sprint-system.md` regra 7) — ao fechar a Sprint D-patch2:
+- Marcar D-patch2 na tabela executiva (✅ + commits range).
+- Bloco Status no topo da seção D-patch2 com 1-3 linhas de resultado real.
+- Documentar trade-offs aceitos.
+- Reescrever este KICKOFF apontando próxima sprint (provavelmente D2 se Anders ainda quiser, OU outra frente conforme prioridade).
+- Atualizar CLAUDE.md raiz: D-patch2 nas concluídas + linha no Status local validado.
+- Marcar SIDEEFFECTS.md #1 como ✅ + commit hash.
+
+**Documento-fonte:** SIDEEFFECTS.md (`## ACHADO #1`) + DOIs anexos (Vrijens 2012, Chen 2013, Ko 2021, Boissel 2002, McAllister 2022, Clark 2024, Cramer 2019, Gidal 2021).
+
+---
+
+## KICKOFF arquivado — Sprint D2 — Daily Decision Layer (Round 2)
+
+> Preservado pra retomar depois da Sprint D-patch2. Não é o próximo passo
+> default — Anders decide se ativa essa sprint ou prioriza outra frente
+> ao fechar D-patch2.
 
 **Status:** Aguardando UI manual validation da Sprint D + decisões Anders abaixo.
 

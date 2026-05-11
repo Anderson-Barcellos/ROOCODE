@@ -35,6 +35,9 @@ import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
+import { HrvVariabilityChart } from '@/components/charts/hrv-variability-chart'
+import { HeartRateReserveChart } from '@/components/charts/heart-rate-reserve-chart'
+import { ChronotropicResponseChart } from '@/components/charts/chronotropic-response-chart'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
@@ -476,7 +479,13 @@ export default function App() {
                 <div className="space-y-4">
                   <AutonomicBalanceChart snapshots={rangedWithForecast} />
 
+                  <HrvVariabilityChart snapshots={rangedWithForecast} />
+
                   <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+
+                  <HeartRateReserveChart snapshots={rangedWithForecast} />
+
+                  <ChronotropicResponseChart snapshots={rangedWithForecast} />
 
                   <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
                 </div>

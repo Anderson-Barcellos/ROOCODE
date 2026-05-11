@@ -207,4 +207,7 @@ export const CHART_REQUIREMENTS = {
   // única sobre dias reais. Threshold um pouco mais alto que Recovery Score
   // pq log-ratio precisa de mais histórico pra estabilizar.
   autonomicBalanceChart: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
+  hrvVariabilityChart: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
+  heartRateReserveChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'restingHeartRate' },
+  chronotropicResponseChart: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'walkingHeartRateAvg' },
 } as const satisfies Record<string, ReadinessRequirement>

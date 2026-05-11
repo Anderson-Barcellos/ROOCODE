@@ -32,6 +32,10 @@
     "src/utils/recovery-score.ts",
     "src/utils/autonomic-balance.ts",
     "src/utils/forecast-payload-enrichment.ts",
+    "src/utils/health-policies.ts",
+    "src/utils/heart-rate-reserve.ts",
+    "src/utils/hrv-variability.ts",
+    "src/utils/chronotropic-response.ts",
     "tests/**/*.ts"
   ]
 }

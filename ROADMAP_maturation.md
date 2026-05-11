@@ -1,8 +1,8 @@
 # RooCode — Roadmap de Amadurecimento de Dados
 
-> Última atualização: 2026-05-10
-> Estado: Sprints M1 + M2 + M3 + M4 + M5 concluídas; próxima etapa: brainstorm da Sprint M6 (Interpolation Strategy)
-> Sessão de planejamento: `/root/.claude/plans/vamos-brainstormar-entao-meu-virtual-brook.md`
+> Última atualização: 2026-05-10 (sessão Anders + Claude — meio da Sprint M6)
+> Estado: M1-M5 ✅ · M6 EM ANDAMENTO (9/14 sub-tasks done, fatias M6.1+M6.2 fechadas + M6.3.a/b backend done; faltam M6.3.c-f frontend modal)
+> Sessão de planejamento M6: `/root/.claude/plans/crystalline-wondering-dijkstra.md`
 
 ## Princípio
 
@@ -19,7 +19,7 @@ Princípio metodológico (do PK×Humor): cada derivação tem hipótese clínica
 | M3 | Sinais Vitais | Wrist Temp Deviation + FR variability + remover badge "Hipotermia" | Baixo-médio | ✅ 2026-05-09 (`bb4cad6`) |
 | M4 | Panorama | Recovery Score composto (Whoop-style) | Médio | ✅ 2026-05-10 (`322781e`) |
 | M5 | Coracao | Autonomic Balance Index | Médio | ✅ 2026-05-10 (`7fab71b`) |
-| M6 | Cross-cutting | Interpolation Strategy (a definir) | Aberto | brainstorm + 1-2 sessões |
+| M6 | Cross-cutting | Interp policy + payload IA enriquecido + relatório modal | Médio | 🚧 9/14 (M6.1+M6.2 ✅ commits 137d63a→bff5752; M6.3.a/b ✅ a44c525+8ba37fd; M6.3.c-f pendentes) |
 
 Ordem por: dificuldade crescente, evitando blocking. M1+M2 são quick wins; M3 é misto (rename+derivação); M4+M5 são derivações principais. M3 cria utility de baseline rolling reusada em M4 e M5. **M6 é cross-cutting** e deve ser brainstormada antes de executar — afeta retroativamente M3/M4/M5 se mudar a política de interpolação atual.
 
@@ -397,10 +397,81 @@ Até M6 ser brainstormada e executada, **regra conservadora**:
 
 ---
 
-## KICKOFF — Brainstorm Sprint M6 (próxima sessão fresh)
+## KICKOFF — Continuação Sprint M6 (próxima sessão fresh)
 
-> **Atenção:** M6 é cross-cutting e ABRE com BRAINSTORM, não com codificação.
-> Coding só depois de Anders aprovar a política. Não pular essa fase.
+> **Atenção:** M6 já está EM ANDAMENTO. Brainstorm + plano já feitos numa sessão anterior. Plano fechado em `/root/.claude/plans/crystalline-wondering-dijkstra.md`. NÃO refazer brainstorm — retomar execução das tasks pendentes.
+
+### Estado atual (commits no main, todos verdes)
+
+**Fatia M6.1 — Política de interp unificada ✅** (3 commits)
+- 137d63a `feat(m6.1.a)`: recovery-score calcula em dia interp com flag derivedFromInterpolated
+- 7aa2688 `feat(m6.1.b)`: autonomic-balance segue policy + cria interp-policy.ts (INTERP_CONFIDENCE_MULTIPLIER=0.7)
+- b0f4c95 `feat(m6.1.c)`: charts mostram tracejado em dia interp + cleanup test assertions
+
+**Fatia M6.2 — Payload IA enriquecido ✅** (5 commits)
+- a3e5bab `feat(m6.2.a)`: payload_helpers.build_pk_series — concentrações ao meio-dia por substância × data
+- 757b9b7 `feat(m6.2.b)`: ForecastRequest aceita sleep_detail + derivations + flag interp
+- dfb8803 `feat(m6.2.c)`: _build_prompt enriquecido com PACIENTE + REGIME + PK + DERIVAÇÕES
+- 0584d57 `feat(m6.2.d)`: forecast-payload-enrichment.ts agrega derivações por dia
+- bff5752 `feat(m6.2.e)`: useForecast envia payload enriquecido — sleep detail + derivações + flag interp
+
+**Fatia M6.3 — Relatório modal — PARCIAL (2/6 commits)**
+- a44c525 `feat(m6.3.a)`: storage.record_report + load_reports + get_report (+ .gitignore Forecast/*history.json)
+- 8ba37fd `feat(m6.3.b)`: POST /forecast/report com verbosity high + persistência (3 endpoints novos: /report, /reports, /reports/{id})
+
+### Tasks pendentes (na ordem)
+
+- **M6.3.c** — Frontend: criar `frontend/src/hooks/useForecastReport.ts` (hook React Query pra POST /forecast/report) + integrar `lib/api.ts`.
+- **M6.3.d** — Frontend: criar `frontend/src/components/charts/ForecastReportModal.tsx` (modal fullscreen com narrative + forecast 5d + signals + drivers).
+- **M6.3.e** — Frontend: refactor `App.tsx` (botão único "🔮 Análise IA" + modal mounted) + `TabNav.tsx` (remover segmento toggle ON/OFF).
+- **M6.3.f** — Frontend: histórico de relatórios dentro do modal (lista + click navega entre relatórios persistidos).
+- **M6-final** — Pós-Sprint Protocol: marcar M6 CONCLUÍDA no ROADMAP_maturation.md (substituir esta seção KICKOFF), atualizar CLAUDE.md raiz, reescrever KICKOFF apontando pra M7 (a definir).
+
+### Estado técnico
+
+- Frontend: tsc + lint + test:unit + build verdes pós-bff5752 (M6.2.e). Chunk warning >500kB pré-existente.
+- Backend Python: 47 tests verdes (test_forecast) + 16 (test_forecast_payload_helpers) + farma/mood inalterados.
+- Service `roocode.service` pode precisar restart pra pegar mudanças backend M6.3.b (não rodado nesta sessão).
+- Decisões metodológicas (todas fechadas com Anders no plan):
+  - Interp policy: incluir interp com flag explícita + confidence
+  - Payload enrichment: TODOS os 4 (PK + derivações + sono detalhado + contexto clínico)
+  - UX: modal fullscreen
+  - Persistência: reports_history.json com pattern de forecast_history.json
+  - Modelo: gpt-5.4-mini + reasoning_effort high (já) + verbosity high (M6.3.b adiciona com fallback)
+
+### Como retomar
+
+```
+Olá Claude! Sou o Anders. Retomando RooCode Sprint M6.
+
+Sessão anterior: 9 de 14 tasks done (M6.1 + M6.2 inteiras + M6.3.a/b backend).
+Próxima task = M6.3.c — frontend useForecastReport.ts hook.
+
+Plano completo em /root/.claude/plans/crystalline-wondering-dijkstra.md.
+Estado real em /root/RooCode/ROADMAP_maturation.md (esta seção é o KICKOFF de continuação).
+
+Modo de trabalho: orchestrator-driven (sem subagents — Anders pediu).
+Acompanho cada commit antes de seguir pra próxima task.
+
+Bora seguir!
+```
+
+### Pós-Sprint Protocol obrigatório (ao fechar M6.3.f)
+
+Ver `~/.claude/rules/sprint-system.md` regra 7. Quando todas as 14 tasks estiverem done:
+- Marcar M6 CONCLUÍDA na tabela executiva (✅ + commits range)
+- Bloco Status no topo da seção M6 com 1-3 linhas resumindo
+- Documentar trade-offs (interp days agora calculam derivações com flag, modal substitui toggle, reports_history persiste)
+- Reescrever este KICKOFF apontando pra M7 (a definir com Anders)
+- Atualizar CLAUDE.md raiz: M6 nas concluídas + linha no Status local validado
+
+---
+
+## KICKOFF — Brainstorm Sprint M6 ORIGINAL (preservado pra histórico)
+
+> Este era o KICKOFF antes de Anders abrir o brainstorm. Mantido como registro
+> da decisão metodológica original. Brainstorm executado em 2026-05-10 e plano
+> fechado em `/root/.claude/plans/crystalline-wondering-dijkstra.md`.
 
 ```
 Olá Claude! Sou o Anders. Estamos retomando o RooCode (`/root/RooCode`).

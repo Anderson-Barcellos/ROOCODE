@@ -75,11 +75,12 @@ git diff --check
 - Forecast backend está OpenAI-only e com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
 
-## Status local validado (2026-05-10 — após Sprint M5)
+## Status local validado (2026-05-10 — meio da Sprint M6)
 
-- Frontend: tsc + lint + test:unit + build ✅ (build 100% verde, bundle -7kB pela M5)
-- Backend: farma + forecast + mood tests 29/29 OK (não tocados nas M1-M5)
-- Diff hygiene: ✅
+- Frontend: tsc + lint + test:unit + build ✅ pós-bff5752 (M6.2.e)
+- Backend: 47 tests verdes em test_forecast (era 29 antes de M6) + 16 em test_forecast_payload_helpers + farma/mood inalterados
+- Diff hygiene: ✅ (`reports_history.json` adicionado ao .gitignore na M6.3.a)
+- M6 EM ANDAMENTO: 9/14 tasks done. Continuação documentada no fim do `ROADMAP_maturation.md` (KICKOFF — Continuação Sprint M6). Plano completo em `/root/.claude/plans/crystalline-wondering-dijkstra.md`.
 - Adapter PT-BR (`[Mínimo]/[Máx]/[Média]`) consolidado.
 - `walkingStepLengthCm` exposto no pipeline (sem chart ainda — disponível pra próxima sprint visualizar).
 - PKHumorCorrelation com pré-registro + lag sweep [-3d..+3d] + heatmap UI.
@@ -92,7 +93,7 @@ git diff --check
 
 ## Próxima sprint planejada
 
-**Sprint Maturation** — 6 sprints (M1-M6) planejadas em `ROADMAP_maturation.md` (2026-05-09). Princípio: substituir charts de dados crus por derivações compostas (z-scores, ratios, indices) seguindo o padrão Cross-Domain Insights. **KICKOFF da próxima sprint sempre colável no fim do `ROADMAP_maturation.md`** — single-source-of-truth, sem repetir nome aqui pra evitar drift.
+**Sprint Maturation** — M1-M5 ✅ + M6 EM ANDAMENTO. **KICKOFF de continuação no fim do `ROADMAP_maturation.md`** — single-source-of-truth, sem repetir nome aqui pra evitar drift.
 
 Concluídas:
 - Sprint M1 (Farma debug do `PKStandardDoseComparison`) em 2026-05-09 — commits `b0622ff` + `6b1bc07`.
@@ -100,6 +101,9 @@ Concluídas:
 - Sprint M3 (Wrist Temp Deviation + FR variability + utility `personal-baselines.ts`) em 2026-05-09 — commit `bb4cad6`.
 - Sprint M4 (Recovery Score composto na aba Panorama) em 2026-05-10 — commit `322781e`.
 - Sprint M5 (Autonomic Balance Index na aba Coração + hard-remove HrvAnalysis/HeartRateBands) em 2026-05-10 — commit `7fab71b`.
+
+Em andamento:
+- **Sprint M6** (Interp policy + payload IA enriquecido + relatório modal) — 9/14 tasks done em 2026-05-10. Commits 137d63a → 8ba37fd. Próxima task = M6.3.c (frontend useForecastReport.ts). Modo de trabalho atual: orchestrator-driven (sem subagents).
 
 Anteriores: Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology — todas fechadas. Backlog menor com 2 itens em ⏳ (pk-rem-suppression refino + peso corporal hardcoded).
 

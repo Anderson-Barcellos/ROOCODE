@@ -5,8 +5,11 @@
 > fix proposto, prioridade.
 >
 > Criado: 2026-05-11 (Sprint D · pós-deploy).
-> Status: 23 achados consolidados via 3 agents de auditoria + 1
-> achado original do diálogo com Anders sobre Dose Coverage.
+> Atualizado: 2026-05-11 (Fase 0 · validação ao vivo do #4).
+> Status: 27 achados — 23 iniciais consolidados via 3 agents +
+> 1 do diálogo com Anders sobre Dose Coverage + 4 sub-achados
+> derivados da validação do #4 (Mood valence). #4 rebaixado
+> de P0/ALTA pra P2/BAIXA após verificação ao vivo.
 
 ---
 
@@ -25,7 +28,7 @@
 | 1 | Dose Coverage confunde adesão/regularidade/cobertura | ALTA | P0 | PK Coverage |
 | 2 | Clonazepam therapeutic range pra epilepsia, não ansiolítico | ALTA | P0 | PK Presets |
 | 3 | Lisdexamfetamina: TS vs DB modelam analitos diferentes | ALTA | P0 | PK Presets |
-| 4 | Mood valence escala 0-100 vs [-1,+1] (potencial bug) | ALTA | P0 | Backend Mood |
+| 4 | Mood valence escala 0-100 vs [-1,+1] (✅ validado · falso positivo) | BAIXA | P2 | Backend Mood |
 | 5 | bodyWeight=70kg hardcoded em 5 lugares (Profile=91kg) | MÉDIA | P1 | PK Engine |
 | 6 | Autoinduction lamotrigina 20% conservador + 'lamictal' duplicado | MÉDIA | P1 | PK Engine |
 | 7 | Modelo 2-compartimento Vd>10 é heurística empírica | MÉDIA | P1 | PK Engine |
@@ -45,8 +48,12 @@
 | 21 | Interpolate router não preenche campos Phase 8A | BAIXA | P2 | Backend Interp |
 | 22 | test_farma.py:169 fixture weight_kg=70.0 legado | BAIXA | P2 | Tests |
 | 23 | reasoning_effort + json_object compatibilidade gpt-5.1 | BAIXA | P2 | Backend Forecast |
+| 24 | Docstring `_scalingValence` diz 0-100 mas input real é [-100,+100] | BAIXA | P2 | Backend Mood |
+| 25 | `_normalize_mood_association` faz round() perdendo precisão decimal | BAIXA | P2 | Backend Mood |
+| 26 | DRY: 2 normalizadores espelhados (`normalizeMoodValence` + `normalizeIntradayValence`) | BAIXA | P2 | Frontend Adapter |
+| 27 | Falta test de integração validando schema GET `/mood` vs contract frontend | BAIXA | P2 | Tests |
 
-**P0 (4)** · **P1 (9)** · **P2 (10)** · Total: **23 achados**.
+**P0 (3)** · **P1 (9)** · **P2 (15)** · Total: **27 achados**.
 
 ---
 
@@ -199,41 +206,42 @@ dão números diferentes pro mesmo dado, sem reconciliação.
 
 ---
 
-## ACHADO #4 — Mood valence: escala 0-100 vs [-1,+1] confusion
+## ACHADO #4 — Mood valence: escala 0-100 vs [-1,+1] ✅ VALIDADO (falso positivo)
 
-**Severidade:** ALTA · **Prioridade:** P0 · **Origem:** Agent C
+**Severidade:** BAIXA · **Prioridade:** P2 · **Origem:** Agent C
+**Status:** Verificado ao vivo em 2026-05-11 — pipeline correto, sem bug em produção.
 
-### Contexto
+### Resolução da validação
 
-`Mood/mood.py` tem lógica de escala que pode estar enviando valência
-em escala errada para o resto do pipeline:
+Fluxo real confirmado:
 
-- `_scalingValence(value) = (value + 100) / 2` → escala 0-100
-- `_normalize_mood_association` bifurca: se já em [0,100] retorna direto,
-  se em [-1, +1] multiplica por 100 e converte
-- Pipeline downstream (Forecast, Interpolate, frontend) **espera [-1, +1]**
-- Conversão inversa no GET `/mood` não foi confirmada na auditoria
+1. **Backend POST `/mood`** (`Mood/mood.py:64-70`): `_normalize_mood_association`
+   detecta escala de entrada. Se input ∈ [-1,+1] aplica `(v*100+100)/2`;
+   se ∈ [0,100] passa direto. **Persiste sempre em [0,100]** no `mood.csv`.
+2. **Backend GET `/mood`** retorna [0,100] cru (confirmado:
+   `"Associações": 81, 75, 57, ...` na consulta ao vivo).
+3. **Frontend** faz a conversão inversa em DUAS funções espelhadas:
+   - `normalizeMoodValence` (`utils/roocode-adapter.ts:219`)
+   - `normalizeIntradayValence` (`utils/intraday-correlation.ts:73`)
+   Ambas: input ∈ [-1,+1] passa direto; ∈ [0,100] aplicam `(v/50)-1`.
+   Robustas a ambas escalas.
+4. **Forecast/Interpolate** routers consomem valence ∈ [-1,+1] vindo
+   do frontend (validado em `Forecast/router.py:73` + assertions em
+   `tests/test_forecast.py:120-121`).
+5. **Recovery Score** (M4) detectou em runtime [-1,+1] e reescala via
+   `(v+1)/2*100`. Coerente.
 
-Se a conversão inversa não existe, todo o pipeline pode estar
-recebendo valência em escala errada — afetando correlações,
-forecast e o Recovery Score (componente mood).
+### Origem do falso positivo
 
-### Evidência
+O agent C leu `_scalingValence` + `_normalize_mood_association` sem
+o contexto do frontend, formulou hipótese de bug sem evidência
+direta. A nota original ("ANTES DE FIX: validar comportamento real")
+era prudente — validação confirmou que não há bug.
 
-- `Mood/mood.py:15-19, 64-68`
+### Sub-achados derivados da validação (rebaixados pra P2)
 
-### Fix proposto
-
-1. **ANTES DE FIX:** validar comportamento real
-   - Fazer GET `/mood` e inspecionar formato retornado
-   - Confirmar onde a conversão inversa acontece (ou não acontece)
-2. Se bug confirmado: garantir armazenamento em [-1,+1] desde POST,
-   ou adicionar conversão inversa no GET
-3. Adicionar test que valida formato de saída
-
-**Severidade pode ser RAISED se confirmado bug em produção** —
-afetaria retroativamente correlações documentadas em sprints anteriores
-(PKHumorCorrelation, MoodDriverBoard, etc).
+A inspeção descobriu 4 itens menores de higiene/cleanup — catalogados
+como achados #24-27 no final desta seção.
 
 ---
 
@@ -570,19 +578,91 @@ remover response_format em favor de instrução no prompt.
 
 ---
 
+## ACHADO #24 — Docstring de `_scalingValence` engana o leitor
+
+**Severidade:** BAIXA · **Origem:** Validação #4 (2026-05-11)
+
+Docstring atual: "Scales the valence value to a range of 0 to 100."
+Sugere que input é arbitrário. Na prática, o input REAL é [-100,+100]
+(o caller `_normalize_mood_association` faz `value*100` antes de chamar).
+Leitor casual deduz contrato errado.
+**Fix:** reescrever docstring → "Maps a valence in [-100,+100] to [0,100]
+via affine transform. Caller must scale [-1,+1] input by ×100 first."
+
+`Mood/mood.py:15-19`
+
+---
+
+## ACHADO #25 — `_normalize_mood_association` faz round() perdendo precisão
+
+**Severidade:** BAIXA · **Origem:** Validação #4 (2026-05-11)
+
+`_scalingValence` retorna `round((value + 100) / 2)` — descarta decimal.
+Pipeline downstream depois divide por 50 e subtrai 1 no frontend, então
+input de 0.73 vira 87 (round de 86.5) que vira 0.74 no front. Diff de
+~0.01 — irrelevante pra ranges humanos, mas pode afetar correlações
+finas se Apple State of Mind algum dia emitir granularidade decimal.
+**Fix:** trocar `round(...)` por `(value + 100) / 2` (manter float).
+Casts implícitos pra int não são necessários — pandas armazena float.
+
+`Mood/mood.py:19`
+
+---
+
+## ACHADO #26 — DRY violation: 2 normalizadores de valence espelhados
+
+**Severidade:** BAIXA · **Origem:** Validação #4 (2026-05-11)
+
+Frontend tem 2 funções funcionalmente idênticas:
+- `normalizeMoodValence` (`utils/roocode-adapter.ts:219`)
+- `normalizeIntradayValence` (`utils/intraday-correlation.ts:73`)
+
+Ambas detectam escala [-1,+1] vs [0,100] e convertem. Divergência sutil:
+intraday usa `(value - 50) / 50`, adapter usa `(numeric / 50) - 1`.
+Aritmeticamente equivalentes mas evolução desalinhada se uma for
+atualizada sem a outra.
+**Fix:** consolidar numa função única exportada de `utils/mood-valence.ts`
+(novo módulo) ou export-only de um dos arquivos. Ambos callers passam
+a importar do mesmo lugar. Refactor de ~10 linhas.
+
+---
+
+## ACHADO #27 — Falta test de contract GET `/mood` × frontend adapter
+
+**Severidade:** BAIXA · **Origem:** Validação #4 (2026-05-11)
+
+`tests/test_mood.py` valida `_format_mood_date` e `_normalize_mood_association`
+isoladamente. Não há test de integração que faça GET `/mood` (ou seu mock)
+e valide que o schema retornado é o que o frontend espera (chave `Associações`
+em [0,100], chave `Iniciar` em DD/MM/YYYY [HH:MM:SS], chave `Fim` em
+'Humor Diário' | 'Emoção Momentânea' | null).
+**Fix:** adicionar test_mood que faça `POST` de um CSV mock + `GET` e valide
+contrato. Bonus: também adicionar test no frontend (vitest) com fixture
+JSON do mood real validando que `buildMoodRows` produz `valence ∈ [-1,+1]`.
+
+Net de regressão pra evitar repetir investigação do #4 no futuro.
+
+---
+
 # Roteiro de execução (próxima sessão)
 
-**Fase 0 — Validação:**
-1. Validar achado #4 (Mood valence) inspecionando GET `/mood` ao vivo.
-   Se confirmado bug → eleva severidade pra crítica, fix imediato.
-2. Revisar prioridades P0/P1/P2 com Anders, ajustar se necessário.
+**Fase 0 — Validação:** ✅ CONCLUÍDA em 2026-05-11
+1. ~~Validar achado #4 (Mood valence) inspecionando GET `/mood` ao vivo.~~
+   **Resultado:** falso positivo confirmado. Pipeline correto (backend
+   persiste [0,100], frontend converte pra [-1,+1] via `normalizeMoodValence`
+   e `normalizeIntradayValence`). Achado #4 rebaixado pra P2/BAIXA;
+   4 sub-achados de cleanup (#24-27) catalogados.
+2. ~~Revisar prioridades P0/P1/P2 com Anders, ajustar se necessário.~~
+   **Resultado:** P0 reduzido de 4 → 3 itens (todos PK/farmacologia).
 
-**Fase 1 — P0 (1 sprint patch dedicada):**
-- ACHADO #2 + #1 (camada 3 PK Coverage) — corrigir clonazepam range
-  como parte do redesign de 3 cards
+**Fase 1 — P0 (Sprint D-patch1, quick wins):**
+- ACHADO #2 — clonazepam therapeutic range (ansiolítico vs epilepsia)
 - ACHADO #3 — alinhar lisdexamfetamina TS/DB ou documentar analito
-- ACHADO #4 — fix de valence se confirmado bug
-- ACHADO #1 — implementar 3 cards (Adesão · Regularidade · Cobertura)
+
+**Fase 1.5 — P0 redesign (Sprint D-patch2, brainstorming-first):**
+- ACHADO #1 — redesign do PKCoverageCard em 3 camadas (Adesão ·
+  Regularidade · Cobertura). Requer brainstorm sobre Q1-Q4 do achado
+  antes de codar. Sprint dedicada.
 
 **Fase 2 — P1 (1 sprint patch):**
 - ACHADO #5 + #6 — limpeza PK engine (bodyWeight, autoinduction)

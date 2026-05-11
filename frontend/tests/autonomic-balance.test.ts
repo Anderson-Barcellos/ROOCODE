@@ -6,6 +6,7 @@ import {
   computeAbiBaseline,
   computeAbiSeries,
 } from '../src/utils/autonomic-balance'
+import { INTERP_CONFIDENCE_MULTIPLIER } from '../src/utils/interp-policy'
 
 // ─── Threshold de banda (sanity) ──────────────────────────────────────────
 
@@ -131,19 +132,45 @@ const sympSeries = computeAbiSeries(sympatheticDataset)
 const sympDay = sympSeries[sympSeries.length - 1]
 assert.ok(sympDay.abi != null && sympDay.abi < -ABI_BAND_THRESHOLD, `Symp z<-1, got ${sympDay.abi}`)
 
-// ─── Reason: interpolated → abi=null ─────────────────────────────────────
+// ─── interpolated → abi não-null, derivedFromInterpolated=true ───────────
 
 const interpDataset = buildDataset({}, { interpolated: true })
 const interpDay = computeAbiSeries(interpDataset).at(-1)!
-assert.equal(interpDay.abi, null)
-assert.equal(interpDay.reason, 'interpolated')
+assert.ok(interpDay.abi != null, 'interpolated deve ter abi não-null')
+assert.equal(interpDay.derivedFromInterpolated, true)
+assert.ok(interpDay.confidence != null && interpDay.confidence < 1, 'interp confidence deve ser < 1')
 
-// ─── Reason: forecasted → abi=null ────────────────────────────────────────
+// ─── forecasted → abi não-null, derivedFromInterpolated=true ─────────────
 
 const forecastDataset = buildDataset({}, { forecasted: true })
 const forecastDay = computeAbiSeries(forecastDataset).at(-1)!
-assert.equal(forecastDay.abi, null)
-assert.equal(forecastDay.reason, 'forecasted')
+assert.ok(forecastDay.abi != null, 'forecasted deve ter abi não-null')
+assert.equal(forecastDay.derivedFromInterpolated, true)
+assert.ok(forecastDay.confidence != null && forecastDay.confidence < 1, 'forecast confidence deve ser < 1')
+
+// ─── Dia real → derivedFromInterpolated=false, confidence=1 ──────────────
+
+const realDay = meanSeries[meanSeries.length - 1]
+assert.equal(realDay.derivedFromInterpolated, false)
+assert.equal(realDay.confidence, 1)
+
+// ─── Confidence interp = INTERP_CONFIDENCE_MULTIPLIER× do mesmo dia real ─
+
+const sameInputsReal = buildDataset({}, { hrv: 50, rhr: 60 })
+const sameInputsInterp = buildDataset({}, { hrv: 50, rhr: 60, interpolated: true })
+const realPoint = computeAbiSeries(sameInputsReal).at(-1)!
+const interpPoint = computeAbiSeries(sameInputsInterp).at(-1)!
+assert.equal(realPoint.confidence, 1, `real confidence deve ser 1, got ${realPoint.confidence}`)
+assert.ok(
+  Math.abs(interpPoint.confidence - INTERP_CONFIDENCE_MULTIPLIER) < 1e-9,
+  `interp confidence deve ser ${INTERP_CONFIDENCE_MULTIPLIER}, got ${interpPoint.confidence}`,
+)
+
+// ─── Edge case: interpolated=true && forecasted=true → derivedFromInterpolated=true
+
+const bothFlagsDataset = buildDataset({}, { interpolated: true, forecasted: true })
+const bothFlagsDay = computeAbiSeries(bothFlagsDataset).at(-1)!
+assert.equal(bothFlagsDay.derivedFromInterpolated, true)
 
 // ─── Reason: inputs_missing (HRV null) ───────────────────────────────────
 

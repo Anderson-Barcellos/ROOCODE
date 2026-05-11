@@ -10,7 +10,8 @@
  *
  * Princípios (idênticos à Sprint M4):
  *   - Função pura. Recebe snapshots, retorna série.
- *   - Regra interim M6: snapshot interpolated/forecasted → abi=null.
+ *   - Sprint M6: interp/forecast recebem ABI normalmente; derivedFromInterpolated=true,
+ *     confidence=0.7 (vs 1.0 pra dias reais). Baseline continua excluindo interp/forecast.
  *   - Baseline única do dataset, calculada só sobre dias reais com HRV+RHR
  *     ambos presentes (mesmo padrão M3/M4).
  *   - Inputs faltantes (HRV ou RHR null) → abi=null com reason=inputs_missing.
@@ -23,6 +24,7 @@
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { computeRollingBaseline, type PersonalBaseline } from './personal-baselines'
+import { INTERP_CONFIDENCE_MULTIPLIER } from './interp-policy'
 
 export const ABI_BAND_THRESHOLD = 1
 
@@ -38,7 +40,9 @@ export interface AbiPoint {
   date: string
   abi: number | null
   components: AbiComponents | null
-  reason?: 'interpolated' | 'forecasted' | 'baseline_missing' | 'inputs_missing'
+  confidence: number
+  derivedFromInterpolated: boolean
+  reason?: 'baseline_missing' | 'inputs_missing'
 }
 
 function logRatio(hrv: number, rhr: number): number | null {
@@ -78,29 +82,25 @@ export function computeAbiSeries(
 
   return snapshots.map((snapshot) => {
     const { date } = snapshot
+    const derivedFromInterpolated = !!(snapshot.interpolated || snapshot.forecasted)
 
-    if (snapshot.forecasted) {
-      return { date, abi: null, components: null, reason: 'forecasted' }
-    }
-    if (snapshot.interpolated) {
-      return { date, abi: null, components: null, reason: 'interpolated' }
-    }
     if (!baseline) {
-      return { date, abi: null, components: null, reason: 'baseline_missing' }
+      return { date, abi: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'baseline_missing' as const }
     }
 
     const hrv = snapshot.health?.hrvSdnn ?? null
     const rhr = snapshot.health?.restingHeartRate ?? null
     if (hrv == null || rhr == null || !Number.isFinite(hrv) || !Number.isFinite(rhr)) {
-      return { date, abi: null, components: null, reason: 'inputs_missing' }
+      return { date, abi: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'inputs_missing' as const }
     }
 
     const lnr = logRatio(hrv, rhr)
     if (lnr == null) {
-      return { date, abi: null, components: null, reason: 'inputs_missing' }
+      return { date, abi: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'inputs_missing' as const }
     }
 
     const zScore = baseline.sd === 0 ? 0 : (lnr - baseline.mean) / baseline.sd
+    const confidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
 
     return {
       date,
@@ -112,6 +112,8 @@ export function computeAbiSeries(
         logRatio: lnr,
         zScore,
       },
+      confidence,
+      derivedFromInterpolated,
     }
   })
 }

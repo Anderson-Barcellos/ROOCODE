@@ -24,6 +24,7 @@
 import type { DailySnapshot } from '@/types/apple-health'
 import { computeRollingBaseline, type PersonalBaseline } from './personal-baselines'
 import { computeSleepDebt } from './sleep-debt'
+import { INTERP_CONFIDENCE_MULTIPLIER } from './interp-policy'
 
 export const RECOVERY_WEIGHTS = {
   hrv: 0.30,
@@ -190,7 +191,7 @@ export function computeRecoveryScoreSeries(
     }
 
     const score = clamp(weightedScore(components), 0, 100)
-    const confidence = derivedFromInterpolated ? 0.7 : 1
+    const confidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
     return { date, score, components, confidence, derivedFromInterpolated }
   })
 }

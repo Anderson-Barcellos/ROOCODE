@@ -70,8 +70,11 @@ export function TempHumorCorrelation({ snapshots }: Props) {
           Lag sweep — temperatura do pulso × valência
         </h3>
         <p className="mt-1 text-xs text-slate-500 leading-5">
-          Como o desvio térmico noturno (delta vs baseline pessoal 30d) correlaciona
-          com tua valência de humor ao longo dos próximos dias.
+          Associação entre o desvio térmico noturno (delta vs baseline pessoal 30d)
+          e tua valência de humor ao longo dos próximos dias.{' '}
+          <span className="italic text-slate-400">
+            Associação linear não implica relação causal — vide controles abaixo.
+          </span>
         </p>
         <p className="mt-2 text-[0.68rem] leading-5 text-slate-500">
           <span className="font-semibold text-amber-700">Hipótese pré-registrada:</span>{' '}
@@ -129,8 +132,8 @@ export function TempHumorCorrelation({ snapshots }: Props) {
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
           <li>
-            <span className="font-semibold text-teal-700">Verde/↑</span> = mais Δtemp → humor melhor ·{' '}
-            <span className="font-semibold text-red-500">Vermelho/↓</span> = mais Δtemp → humor pior
+            <span className="font-semibold text-teal-700">Verde/↑</span> = Δtemp ↑ associado a humor melhor ·{' '}
+            <span className="font-semibold text-red-500">Vermelho/↓</span> = Δtemp ↑ associado a humor pior
           </li>
           <li>
             <span className="font-semibold text-amber-600">★</span> = q &lt; 0.05 (FDR sobre 7 lags) ·{' '}
@@ -138,7 +141,7 @@ export function TempHumorCorrelation({ snapshots }: Props) {
             <span className="font-semibold text-amber-700">tag &ldquo;pré&rdquo;</span> = hipótese pré-registrada
           </li>
           <li>
-            <span className="font-semibold text-slate-400">Lags negativos (esmaecidos)</span> = controles de causalidade — pico aqui = correlação espúria (humor passado não causa temperatura futura).
+            <span className="font-semibold text-slate-400">Lags negativos (esmaecidos)</span> = controles de causalidade. Pico aqui ou sinal forte em ambos os lados (positivo e negativo) sugere <span className="italic">confundidor comum</span>, não relação causal direcional.
           </li>
         </ul>
       </div>
@@ -147,14 +150,14 @@ export function TempHumorCorrelation({ snapshots }: Props) {
 }
 
 function interpretPeak(peak: LagEstimate): string {
-  const direction = peak.r > 0 ? '↑ humor sobe' : '↓ humor cai'
+  const direction = peak.r > 0 ? '↑ humor mais alto' : '↓ humor mais baixo'
   const ref =
     peak.lagDays === 0
-      ? 'no mesmo dia'
+      ? 'no mesmo dia — associação contemporânea, direção causal não estabelecida'
       : peak.lagDays > 0
         ? `${peak.lagDays}d depois`
-        : 'em lag negativo — correlação provavelmente espúria'
-  return `${direction} quando temperatura sobe (delta positivo) — ${ref} (r ≈ ${peak.r.toFixed(2)}, n ${peak.n}).`
+        : 'em lag negativo — associação provavelmente espúria ou via confundidor'
+  return `${direction} associado a temperatura mais alta (Δ positivo) ${ref} (r ≈ ${peak.r.toFixed(2)}, n ${peak.n}).`
 }
 
 function formatR(r: number): string {

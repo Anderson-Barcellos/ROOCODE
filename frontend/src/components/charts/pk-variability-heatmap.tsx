@@ -40,7 +40,7 @@ import {
 import { HeatmapCell, type HeatmapCellEstimate } from '@/components/charts/shared/heatmap-cell'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
-const SUBSTANCE_IDS = ['escitalopram', 'lamotrigine', 'lisdexamfetamine'] as const
+const SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse'] as const
 const ANALYSIS_DAYS = 60
 const DOSES_HOURS = 24 * 90
 
@@ -73,14 +73,14 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
   const toIso = useMemo(() => isoToday(), [])
 
   // 3 hooks pra cobrir as 3 substâncias. TanStack Query dedup por queryKey.
-  const lex = useConcentrationSeries('escitalopram', fromIso, toIso, weightKg)
-  const lam = useConcentrationSeries('lamotrigine', fromIso, toIso, weightKg)
-  const lis = useConcentrationSeries('lisdexamfetamine', fromIso, toIso, weightKg)
+  const lex = useConcentrationSeries('lexapro', fromIso, toIso, weightKg)
+  const lam = useConcentrationSeries('lamictal', fromIso, toIso, weightKg)
+  const lis = useConcentrationSeries('venvanse', fromIso, toIso, weightKg)
 
   const seriesByKey = useMemo<Record<string, ConcentrationSeriesPoint[]>>(() => ({
-    escitalopram: lex.data?.series ?? [],
-    lamotrigine: lam.data?.series ?? [],
-    lisdexamfetamine: lis.data?.series ?? [],
+    lexapro: lex.data?.series ?? [],
+    lamictal: lam.data?.series ?? [],
+    venvanse: lis.data?.series ?? [],
   }), [lex.data, lam.data, lis.data])
 
   const isFetching = lex.isFetching || lam.isFetching || lis.isFetching

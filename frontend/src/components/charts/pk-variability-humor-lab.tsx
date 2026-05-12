@@ -45,7 +45,7 @@ import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
 // Substâncias com farmacocinética relevante pra análise de variabilidade.
 // Clonazepam fora: dose ansiolítica baixa não gera swing detectável (ACHADO #1+#2 BACKLOG).
-const VARIABILITY_SUBSTANCE_IDS = ['escitalopram', 'lamotrigine', 'lisdexamfetamine']
+const VARIABILITY_SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse']
 
 const QUALITY_LABEL: Record<PKVariabilityQuality, string> = {
   insufficient: 'dados insuficientes',

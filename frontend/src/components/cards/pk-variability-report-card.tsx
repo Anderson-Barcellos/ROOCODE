@@ -38,7 +38,7 @@ import {
 } from '@/utils/pk-variability'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
-const SUBSTANCE_IDS = ['escitalopram', 'lamotrigine', 'lisdexamfetamine'] as const
+const SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse'] as const
 const ANALYSIS_DAYS = 60
 const DOSES_HOURS = 24 * 90
 
@@ -96,9 +96,9 @@ export function PKVariabilityReportCard({ snapshots, weightKg = DEFAULT_PK_BODY_
   const fromIso = useMemo(() => isoDaysAgo(ANALYSIS_DAYS), [])
   const toIso = useMemo(() => isoToday(), [])
 
-  const lex = useConcentrationSeries('escitalopram', fromIso, toIso, weightKg)
-  const lam = useConcentrationSeries('lamotrigine', fromIso, toIso, weightKg)
-  const lis = useConcentrationSeries('lisdexamfetamine', fromIso, toIso, weightKg)
+  const lex = useConcentrationSeries('lexapro', fromIso, toIso, weightKg)
+  const lam = useConcentrationSeries('lamictal', fromIso, toIso, weightKg)
+  const lis = useConcentrationSeries('venvanse', fromIso, toIso, weightKg)
 
   const lexSeries = lex.data?.series
   const lamSeries = lam.data?.series
@@ -106,9 +106,9 @@ export function PKVariabilityReportCard({ snapshots, weightKg = DEFAULT_PK_BODY_
 
   const signals = useMemo<StrongSignal[]>(() => {
     const seriesByKey: Record<string, ConcentrationSeriesPoint[]> = {
-      escitalopram: lexSeries ?? [],
-      lamotrigine: lamSeries ?? [],
-      lisdexamfetamine: lisSeries ?? [],
+      lexapro: lexSeries ?? [],
+      lamictal: lamSeries ?? [],
+      venvanse: lisSeries ?? [],
     }
     const result: StrongSignal[] = []
     for (const subId of SUBSTANCE_IDS) {

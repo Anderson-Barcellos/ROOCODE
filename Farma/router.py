@@ -733,6 +733,7 @@ async def concentrationSeries(
     used_fallback = False
     dose_events = real_events
     if not dose_events:
+        # Nenhuma dose logada no período → fallback completo ao regime
         try:
             regimen = _load_regimen()
         except (json.JSONDecodeError, ValueError, TypeError):
@@ -743,6 +744,27 @@ async def concentrationSeries(
         if synthetic:
             used_fallback = True
             dose_events = synthetic
+    else:
+        # Doses reais existem, mas pode haver lacuna antes do primeiro registro.
+        # Droga crônica (no regime ativo) → pré-aquece com doses sintéticas até
+        # a primeira dose real, garantindo estado estacionário desde o início da série.
+        first_real_dt = min(e[0] for e in real_events)
+        if first_real_dt > range_start + timedelta(hours=1):
+            try:
+                regimen = _load_regimen()
+            except (json.JSONDecodeError, ValueError, TypeError):
+                regimen = []
+            pre_end = datetime.combine(
+                (first_real_dt - timedelta(days=1)).date(),
+                datetime.max.time(),
+                tzinfo=timezone.utc,
+            )
+            if pre_end > range_start:
+                synthetic_pre = _expand_regimen_to_doses(
+                    regimen, canonical_key, range_start, pre_end
+                )
+                if synthetic_pre:
+                    dose_events = synthetic_pre + real_events
 
     series = _compute_daily_pk_series(
         dose_events,

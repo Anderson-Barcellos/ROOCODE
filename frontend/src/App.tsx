@@ -26,6 +26,7 @@ import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
 import { PkRemSuppression } from '@/components/charts/pk-rem-suppression'
+import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
 import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
 import { HRRangeChart } from '@/components/charts/hr-range-chart'
@@ -622,10 +623,11 @@ export default function App() {
 
                     <LabGroup
                       eyebrow="Cross-domain"
-                      title="Sono, recuperação autonômica e farmacocinética"
-                      description="Hipóteses específicas que cruzam domínios: dívida de sono × HRV e concentração estimada × REM."
+                      title="Sono, autonomia, temperatura e farmacocinética"
+                      description="Hipóteses específicas que cruzam domínios: dívida de sono × HRV, temperatura do pulso × humor (lag sweep), e concentração estimada × REM."
                     >
                       <SleepDebtHrvCard snapshots={ranged} />
+                      <TempHumorCorrelation snapshots={ranged} />
                       <PkRemSuppression />
                     </LabGroup>
 

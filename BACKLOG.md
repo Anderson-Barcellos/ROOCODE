@@ -1,15 +1,19 @@
-# SIDEEFFECTS — Catálogo de incongruências e bugs latentes
+# BACKLOG — Tickets pontuais
 
-> Lista viva de achados que precisam ser corrigidos antes de seguir
-> com novas features. Cada item: contexto, evidência, severidade,
-> fix proposto, prioridade.
+> Backlog vivo de modificações pontuais nos dados, gráficos e cálculos
+> do RooCode. Cada ticket = 1 commit focado, sem sprint formal.
 >
-> Criado: 2026-05-11 (Sprint D · pós-deploy).
-> Atualizado: 2026-05-11 (Fase 0 · validação ao vivo do #4).
-> Status: 27 achados — 23 iniciais consolidados via 3 agents +
-> 1 do diálogo com Anders sobre Dose Coverage + 4 sub-achados
-> derivados da validação do #4 (Mood valence). #4 rebaixado
-> de P0/ALTA pra P2/BAIXA após verificação ao vivo.
+> Modo operacional: manutenção (ver `CLAUDE.md` raiz). Sem KICKOFF,
+> sem Pós-Sprint Protocol — apenas escolher ticket, resolver, commitar.
+>
+> Origem: catálogo SIDEEFFECTS consolidado em 2026-05-11 via 3 agents
+> paralelos + diálogo com Anders + validação ao vivo do #4.
+> Convertido para BACKLOG em 2026-05-12 (entrada em modo manutenção).
+>
+> ✅ Já corrigidos: #2 (clonazepam range, commit `c005464`),
+>    #3 (lisdex TS, commit `3ceca20`).
+> ✅ Validado como falso positivo: #4 (mood valence — pipeline ok).
+> ⏳ Pendentes ativos: 10 P0/P1 + P2 cosméticos abaixo.
 
 ---
 

@@ -73,6 +73,13 @@ Plano completo: `/root/.claude/plans/vamos-brainstormar-entao-meu-virtual-brook.
 - ⏳ Peso corporal hardcoded inconsistente (frontend 91kg vs backend 70kg default) — descoberto em 2026-05-09. Detalhes em `ROADMAP.md`.
 - ⏳ Sprint D: próxima feature cross-domain (escopo a definir).
 
+## Reorg UX cockpit/lab (2026-05-11)
+
+- Panorama foi reorganizado como cockpit diário: métricas executivas → limitante do dia → summaries de noite/PK → tendência semanal.
+- Insights virou laboratório de hipóteses agrupado, com `ForecastAccuracyCard` rebaixado para calibração técnica colapsada.
+- Atividade ganhou `ActivityReadinessCard`, usando baseline pessoal de passos, energia, velocidade/comprimento de marcha, assimetria e esforço físico para responder “usar energia ou poupar?”.
+- Validação técnica verde; UI manual ainda precisa revisão visual no browser.
+
 ## Sequência fresh obrigatória
 
 1. Ler `ROADMAP.md` e `CLAUDE.md`.

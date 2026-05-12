@@ -188,7 +188,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
       currentConc: nowConc,
       maxConc,
     }
-  }, [med, doses, range, windowStart, windowEnd, nowTimestamp, weightKg])
+  }, [med, doses, windowStart, windowEnd, nowTimestamp, weightKg])
 
   const color = COLORS_BY_ID[med.id] ?? '#8b5cf6'
   const status = hasRange && range ? statusFromConc(currentConc, range.min, range.max) : null

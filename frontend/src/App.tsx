@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Activity, Compass, MoonStar, FlaskConical, Pill, Telescope } from 'lucide-react'
@@ -34,6 +35,7 @@ import { RecoveryScoreChart } from '@/components/charts/recovery-score-chart'
 import { LimitingFactorCard } from '@/components/cards/limiting-factor-card'
 import { NightQualityCard } from '@/components/cards/night-quality-card'
 import { PKCoverageCard } from '@/components/cards/pk-coverage-card'
+import { ActivityReadinessCard } from '@/components/cards/activity-readiness-card'
 import { WeekdayWeekendCard } from '@/components/charts/weekday-weekend-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
@@ -185,6 +187,52 @@ function MockBanner() {
         — 14 dias mock (VITE_USE_MOCK=true). Configure AutoExport para dados reais.
       </span>
     </div>
+  )
+}
+
+function DecisionSection({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{eyebrow}</p>
+        <h3 className="mt-1 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">{title}</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function LabGroup({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  return (
+    <section className="rounded-[1.75rem] border border-slate-900/10 bg-slate-50/70 p-4 shadow-inner shadow-white/50">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{eyebrow}</p>
+        <h3 className="mt-1 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">{title}</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
   )
 }
 
@@ -388,17 +436,27 @@ export default function App() {
                     </div>
                   ))}
 
-                  <WeekdayWeekendCard snapshots={ranged} />
+                  <DecisionSection
+                    eyebrow="Decisão diária"
+                    title="O que mais merece atenção hoje?"
+                    description="Cards priorizados por ação: primeiro o gargalo fisiológico do dia, depois noite e cobertura medicamentosa."
+                  >
+                    <LimitingFactorCard snapshots={rangedWithForecast} />
 
-                  <ForecastAccuracyCard snapshots={ranged} />
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <NightQualityCard snapshots={rangedWithForecast} variant="summary" />
+                      <PKCoverageCard variant="summary" />
+                    </div>
+                  </DecisionSection>
 
-                  <RecoveryScoreChart snapshots={rangedWithForecast} />
-
-                  <LimitingFactorCard snapshots={rangedWithForecast} />
-
-                  <NightQualityCard snapshots={rangedWithForecast} variant="summary" />
-
-                  <PKCoverageCard variant="summary" />
+                  <DecisionSection
+                    eyebrow="Tendência"
+                    title="A direção geral está melhorando ou piorando?"
+                    description="Depois da decisão de hoje, estes painéis mostram trajetória e padrões semanais."
+                  >
+                    <RecoveryScoreChart snapshots={rangedWithForecast} />
+                    <WeekdayWeekendCard snapshots={ranged} />
+                  </DecisionSection>
 
                 </div>
               )}
@@ -519,6 +577,8 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
+                  <ActivityReadinessCard snapshots={rangedWithForecast} />
+
                   <ActivityBars snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                   <StepsChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
@@ -552,14 +612,43 @@ export default function App() {
                 </div>
                 {ranged.length > 0 && (
                   <>
-                    <CorrelationHeatmap snapshots={ranged} />
-                    <SleepDebtHrvCard snapshots={ranged} />
-                    <ScatterCorrelation snapshots={ranged} />
+                    <LabGroup
+                      eyebrow="Hipóteses acionáveis"
+                      title="Quais drivers parecem mais ligados ao humor?"
+                      description="Começa pelos cards mais interpretáveis e deixa o heatmap como suporte visual, não como decisão isolada."
+                    >
+                      <CorrelationHeatmap snapshots={ranged} />
+                    </LabGroup>
+
+                    <LabGroup
+                      eyebrow="Cross-domain"
+                      title="Sono, recuperação autonômica e farmacocinética"
+                      description="Hipóteses específicas que cruzam domínios: dívida de sono × HRV e concentração estimada × REM."
+                    >
+                      <SleepDebtHrvCard snapshots={ranged} />
+                      <PkRemSuppression />
+                    </LabGroup>
+
+                    <LabGroup
+                      eyebrow="Modo laboratório"
+                      title="Exploração interativa e controles de causalidade"
+                      description="Ferramentas para investigar sinais promissores sem misturar esses gráficos com o cockpit diário."
+                    >
+                      <ScatterCorrelation snapshots={ranged} />
+                      <PKMoodScatterChart />
+                      <LagCorrelationChart />
+                    </LabGroup>
+
+                    <details className="rounded-[1.5rem] border border-violet-200 bg-violet-50/60 p-4">
+                      <summary className="cursor-pointer text-sm font-semibold text-violet-800">
+                        Calibração técnica da IA de forecast
+                      </summary>
+                      <div className="mt-4">
+                        <ForecastAccuracyCard snapshots={ranged} />
+                      </div>
+                    </details>
                   </>
                 )}
-                <PKMoodScatterChart />
-                <PkRemSuppression />
-                <LagCorrelationChart />
               </div>
             </SurfaceFrame>
           )}

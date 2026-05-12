@@ -32,6 +32,7 @@ import {
   toPKDoses,
 } from '@/utils/intraday-correlation'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
+import { HeatmapCell } from '@/components/charts/shared/heatmap-cell'
 
 interface DailyEmaSample {
   date: string
@@ -329,7 +330,18 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
                 return (
                   <HeatmapCell
                     key={lag}
-                    estimate={est}
+                    estimate={
+                      est
+                        ? {
+                            r: est.r,
+                            n: est.n,
+                            p: est.p,
+                            qFdr: est.qFdr,
+                            ciLower: est.ciLower,
+                            ciUpper: est.ciUpper,
+                          }
+                        : null
+                    }
                     isPeak={row.peakLagDays === lag}
                     isControl={lag < 0}
                   />
@@ -353,75 +365,6 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           </li>
         </ul>
       </div>
-    </div>
-  )
-}
-
-function formatR(r: number): string {
-  if (!Number.isFinite(r)) return '—'
-  return r.toFixed(2)
-}
-
-function formatP(p: number): string {
-  if (!Number.isFinite(p)) return '—'
-  if (p < 0.001) return '<0.001'
-  if (p < 0.01) return p.toFixed(3)
-  return p.toFixed(2)
-}
-
-function formatCi(lower: number | null, upper: number | null): string {
-  if (lower == null || upper == null || !Number.isFinite(lower) || !Number.isFinite(upper)) return 'sem IC95%'
-  return `[${lower.toFixed(2)}, ${upper.toFixed(2)}]`
-}
-
-function colorForR(r: number): string {
-  const clamped = Math.max(-1, Math.min(1, r))
-  const intensity = Math.abs(clamped)
-  if (clamped < 0) return `rgba(239, 68, 68, ${intensity * 0.45})` // red
-  if (clamped > 0) return `rgba(20, 184, 166, ${intensity * 0.45})` // teal
-  return 'rgba(241, 245, 249, 1)' // slate-100
-}
-
-function HeatmapCell({
-  estimate,
-  isPeak,
-  isControl,
-}: {
-  estimate: LagEstimate | null
-  isPeak: boolean
-  isControl: boolean
-}) {
-  if (!estimate) {
-    return (
-      <div
-        className={`h-12 rounded-md border border-slate-100 bg-slate-50/50 ${
-          isControl ? 'opacity-60' : ''
-        }`}
-      />
-    )
-  }
-  const significant = estimate.qFdr != null && estimate.qFdr < 0.05
-  const tooltip =
-    `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)}` +
-    ` · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr ?? Number.NaN)} · n ${estimate.n}`
-  return (
-    <div
-      title={tooltip}
-      className={`relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
-        isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
-      } ${isControl ? 'opacity-70' : ''}`}
-      style={{ background: colorForR(estimate.r) }}
-    >
-      {estimate.r > 0.05 && (
-        <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-teal-700">↑</span>
-      )}
-      {estimate.r < -0.05 && (
-        <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-red-500">↓</span>
-      )}
-      <span className="text-slate-900 mix-blend-luminosity">{formatR(estimate.r)}</span>
-      {significant && (
-        <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>
-      )}
     </div>
   )
 }

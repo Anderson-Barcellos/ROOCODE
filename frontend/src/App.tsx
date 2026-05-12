@@ -26,6 +26,9 @@ import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
 import { PkRemSuppression } from '@/components/charts/pk-rem-suppression'
+import { PKVariabilityHumorLab } from '@/components/charts/pk-variability-humor-lab'
+import { PKVariabilityHeatmap } from '@/components/charts/pk-variability-heatmap'
+import { PKVariabilityReportCard } from '@/components/cards/pk-variability-report-card'
 import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
 import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
@@ -618,6 +621,7 @@ export default function App() {
                       title="Quais drivers parecem mais ligados ao humor?"
                       description="Começa pelos cards mais interpretáveis e deixa o heatmap como suporte visual, não como decisão isolada."
                     >
+                      <PKVariabilityReportCard snapshots={ranged} />
                       <CorrelationHeatmap snapshots={ranged} />
                     </LabGroup>
 
@@ -629,6 +633,15 @@ export default function App() {
                       <SleepDebtHrvCard snapshots={ranged} />
                       <TempHumorCorrelation snapshots={ranged} />
                       <PkRemSuppression />
+                    </LabGroup>
+
+                    <LabGroup
+                      eyebrow="PK × Humor (variabilidade)"
+                      title="Concentrações irregulares ou muito estáveis afetam humor?"
+                      description="Testa se a VARIABILIDADE da concentração (CV% inter-dia, swing intra-dia, tempo no range) correlaciona com humor. Análise quartil Q1×Q4 capta sweet spot em U que Pearson sozinho perde."
+                    >
+                      <PKVariabilityHumorLab snapshots={ranged} />
+                      <PKVariabilityHeatmap snapshots={ranged} />
                     </LabGroup>
 
                     <LabGroup

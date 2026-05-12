@@ -73,3 +73,4 @@ credentials.json
 # ─── SQLite / DBs locais ──────────────────────────────────────────────────────
 *.sqlite3
 *.db
+.remember/

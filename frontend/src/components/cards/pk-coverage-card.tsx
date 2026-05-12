@@ -66,7 +66,11 @@ function fmt(n: number, digits = 1): string {
 }
 
 export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
-  const dosesQuery = useDoses(72)
+  // 14 dias = ~10 meias-vidas das LHL drugs (Lexapro/Lamictal/Clonazepam ~30h),
+  // suficiente pra `calculateConcentration` integrar contribuições residuais
+  // sem partir de quase-zero. Janela menor subestima cNow em uso crônico.
+  // Bonus: mesma queryKey que useRooCodeData(336) → reaproveita cache.
+  const dosesQuery = useDoses(24 * 14)
   const regimenQuery = useRegimen(true)
 
   const statuses = useMemo(() => {

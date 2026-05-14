@@ -12,6 +12,12 @@ import {
 
 interface LimitingFactorCardProps {
   snapshots: DailySnapshot[]
+  /**
+   * 'full' (default): mostra seção `<details>` "Detalhe médico" expandível.
+   * 'summary': esconde o detalhe — usado em Panorama, onde NightQualityCard
+   * e PKCoverageCard também ocultam detalhes no resumo (UX consistente).
+   */
+  variant?: 'full' | 'summary'
 }
 
 interface FactorMeta {
@@ -135,7 +141,7 @@ function missingInputs(rawValues: Record<RecoveryComponentKey, number | null>): 
   return (Object.keys(rawValues) as RecoveryComponentKey[]).filter((k) => rawValues[k] == null)
 }
 
-export function LimitingFactorCard({ snapshots }: LimitingFactorCardProps) {
+export function LimitingFactorCard({ snapshots, variant = 'full' }: LimitingFactorCardProps) {
   const { state, fallback } = useMemo(() => {
     const series = computeRecoveryScoreSeries(snapshots)
     const debt = computeSleepDebt(snapshots)
@@ -235,35 +241,37 @@ export function LimitingFactorCard({ snapshots }: LimitingFactorCardProps) {
         })}
       </div>
 
-      <details className="mt-4">
-        <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
-          Detalhe médico
-        </summary>
-        <div className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600">
-          {ranked.map((factor) => {
-            const meta = FACTOR_META[factor.component]
-            const raw = state.rawValues[factor.component]
-            return (
-              <div key={factor.component} className="flex items-center gap-2">
-                <span className="flex-1">{meta.medicalLabel}</span>
-                <span className="text-[0.7rem] text-slate-400">
-                  {Math.round(factor.weight * 100)}%
-                </span>
-                <span className="w-12 text-right text-slate-500">
-                  {formatRawValue(factor.component, raw)}
-                </span>
-                <span className="w-12 text-right font-semibold text-slate-800">
-                  {Math.round(factor.componentValue)}/100
-                </span>
-              </div>
-            )
-          })}
-          <p className="mt-2 text-[0.7rem] leading-4 text-slate-400">
-            Shortfall = (100 − componente) × peso. Maior shortfall ⇒ componente que mais puxou o
-            score pra baixo no dia.
-          </p>
-        </div>
-      </details>
+      {variant === 'full' && (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
+            Detalhe médico
+          </summary>
+          <div className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600">
+            {ranked.map((factor) => {
+              const meta = FACTOR_META[factor.component]
+              const raw = state.rawValues[factor.component]
+              return (
+                <div key={factor.component} className="flex items-center gap-2">
+                  <span className="flex-1">{meta.medicalLabel}</span>
+                  <span className="text-[0.7rem] text-slate-400">
+                    {Math.round(factor.weight * 100)}%
+                  </span>
+                  <span className="w-12 text-right text-slate-500">
+                    {formatRawValue(factor.component, raw)}
+                  </span>
+                  <span className="w-12 text-right font-semibold text-slate-800">
+                    {Math.round(factor.componentValue)}/100
+                  </span>
+                </div>
+              )
+            })}
+            <p className="mt-2 text-[0.7rem] leading-4 text-slate-400">
+              Shortfall = (100 − componente) × peso. Maior shortfall ⇒ componente que mais puxou o
+              score pra baixo no dia.
+            </p>
+          </div>
+        </details>
+      )}
     </div>
   )
 }

@@ -623,7 +623,7 @@ export default function App() {
                     title="O que mais merece atenção hoje?"
                     description="Cards priorizados por ação: primeiro o gargalo fisiológico do dia, depois noite e cobertura medicamentosa."
                   >
-                    <LimitingFactorCard snapshots={data.snapshots} />
+                    <LimitingFactorCard snapshots={data.snapshots} variant="summary" />
 
                     <div className="grid gap-4 xl:grid-cols-2">
                       <NightQualityCard snapshots={data.snapshots} variant="summary" />

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { format, startOfDay } from 'date-fns'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
@@ -168,6 +169,10 @@ export function NightQualityCard({ snapshots, variant = 'full' }: NightQualityCa
   const meta = CLASS_META[point.klass]
   const dateLabel = dayLabel(snapshot.date)
   const isSummary = variant === 'summary'
+  // BACKLOG #30: idem ao LimitingFactorCard — sinaliza quando a noite mostrada
+  // não é a mais recente (fallback `findLatest` desce até achar noite com score).
+  const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd')
+  const isLatest = snapshot.date === todayKey
 
   const componentRows: Array<{ key: SleepQualityComponentKey; label: string; weight: number }> = [
     { key: 'sleepEff', label: COMPONENT_LABEL.sleepEff, weight: SLEEP_QUALITY_WEIGHTS.sleepEff },
@@ -184,6 +189,11 @@ export function NightQualityCard({ snapshots, variant = 'full' }: NightQualityCa
         <div>
           <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
             Qualidade da noite · {dateLabel}
+            {!isLatest && (
+              <span className="ml-1.5 text-[0.6rem] font-normal opacity-70">
+                · última noite completa
+              </span>
+            )}
           </span>
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
             {meta.headline}

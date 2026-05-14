@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { format, startOfDay } from 'date-fns'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
@@ -172,11 +173,15 @@ export function LimitingFactorCard({ snapshots }: LimitingFactorCardProps) {
   }
 
   // ─── Estado pleno (score disponível) ────────────────────────────────────────
-  const ranked = rankLimitingFactors(state.point.components!)
+  const ranked = rankLimitingFactors(state.point.components!, state.point.inputsUsed)
   const top = ranked.slice(0, 2)
   const headline = FACTOR_META[top[0].component].coachingHeadline
   const dateLabel = dayLabel(state.snapshot.date)
   const interpBadge = state.point.derivedFromInterpolated
+  // BACKLOG #30: explicitar quando o card mostra "último dia completo" e não "hoje"
+  // — `findLatest` faz fallback pra trás até achar dia com score válido.
+  const todayKey = format(startOfDay(new Date()), 'yyyy-MM-dd')
+  const isToday = state.snapshot.date === todayKey
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -184,6 +189,11 @@ export function LimitingFactorCard({ snapshots }: LimitingFactorCardProps) {
         <div>
           <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
             Limitante · {dateLabel}
+            {!isToday && (
+              <span className="ml-1.5 text-[0.6rem] font-normal opacity-70">
+                · último dia completo
+              </span>
+            )}
           </span>
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
             {headline}

@@ -14,6 +14,9 @@
 >    #3 (lisdex TS, commit `3ceca20`).
 > ✅ Validado como falso positivo: #4 (mood valence — pipeline ok).
 > ⏳ Pendentes ativos: 10 P0/P1 + P2 cosméticos abaixo.
+>
+> Adendo 2026-05-14: ingressados #28-#35 (Auditoria UX da aba Panorama).
+> Plano detalhado em `/root/.claude/plans/oi-claude-meu-velho-rosy-salamander.md`.
 
 ---
 
@@ -56,8 +59,16 @@
 | 25 | `_normalize_mood_association` faz round() perdendo precisão decimal | BAIXA | P2 | Backend Mood |
 | 26 | DRY: 2 normalizadores espelhados (`normalizeMoodValence` + `normalizeIntradayValence`) | BAIXA | P2 | Frontend Adapter |
 | 27 | Falta test de integração validando schema GET `/mood` vs contract frontend | BAIXA | P2 | Tests |
+| 28 | PK badge "Não registrada" contradiz concentração na faixa | ALTA | P0 | PK Coverage |
+| 29 | Recovery Score: badge "Robusto · 29/35" contradiz texto "4/35 completos" | ALTA | P0 | Recovery Score |
+| 30 | Cards Limitante/Noite mostram 21/abr sem explicar critério | ALTA | P0 | Panorama UX |
+| 31 | Pílulas do LimitingFactor: notação `0/100 -25.0 pts` ambígua | MÉDIA | P1 | Panorama UX |
+| 32 | `Detalhe médico` só no LimitingFactor — inconsistente em summary | MÉDIA | P1 | Panorama UX |
+| 33 | PK card sem tooltip de justificativa de faixa (Lamotrigina custom) | MÉDIA | P1 | PK Coverage |
+| 34 | Copy "decisão de hoje" sem CTA correspondente no fluxo | BAIXA | P2 | Panorama UX |
+| 35 | 8x JSX duplicado de header de score — falta `CardScoreBadge` | BAIXA | P2 | Refactor |
 
-**P0 (3)** · **P1 (9)** · **P2 (15)** · Total: **27 achados**.
+**P0 (6)** · **P1 (12)** · **P2 (17)** · Total: **35 achados**.
 
 ---
 
@@ -246,6 +257,94 @@ era prudente — validação confirmou que não há bug.
 
 A inspeção descobriu 4 itens menores de higiene/cleanup — catalogados
 como achados #24-27 no final desta seção.
+
+---
+
+## ACHADO #28 — PK badge "Não registrada" contradiz concentração na faixa
+
+**Severidade:** ALTA · **Prioridade:** P0 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Card "Cobertura PK" exibe concentração calculada (ex: Escitalopram 17.6 ng/mL,
+dentro de 15-80) mas badge "Não registrada". Bug puramente de ordem do `if/else`
+em `pk-coverage.ts:157-168` — branch `missed > 0 → 'nao_registrada'` está acima
+da queda e sem guarda de concentração. Schema não tem campo `confirmed`;
+"registrada" hoje = "dose foi logada".
+
+### Evidência
+
+- `frontend/src/utils/pk-coverage.ts:157-168` — bloco `if/else`
+- `frontend/src/components/cards/pk-coverage-card.tsx` — `CLASS_META`
+- Caso ao vivo Anders 2026-05-14: Lexapro 17.6 + Lisdex 27.9 → ambos `Não registrada`
+
+### Fix proposto
+
+1. Extrair `derivePKStatus()` pura, reordenar para:
+   `acima_faixa → vulnerabilidade → queda → cobertura_incompleta (guarda cNow < 1.2*min) → adequada`
+2. Renomear `nao_registrada` → `cobertura_incompleta` em `CoverageClass` e `CLASS_META`
+3. Sem mudança de schema (decisão Anders 2026-05-14)
+
+Detalhe completo: `/root/.claude/plans/oi-claude-meu-velho-rosy-salamander.md` ticket #28.
+
+---
+
+## ACHADO #29 — Recovery Score: badge "Robusto" contradiz texto "4/35"
+
+**Severidade:** ALTA · **Prioridade:** P0 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Card Recovery Score mostra três fontes de verdade divergentes para a mesma
+série: texto "4/35 completos" (12%), badge "Robusto · 29/35 válidos" (83%),
+e ~3 pontos visíveis no gráfico. O texto lê `coverageSummary.validDays`
+(5/5 inputs + baseline rolling 14d); o badge lê `evaluateReadiness(field:
+'hrvSdnn')` (1 input só). Política de 5/5 obrigatórios também produz gráfico
+visualmente vazio.
+
+### Evidência
+
+- `frontend/src/components/charts/recovery-score-chart.tsx:174-184` (coverageSummary inline)
+- `frontend/src/utils/recovery-score.ts:117` (política 5/5)
+- `frontend/src/utils/data-readiness.ts:205` (`robustMin: 28`, só hrvSdnn)
+- `frontend/src/components/charts/shared/DataReadinessGate.tsx:44-52` (badge)
+
+### Fix proposto
+
+1. Centralizar `computeRecoveryCoverage()` em novo `utils/recovery-coverage.ts`
+   com `completeDays / validDays / partialDays / badge`
+2. Thresholds: robusto ≥80%, aceitável ≥50%, preliminar ≥20%, insuficiente <20%
+3. Permitir score com ≥3/5 inputs (`completeness` + `inputsUsed` em `RecoveryScorePoint`)
+4. 3ª `<Line scorePartial>` pontilhada no chart
+5. Substituir `<DataReadinessGate>` desta seção pelo novo badge
+
+Detalhe completo: ticket #29 no plano.
+
+---
+
+## ACHADO #30 — Cards Limitante/Noite mostram 21/abr sem explicar critério
+
+**Severidade:** ALTA · **Prioridade:** P0 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Em janela 30d até 14/mai, ambos os cards (`LimitingFactorCard`, `NightQualityCard`)
+mostram `21 ABR`. Não é bug — é fallback `findLatest` que pega o último dia
+com `score != null && components != null`. Usuário não tem affordance pra
+entender por quê.
+
+### Evidência
+
+- `frontend/src/components/cards/limiting-factor-card.tsx:84-120` (findLatest)
+- `frontend/src/components/cards/limiting-factor-card.tsx:178` (dayLabel)
+- `frontend/src/components/cards/night-quality-card.tsx:111-137, 169`
+
+### Fix proposto
+
+Sufixo condicional no label quando `state.snapshot.date !== todayIso`:
+`"LIMITANTE · 21 ABR · último dia completo"`. Idêntico em ambos os cards.
+
+Detalhe completo: ticket #30 no plano.
 
 ---
 
@@ -476,6 +575,85 @@ Emitido em produção a cada upload de métricas. Contrasta com padrão
 
 ---
 
+## ACHADO #31 — Pílulas do LimitingFactor: notação `0/100 -25.0 pts` ambígua
+
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Pílulas internas do `LimitingFactorCard` justapõem duas grandezas semanticamente
+distintas (`0/100` = score absoluto da subdimensão; `-25.0 pts` = contribuição
+negativa ao score do dia) sem separador. Leitor custa a parsear.
+
+### Evidência
+
+`frontend/src/components/cards/limiting-factor-card.tsx:216-223`
+
+### Fix proposto
+
+Adicionar separador `·` discreto entre as grandezas e sufixo `"pts no dia"`
+para desambiguar a contribuição negativa.
+
+Detalhe completo: ticket #31 no plano.
+
+---
+
+## ACHADO #32 — `Detalhe médico` só no LimitingFactor — inconsistente em summary
+
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+`▶ Detalhe médico` aparece só no `LimitingFactorCard` em Panorama.
+`NightQualityCard` esconde no modo `summary` (`!isSummary &&`); `PKCoverageCard`
+summary não tem detail. Affordance assimétrica entre cards equivalentes.
+
+### Evidência
+
+- `frontend/src/components/cards/limiting-factor-card.tsx:227-255` (`<details>` sem guarda)
+- `frontend/src/components/cards/night-quality-card.tsx:222` (`!isSummary` guard)
+- `frontend/src/App.tsx:~595` (uso em Panorama)
+
+### Fix proposto
+
+Adicionar prop `variant: 'full' | 'summary'` no `LimitingFactorCard` (default
+`'full'`), envolver `<details>` em guarda, passar `variant="summary"` no uso
+de Panorama.
+
+Detalhe completo: ticket #32 no plano.
+
+---
+
+## ACHADO #33 — PK card sem tooltip de justificativa de faixa (Lamotrigina custom)
+
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Faixa de Lamotrigina (2000-10000 ng/mL) diverge da literatura clínica padrão
+(3000-15000 µg/L). Anders mantém ajuste clínico próprio para estabilização
+de humor. `Farma/medDataBase.json` já tem `sources`, `confidence`, `notes`;
+basta consumir no frontend e expor via hover. Relacionado a #19, #20 (drift
+TS/DB), mas o foco aqui é tooltip de transparência.
+
+### Evidência
+
+- `Farma/medDataBase.json` (metadados já presentes)
+- `Farma/router.py` (endpoint `/farma/substances?full=true`)
+- `frontend/src/components/cards/pk-coverage-card.tsx` (ainda sem consumo)
+
+### Fix proposto
+
+1. Tipo `SubstanceMetadata` em `frontend/src/lib/api.ts`
+2. Hook `useSubstances()` com TanStack Query consumindo `/farma/substances?full=true`
+3. Tooltip ao hover na faixa terapêutica do `pk-coverage-card.tsx`:
+   `notes` + `sources` + `confidence`
+4. Não substituir `PK_PRESETS` (motor de cálculo) — só adicionar metadados
+
+Detalhe completo: ticket #33 no plano.
+
+---
+
 # P2 — BAIXA prioridade (backlog)
 
 ## ACHADO #14 — SLEEP_DEBT_CAP=7h vs NSF target 7.5h
@@ -645,6 +823,60 @@ contrato. Bonus: também adicionar test no frontend (vitest) com fixture
 JSON do mood real validando que `buildMoodRows` produz `valence ∈ [-1,+1]`.
 
 Net de regressão pra evitar repetir investigação do #4 no futuro.
+
+---
+
+## ACHADO #34 — Copy "decisão de hoje" sem CTA correspondente no fluxo
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Em `frontend/src/App.tsx:637`, a seção Tendência tem `description="Depois da
+decisão de hoje, estes painéis mostram trajetória e padrões semanais."` —
+referencia "decisão de hoje" que não existe no fluxo atual (não há CTA de
+"tomar conduta do dia"). Texto provavelmente herdado de design anterior.
+
+### Evidência
+
+`frontend/src/App.tsx:637`
+
+### Fix proposto
+
+Substituir por: `"Trajetória e padrões semanais — complementam a foto do dia
+mostrada acima."` (ou variante equivalente sem pressupor conceito ausente).
+
+---
+
+## ACHADO #35 — 8x JSX duplicado de header de score — falta `CardScoreBadge`
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Origem:** Auditoria UX Panorama (2026-05-14)
+
+### Contexto
+
+Padrão idêntico de "label uppercase top-right + número grande Fraunces" se
+repete em 8 arquivos sem componente reutilizável. Variação leve de labels
+(`SCORE DO DIA`, `SCORE`, `ÚLTIMO`) mas tipografia/spacing/cores idênticos.
+
+### Evidência
+
+8 ocorrências:
+- `frontend/src/components/cards/limiting-factor-card.tsx:198`
+- `frontend/src/components/cards/night-quality-card.tsx:215`
+- `frontend/src/components/cards/activity-readiness-card.tsx:63`
+- `frontend/src/components/charts/recovery-score-chart.tsx:265`
+- `frontend/src/components/charts/hrv-variability-chart.tsx:361`
+- `frontend/src/components/charts/chronotropic-response-chart.tsx:314`
+- `frontend/src/components/charts/autonomic-balance-chart.tsx:331`
+- `frontend/src/components/charts/heart-rate-reserve-chart.tsx:380`
+
+### Fix proposto
+
+Criar `frontend/src/components/cards/CardScoreBadge.tsx` com props
+`{ label, value, date?, colorClass? }`. Substituir o JSX duplicado nos 8 lugares
+mantendo aparência visual idêntica.
+
+Detalhe completo: ticket #35 no plano.
 
 ---
 

@@ -14,8 +14,11 @@
  *     confidence=0.7 (vs 1.0 pra dias reais). Baselines continuam excluindo interp/forecast.
  *   - Baselines HRV/RHR únicas do dataset, calculadas só sobre dias reais
  *     (mesmo padrão da Sprint M3, vital-signs-timeline).
- *   - Política rigorosa: 5/5 componentes obrigatórios; se faltar 1 → null.
- *     Decisão revisável em sprint futura (calibração com sintomas reportados).
+ *   - Política de inputs (BACKLOG #29, 2026-05-14): score requer ≥3/5 inputs
+ *     reais. Pesos são renormalizados pelos inputs presentes; componentes
+ *     ausentes ficam como 0 (sentinela) e `inputsUsed` enumera os reais.
+ *     Quando < 3 inputs disponíveis → score=null com reason='inputs_missing'.
+ *     `completeness` (0-1) reporta a fração de inputs usados.
  *
  * Pesos são "preliminary calibration" — informados por literatura Whoop/Oura,
  * sem validação empírica contra outcomes Anders. Sprint futura pode recalibrar.
@@ -36,6 +39,7 @@ export const RECOVERY_WEIGHTS = {
 
 const SLEEP_DEBT_CAP_HOURS = 7
 const Z_CLAMP = 2
+const MIN_INPUTS_REQUIRED = 3
 
 export interface RecoveryComponents {
   hrv: number
@@ -45,10 +49,16 @@ export interface RecoveryComponents {
   mood: number
 }
 
+export type RecoveryComponentKey = keyof RecoveryComponents
+
 export interface RecoveryScorePoint {
   date: string
   score: number | null
   components: RecoveryComponents | null
+  /** Inputs reais usados no cálculo. Vazio quando score=null. */
+  inputsUsed: ReadonlyArray<RecoveryComponentKey>
+  /** Fração dos 5 inputs presentes (0..1). 1.0 = score completo. */
+  completeness: number
   confidence: number
   derivedFromInterpolated: boolean
   reason?: 'baseline_missing' | 'inputs_missing'
@@ -112,48 +122,71 @@ interface RawInputs {
   valence: number | null
 }
 
-function buildComponents(inputs: RawInputs, baselines: RecoveryBaselines): RecoveryComponents | null {
-  const { hrv, rhr, sleepEffPct, sleepDebt7d, valence } = inputs
-  if (hrv == null || rhr == null || sleepEffPct == null || sleepDebt7d == null || valence == null) {
-    return null
-  }
-  if (!baselines.hrv || !baselines.rhr) {
-    return null
-  }
-  if (
-    !Number.isFinite(hrv) ||
-    !Number.isFinite(rhr) ||
-    !Number.isFinite(sleepEffPct) ||
-    !Number.isFinite(sleepDebt7d) ||
-    !Number.isFinite(valence)
-  ) {
-    return null
-  }
-
-  const hrvComp = zToScore(zScore(hrv, baselines.hrv))
-  const rhrComp = zToScoreInverted(zScore(rhr, baselines.rhr))
-  const sleepEffComp = clamp(sleepEffPct, 0, 100)
-  const debtClamped = clamp(sleepDebt7d, 0, SLEEP_DEBT_CAP_HOURS)
-  const sleepDebtComp = (1 - debtClamped / SLEEP_DEBT_CAP_HOURS) * 100
-  const moodComp = ((clamp(valence, -1, 1) + 1) / 2) * 100
-
-  return {
-    hrv: hrvComp,
-    sleepEff: sleepEffComp,
-    rhr: rhrComp,
-    sleepDebt: sleepDebtComp,
-    mood: moodComp,
-  }
+interface PartialComponentsResult {
+  components: RecoveryComponents
+  inputsUsed: RecoveryComponentKey[]
 }
 
-function weightedScore(components: RecoveryComponents): number {
-  return (
-    components.hrv * RECOVERY_WEIGHTS.hrv +
-    components.sleepEff * RECOVERY_WEIGHTS.sleepEff +
-    components.rhr * RECOVERY_WEIGHTS.rhr +
-    components.sleepDebt * RECOVERY_WEIGHTS.sleepDebt +
-    components.mood * RECOVERY_WEIGHTS.mood
-  )
+/**
+ * Calcula até 5 componentes. Componentes ausentes ficam como 0 (sentinela);
+ * `inputsUsed` enumera os reais para que o weighted score normalize sobre
+ * eles. Retorna null se < MIN_INPUTS_REQUIRED inputs disponíveis.
+ *
+ * HRV/RHR exigem baselines pessoais — sem elas esses 2 inputs não entram
+ * mesmo que os dados brutos existam.
+ */
+function buildPartialComponents(
+  inputs: RawInputs,
+  baselines: RecoveryBaselines,
+): PartialComponentsResult | null {
+  const { hrv, rhr, sleepEffPct, sleepDebt7d, valence } = inputs
+  const components: RecoveryComponents = { hrv: 0, sleepEff: 0, rhr: 0, sleepDebt: 0, mood: 0 }
+  const inputsUsed: RecoveryComponentKey[] = []
+
+  if (baselines.hrv && hrv != null && Number.isFinite(hrv)) {
+    components.hrv = zToScore(zScore(hrv, baselines.hrv))
+    inputsUsed.push('hrv')
+  }
+  if (baselines.rhr && rhr != null && Number.isFinite(rhr)) {
+    components.rhr = zToScoreInverted(zScore(rhr, baselines.rhr))
+    inputsUsed.push('rhr')
+  }
+  if (sleepEffPct != null && Number.isFinite(sleepEffPct)) {
+    components.sleepEff = clamp(sleepEffPct, 0, 100)
+    inputsUsed.push('sleepEff')
+  }
+  if (sleepDebt7d != null && Number.isFinite(sleepDebt7d)) {
+    const debtClamped = clamp(sleepDebt7d, 0, SLEEP_DEBT_CAP_HOURS)
+    components.sleepDebt = (1 - debtClamped / SLEEP_DEBT_CAP_HOURS) * 100
+    inputsUsed.push('sleepDebt')
+  }
+  if (valence != null && Number.isFinite(valence)) {
+    components.mood = ((clamp(valence, -1, 1) + 1) / 2) * 100
+    inputsUsed.push('mood')
+  }
+
+  if (inputsUsed.length < MIN_INPUTS_REQUIRED) return null
+
+  return { components, inputsUsed }
+}
+
+/**
+ * Weighted score normalizado pelos pesos dos inputs presentes. Quando 5/5,
+ * RECOVERY_WEIGHTS soma 1.0 e o resultado coincide com o cálculo original.
+ * Quando parcial, divide por soma(pesos presentes) pra manter escala 0-100.
+ */
+function weightedScoreFrom(
+  components: RecoveryComponents,
+  inputsUsed: ReadonlyArray<RecoveryComponentKey>,
+): number {
+  let weightedSum = 0
+  let totalWeight = 0
+  for (const key of inputsUsed) {
+    weightedSum += components[key] * RECOVERY_WEIGHTS[key]
+    totalWeight += RECOVERY_WEIGHTS[key]
+  }
+  if (totalWeight === 0) return 0
+  return weightedSum / totalWeight
 }
 
 /**
@@ -171,11 +204,23 @@ export function computeRecoveryScoreSeries(
     const { date } = snapshot
     const derivedFromInterpolated = !!(snapshot.interpolated || snapshot.forecasted)
 
-    if (!baselines.hrv || !baselines.rhr) {
-      return { date, score: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'baseline_missing' as const }
+    if (!baselines.hrv && !baselines.rhr) {
+      // Sem baselines reais HRV nem RHR ainda há chance de score parcial via
+      // sleepEff + sleepDebt + mood — só negamos quando ambas as baselines
+      // necessárias para a maioria dos pontos estão ausentes.
+      return {
+        date,
+        score: null,
+        components: null,
+        inputsUsed: [],
+        completeness: 0,
+        confidence: 0,
+        derivedFromInterpolated,
+        reason: 'baseline_missing' as const,
+      }
     }
 
-    const components = buildComponents(
+    const partial = buildPartialComponents(
       {
         hrv: snapshot.health?.hrvSdnn ?? null,
         rhr: snapshot.health?.restingHeartRate ?? null,
@@ -186,12 +231,32 @@ export function computeRecoveryScoreSeries(
       baselines,
     )
 
-    if (!components) {
-      return { date, score: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'inputs_missing' as const }
+    if (!partial) {
+      return {
+        date,
+        score: null,
+        components: null,
+        inputsUsed: [],
+        completeness: 0,
+        confidence: 0,
+        derivedFromInterpolated,
+        reason: 'inputs_missing' as const,
+      }
     }
 
-    const score = clamp(weightedScore(components), 0, 100)
-    const confidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
-    return { date, score, components, confidence, derivedFromInterpolated }
+    const { components, inputsUsed } = partial
+    const score = clamp(weightedScoreFrom(components, inputsUsed), 0, 100)
+    const completeness = inputsUsed.length / 5
+    const baseConfidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
+    const confidence = baseConfidence * completeness
+    return {
+      date,
+      score,
+      components,
+      inputsUsed,
+      completeness,
+      confidence,
+      derivedFromInterpolated,
+    }
   })
 }

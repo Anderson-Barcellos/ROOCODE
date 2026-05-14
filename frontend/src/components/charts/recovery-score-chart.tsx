@@ -12,13 +12,18 @@ import {
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
-import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
-import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import {
   RECOVERY_WEIGHTS,
   computeRecoveryScoreSeries,
+  type RecoveryComponentKey,
   type RecoveryComponents,
+  type RecoveryScorePoint,
 } from '@/utils/recovery-score'
+import {
+  badgeColor,
+  badgeLabel,
+  computeRecoveryCoverage,
+} from '@/utils/recovery-coverage'
 
 interface RecoveryScoreChartProps {
   snapshots: DailySnapshot[]
@@ -41,15 +46,23 @@ const TOOLTIP_STYLE = {
 interface ChartRow {
   date: string
   label: string
+  /** Score em dias completos (5/5 inputs reais, não interpolado). */
   scoreReal: number | null
+  /** Score em dias parciais (3-4/5 inputs reais, não interpolado). */
+  scorePartial: number | null
+  /** Score em dias interpolados/forecast (qualquer completude). */
   scoreInterp: number | null
   components: RecoveryComponents | null
+  inputsUsed: ReadonlyArray<RecoveryComponentKey>
+  completeness: number
   derivedFromInterpolated: boolean
   reason?: 'baseline_missing' | 'inputs_missing'
 }
 
-function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[]): ChartRow[] {
-  const series = computeRecoveryScoreSeries(baselineSnapshots)
+function buildRows(
+  series: ReadonlyArray<RecoveryScorePoint>,
+  snapshots: DailySnapshot[],
+): ChartRow[] {
   const byDate = new Map(series.map((point) => [point.date, point]))
   const rows: ChartRow[] = snapshots.map((snapshot, idx) => {
     const point = byDate.get(snapshot.date)
@@ -58,19 +71,29 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
     const isInterp = point?.derivedFromInterpolated ?? !!(snapshot.interpolated || snapshot.forecasted)
     const prevIsInterp = prevPoint?.derivedFromInterpolated ?? false
     const nextIsInterp = nextPoint?.derivedFromInterpolated ?? false
+    const completeness = point?.completeness ?? 0
+    const isComplete = !isInterp && completeness >= 1
+    const isPartial = !isInterp && completeness > 0 && completeness < 1
+    const score = point?.score ?? null
+
     return {
       date: snapshot.date,
       label: dayLabel(snapshot.date),
-      scoreReal: isInterp ? null : (point?.score ?? null),
+      scoreReal: isComplete ? score : null,
+      // Linha pontilhada de "parcial" cobre só dias reais com 3-4/5 inputs.
+      // Dias interpolados vão na linha de interp (que já era tracejada).
+      scorePartial: isPartial ? score : null,
       // Include boundary real days adjacent to interp segments so the dashed
-      // line connects without gaps at the transition point.
+      // interp line connects without gaps at the transition point.
       scoreInterp:
         isInterp
-          ? (point?.score ?? null)
+          ? score
           : prevIsInterp || nextIsInterp
-            ? (point?.score ?? null)
+            ? score
             : null,
       components: point?.components ?? null,
+      inputsUsed: point?.inputsUsed ?? [],
+      completeness,
       derivedFromInterpolated: isInterp,
       reason: point?.reason,
     }
@@ -79,9 +102,6 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
   if (rows.length < 2) return rows
 
   // Insere gap rows quando há buracos >2d (mesmo padrão do timeline-chart).
-  // Dias interp/forecast com inputs_missing/baseline_missing continuam retornando
-  // score=null e quebram a linha normalmente; gaps >2d entre datas requerem row
-  // explícita com null pra garantir quebra visual.
   const withGaps: ChartRow[] = []
   for (let i = 0; i < rows.length; i += 1) {
     const current = rows[i]
@@ -93,8 +113,11 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         date: `${current.date}-gap`,
         label: '',
         scoreReal: null,
+        scorePartial: null,
         scoreInterp: null,
         components: null,
+        inputsUsed: [],
+        completeness: 0,
         derivedFromInterpolated: false,
       })
     }
@@ -110,10 +133,19 @@ interface TooltipProps {
 function RecoveryTooltip({ active, payload }: TooltipProps) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload
-  if (!row || (row.scoreReal == null && row.scoreInterp == null) || !row.components) return null
-  const score = row.scoreReal ?? row.scoreInterp
+  if (
+    !row ||
+    (row.scoreReal == null && row.scoreInterp == null && row.scorePartial == null) ||
+    !row.components
+  ) {
+    return null
+  }
+  const score = row.scoreReal ?? row.scorePartial ?? row.scoreInterp
+  const usedSet = new Set<RecoveryComponentKey>(row.inputsUsed)
+  const isPartial = row.completeness > 0 && row.completeness < 1
+  const missingCount = 5 - row.inputsUsed.length
 
-  const componentRows: Array<{ key: keyof RecoveryComponents; label: string; weight: number }> = [
+  const componentRows: Array<{ key: RecoveryComponentKey; label: string; weight: number }> = [
     { key: 'hrv', label: 'HRV (z-score)', weight: RECOVERY_WEIGHTS.hrv },
     { key: 'sleepEff', label: 'Eficiência sono', weight: RECOVERY_WEIGHTS.sleepEff },
     { key: 'rhr', label: 'FC repouso (z invertido)', weight: RECOVERY_WEIGHTS.rhr },
@@ -132,6 +164,11 @@ function RecoveryTooltip({ active, payload }: TooltipProps) {
           ⚠ estimado a partir de dia interp
         </div>
       )}
+      {!row.derivedFromInterpolated && isPartial && (
+        <div className="mb-1 text-[0.62rem] font-medium text-indigo-600">
+          ◔ parcial · {row.inputsUsed.length}/5 inputs · {missingCount} ausente{missingCount > 1 ? 's' : ''}
+        </div>
+      )}
       <div className="mb-2 flex items-baseline gap-1.5">
         <span className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
           {score!.toFixed(0)}
@@ -141,12 +178,19 @@ function RecoveryTooltip({ active, payload }: TooltipProps) {
       <div className="space-y-1">
         {componentRows.map(({ key, label, weight }) => {
           const value = row.components![key]
+          const used = usedSet.has(key)
           return (
             <div key={key} className="flex items-center gap-2">
               <span className="w-2 rounded-full" />
-              <span className="flex-1 text-slate-600">{label}</span>
+              <span className={`flex-1 ${used ? 'text-slate-600' : 'text-slate-300 line-through'}`}>
+                {label}
+              </span>
               <span className="text-[0.65rem] text-slate-400">{Math.round(weight * 100)}%</span>
-              <span className="w-9 text-right font-semibold text-slate-800">{value.toFixed(0)}</span>
+              <span
+                className={`w-9 text-right font-semibold ${used ? 'text-slate-800' : 'text-slate-300'}`}
+              >
+                {used ? value.toFixed(0) : '—'}
+              </span>
             </div>
           )
         })}
@@ -157,83 +201,28 @@ function RecoveryTooltip({ active, payload }: TooltipProps) {
 
 export function RecoveryScoreChart({ snapshots, baselineSnapshots }: RecoveryScoreChartProps) {
   const baselineSource = baselineSnapshots ?? snapshots
-  const data = useMemo(() => buildRows(baselineSource, snapshots), [baselineSource, snapshots])
-  const readiness = useMemo(
-    () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.recoveryScoreChart, 'Recovery Score'),
-    [snapshots],
+  const series = useMemo(
+    () => computeRecoveryScoreSeries(baselineSource),
+    [baselineSource],
   )
+  const data = useMemo(() => buildRows(series, snapshots), [series, snapshots])
+  const coverage = useMemo(() => {
+    // Filtra a série pra incluir apenas as datas presentes em `snapshots`.
+    const snapshotDates = new Set(snapshots.map((s) => s.date))
+    return computeRecoveryCoverage(series.filter((p) => snapshotDates.has(p.date)))
+  }, [series, snapshots])
+  const badge = coverage.badge
+  const badgeColors = badgeColor(badge)
 
   const latest = useMemo(() => {
     for (let i = data.length - 1; i >= 0; i -= 1) {
       const row = data[i]
-      if (row.scoreReal != null || row.scoreInterp != null) return row
+      if (row.scoreReal != null || row.scorePartial != null || row.scoreInterp != null) {
+        return row
+      }
     }
     return null
   }, [data])
-
-  const coverageSummary = useMemo(() => {
-    const nonGapRows = data.filter((row) => !row.date.endsWith('-gap'))
-    const validDays = nonGapRows.filter((row) => row.scoreReal != null || row.scoreInterp != null).length
-    const baselineMissingDays = nonGapRows.filter((row) => row.reason === 'baseline_missing').length
-    const inputsMissingDays = nonGapRows.filter((row) => row.reason === 'inputs_missing').length
-    return {
-      totalDays: snapshots.length,
-      validDays,
-      baselineMissingDays,
-      inputsMissingDays,
-    }
-  }, [data, snapshots.length])
-
-  const chartBody = (
-    <div className="h-[320px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tick={{ fill: '#475569', fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            minTickGap={22}
-          />
-          <YAxis
-            domain={[0, 100]}
-            ticks={[0, 33, 66, 100]}
-            tick={{ fill: '#475569', fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            width={32}
-          />
-          <ReferenceArea y1={0} y2={BAND_LOW} fill={COLOR_RED} fillOpacity={0.08} />
-          <ReferenceArea y1={BAND_LOW} y2={BAND_HIGH} fill={COLOR_AMBER} fillOpacity={0.08} />
-          <ReferenceArea y1={BAND_HIGH} y2={100} fill={COLOR_GREEN} fillOpacity={0.08} />
-          <Tooltip content={<RecoveryTooltip />} />
-          <Line
-            type="monotone"
-            dataKey="scoreReal"
-            stroke={COLOR_LINE}
-            strokeWidth={2.5}
-            dot={false}
-            activeDot={{ r: 5 }}
-            connectNulls={false}
-            name="Recovery Score"
-          />
-          <Line
-            type="monotone"
-            dataKey="scoreInterp"
-            stroke={COLOR_LINE}
-            strokeWidth={2.5}
-            strokeDasharray="5 3"
-            dot={false}
-            activeDot={{ r: 5 }}
-            connectNulls={false}
-            name="Recovery Score (estimado)"
-            legendType="none"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  )
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -251,27 +240,102 @@ export function RecoveryScoreChart({ snapshots, baselineSnapshots }: RecoverySco
             correlação com sintomas reportados.
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            Dias com score completo: {coverageSummary.validDays}/{coverageSummary.totalDays}
-            {coverageSummary.baselineMissingDays > 0
-              ? ` · baseline em formação: ${coverageSummary.baselineMissingDays}`
+            {coverage.completeDays}/{coverage.totalDays} dias completos
+            {coverage.partialDays > 0
+              ? ` · ${coverage.partialDays} parciais (3-4/5 inputs)`
               : ''}
-            {coverageSummary.inputsMissingDays > 0
-              ? ` · inputs faltantes: ${coverageSummary.inputsMissingDays}`
+            {coverage.interpolatedDays > 0
+              ? ` · ${coverage.interpolatedDays} interpolados`
+              : ''}
+            {coverage.baselineMissingDays > 0
+              ? ` · ${coverage.baselineMissingDays} sem baseline pessoal`
               : ''}
           </p>
         </div>
-        {latest != null && (latest.scoreReal != null || latest.scoreInterp != null) && (
+        {latest != null && (
           <div className="text-right">
             <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
             <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {(latest.scoreReal ?? latest.scoreInterp)!.toFixed(0)}
+              {(latest.scoreReal ?? latest.scorePartial ?? latest.scoreInterp)!.toFixed(0)}
             </div>
             <div className="text-[0.7rem] text-slate-500">{latest.label}</div>
           </div>
         )}
       </div>
 
-      <DataReadinessGate readiness={readiness}>{chartBody}</DataReadinessGate>
+      <div className="h-[320px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+            <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fill: '#475569', fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              minTickGap={22}
+            />
+            <YAxis
+              domain={[0, 100]}
+              ticks={[0, 33, 66, 100]}
+              tick={{ fill: '#475569', fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              width={32}
+            />
+            <ReferenceArea y1={0} y2={BAND_LOW} fill={COLOR_RED} fillOpacity={0.08} />
+            <ReferenceArea y1={BAND_LOW} y2={BAND_HIGH} fill={COLOR_AMBER} fillOpacity={0.08} />
+            <ReferenceArea y1={BAND_HIGH} y2={100} fill={COLOR_GREEN} fillOpacity={0.08} />
+            <Tooltip content={<RecoveryTooltip />} />
+            <Line
+              type="monotone"
+              dataKey="scoreReal"
+              stroke={COLOR_LINE}
+              strokeWidth={2.5}
+              dot={false}
+              activeDot={{ r: 5 }}
+              connectNulls={false}
+              name="Recovery Score"
+            />
+            <Line
+              type="monotone"
+              dataKey="scorePartial"
+              stroke={COLOR_LINE}
+              strokeWidth={1.8}
+              strokeOpacity={0.55}
+              strokeDasharray="2 3"
+              dot={false}
+              activeDot={{ r: 4 }}
+              connectNulls={false}
+              name="Recovery Score (parcial)"
+              legendType="none"
+            />
+            <Line
+              type="monotone"
+              dataKey="scoreInterp"
+              stroke={COLOR_LINE}
+              strokeWidth={2.5}
+              strokeDasharray="5 3"
+              dot={false}
+              activeDot={{ r: 5 }}
+              connectNulls={false}
+              name="Recovery Score (estimado)"
+              legendType="none"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <p
+        className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeColors.bg} ${badgeColors.text}`}
+      >
+        <span aria-hidden>●</span>
+        <span>
+          {badgeLabel(badge)} · {coverage.completeDays}/{coverage.totalDays} dias completos
+          {coverage.totalDays > 0
+            ? ` (${Math.round(coverage.completeRatio * 100)}%)`
+            : ''}
+        </span>
+      </p>
     </div>
   )
 }

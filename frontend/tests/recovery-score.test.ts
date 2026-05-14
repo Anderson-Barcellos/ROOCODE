@@ -236,23 +236,47 @@ assert.ok(
   `interp confidence deve ser ${INTERP_CONFIDENCE_MULTIPLIER}, got ${interpPoint.confidence}`,
 )
 
-// ─── Reason: input missing (mood null) → score null ──────────────────────
+// ─── BACKLOG #29 (2026-05-14): 4/5 inputs → score parcial ───────────────
+// Mood ausente: ainda há hrv + rhr + sleepEff + sleepDebt = 4/5 → parcial.
 
 const missingMoodDataset = buildDataset({}, { valence: null })
 const missingMoodSeries = computeRecoveryScoreSeries(missingMoodDataset)
 const missingMoodDay = missingMoodSeries[missingMoodSeries.length - 1]
-assert.equal(missingMoodDay.score, null)
-assert.equal(missingMoodDay.reason, 'inputs_missing')
-assert.equal(missingMoodDay.confidence, 0)
+assert.ok(missingMoodDay.score != null, '4/5 inputs deve gerar score parcial')
+assert.equal(missingMoodDay.completeness, 0.8)
+assert.equal(missingMoodDay.inputsUsed.length, 4)
+assert.ok(!missingMoodDay.inputsUsed.includes('mood'), 'mood não deve aparecer em inputsUsed')
 
-// ─── Reason: input missing (HRV null) → score null ────────────────────────
+// ─── HRV null → score parcial 4/5 ────────────────────────────────────────
 
 const missingHrvDataset = buildDataset({}, { hrv: null })
 const missingHrvSeries = computeRecoveryScoreSeries(missingHrvDataset)
 const missingHrvDay = missingHrvSeries[missingHrvSeries.length - 1]
-assert.equal(missingHrvDay.score, null)
-assert.equal(missingHrvDay.reason, 'inputs_missing')
-assert.equal(missingHrvDay.confidence, 0)
+assert.ok(missingHrvDay.score != null, '4/5 inputs sem HRV deve gerar score parcial')
+assert.equal(missingHrvDay.completeness, 0.8)
+assert.ok(!missingHrvDay.inputsUsed.includes('hrv'))
+
+// ─── < 3 inputs → score null, reason='inputs_missing' ───────────────────
+
+const tooFewDataset = buildDataset({}, { valence: null, hrv: null, sleepEff: null })
+const tooFewSeries = computeRecoveryScoreSeries(tooFewDataset)
+const tooFewDay = tooFewSeries[tooFewSeries.length - 1]
+assert.equal(tooFewDay.score, null, '< MIN_INPUTS_REQUIRED (3) deve retornar null')
+assert.equal(tooFewDay.reason, 'inputs_missing')
+assert.equal(tooFewDay.confidence, 0)
+assert.equal(tooFewDay.completeness, 0)
+
+// ─── Score parcial: pesos normalizados pra soma 1.0 (escala 0-100 preservada)
+
+// Com 4/5 inputs (sem mood), weighted score = (componentes * pesos) / soma(pesos presentes).
+// Pesos presentes = 0.30 + 0.25 + 0.20 + 0.15 = 0.90.
+// Componentes médios: HRV 50 + sleepEff 90 + RHR 50 + sleepDebt ~100 (debt baixo) = sum ponderado:
+//   0.30*50 + 0.25*90 + 0.20*50 + 0.15*100 = 15 + 22.5 + 10 + 15 = 62.5
+//   62.5 / 0.90 = 69.4 (vs 67.5 sem mood, que era 0.10*50=5 a mais).
+assert.ok(
+  missingMoodDay.score! > 65 && missingMoodDay.score! < 75,
+  `Score parcial sem mood deveria ficar ~69-70, got ${missingMoodDay.score}`,
+)
 
 // ─── Reason: baseline_missing quando <14 dias reais ──────────────────────
 

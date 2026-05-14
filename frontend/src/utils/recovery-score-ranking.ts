@@ -33,11 +33,21 @@ const COMPONENT_KEYS: ReadonlyArray<RecoveryComponentKey> = [
   'mood',
 ]
 
-export function rankLimitingFactors(components: RecoveryComponents): LimitingFactor[] {
-  return COMPONENT_KEYS.map((key) => ({
-    component: key,
-    weight: RECOVERY_WEIGHTS[key],
-    componentValue: components[key],
-    weightedShortfall: (100 - components[key]) * RECOVERY_WEIGHTS[key],
-  })).sort((a, b) => b.weightedShortfall - a.weightedShortfall)
+export function rankLimitingFactors(
+  components: RecoveryComponents,
+  inputsUsed?: ReadonlyArray<RecoveryComponentKey>,
+): LimitingFactor[] {
+  // `inputsUsed` veio com #29 (BACKLOG): em pontos parciais, componentes
+  // ausentes ficam como 0 sentinela e seriam ranqueados como pior limitante
+  // por engano. Filtrar pelo conjunto real evita esse falso positivo.
+  // Default mantém comportamento legado (5/5 inputs) pra callers que não passam.
+  const keys = inputsUsed && inputsUsed.length > 0 ? inputsUsed : COMPONENT_KEYS
+  return keys
+    .map((key) => ({
+      component: key,
+      weight: RECOVERY_WEIGHTS[key],
+      componentValue: components[key],
+      weightedShortfall: (100 - components[key]) * RECOVERY_WEIGHTS[key],
+    }))
+    .sort((a, b) => b.weightedShortfall - a.weightedShortfall)
 }

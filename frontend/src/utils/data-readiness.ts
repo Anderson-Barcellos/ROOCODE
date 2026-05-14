@@ -199,10 +199,6 @@ export const CHART_REQUIREMENTS = {
   vitalSignsTimelineChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'respiratoryRate' },
   cardioRecoveryChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'cardioRecoveryBpm' },
   hrRangeChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'heartRateMean' },
-  // Sprint M4 — Recovery Score composto. Requer 14 dias reais pras baselines
-  // HRV/RHR (regra interim M6) + 5 inputs por dia. Threshold mais alto pra
-  // estabilidade da série composta.
-  recoveryScoreChart: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
   // Sprint M5 — Autonomic Balance Index. z-score de ln(HRV/RHR), baseline
   // única sobre dias reais. Threshold um pouco mais alto que Recovery Score
   // pq log-ratio precisa de mais histórico pra estabilizar.

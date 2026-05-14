@@ -3,23 +3,19 @@
  * vulnerabilidade").
  *
  * Analisa últimas 48h pra cada medicação ativa do regime e classifica
- * o estado de cobertura em 4 classes clinicamente úteis (Anders 2026-05):
+ * o estado de cobertura em 5 classes clinicamente úteis:
  *
- *   1. `vulnerabilidade` — concentração estimada < therapeutic min agora.
- *   2. `nao_registrada`  — regime esperava dose nas últimas 48h e nenhuma
- *                          dose logada cobre essa janela.
- *   3. `queda`           — concentração caindo e projeta < min em ≤12h.
- *   4. `adequada`        — dentro do range terapêutico, sem falhas.
+ *   1. `acima_faixa`           — concentração estimada > therapeutic max.
+ *   2. `vulnerabilidade`       — concentração estimada < therapeutic min.
+ *   3. `queda`                 — concentração caindo e projeta < min em ≤12h.
+ *   4. `cobertura_incompleta`  — regime esperava dose nas últimas 48h e o
+ *                                histórico logado não cobre o intervalo
+ *                                (cNow < 1.2× min como guarda — concentração
+ *                                ainda saudável não dispara o aviso).
+ *   5. `adequada`              — dentro do range terapêutico, sem falhas.
  *
- * Ordem de prioridade: vulnerabilidade > nao_registrada > queda > adequada.
- *
- * Reusa PK engine de `pharmacokinetics.ts`:
- *   • `findPresetKey()` mapeia nome livre → preset canônico.
- *   • `calculateConcentration()` integra todas as doses pra concentração
- *     plasmática em um ponto no tempo.
- *
- * Apenas medicações com `therapeuticRange` definido entram no classificador
- * — suplementos/adaptogens sem range não fazem sentido nessa abstração.
+ * Ordem de prioridade (severidade): vulnerabilidade > acima_faixa >
+ * cobertura_incompleta > queda > adequada.
  */
 
 import type { DoseRecord } from '@/lib/api'
@@ -33,7 +29,41 @@ import {
 } from './pharmacokinetics'
 import { USER_PROFILE } from './user-profile'
 
-export type CoverageClass = 'adequada' | 'queda' | 'vulnerabilidade' | 'nao_registrada'
+export type CoverageClass =
+  | 'adequada'
+  | 'queda'
+  | 'vulnerabilidade'
+  | 'acima_faixa'
+  | 'cobertura_incompleta'
+
+export interface PKStatusInput {
+  concentration: number
+  therapeuticMin: number
+  therapeuticMax: number
+  missedDoses: number
+  hoursUntilBelowMin: number | null
+}
+
+/**
+ * Pure classifier — order matters and encodes severity:
+ *   1. supraterapêutico (acima do ceiling)
+ *   2. subterapêutico (abaixo do floor)
+ *   3. decay acentuado (cruza min em ≤12h)
+ *   4. cobertura incompleta + concentração já saudável-pra-baixo (< 1.2× min)
+ *   5. default: em faixa
+ *
+ * A guarda `concentration < therapeuticMin * 1.2` em (4) evita o bug histórico
+ * em que doses esperadas faltando disparavam o aviso mesmo com concentração
+ * confortavelmente dentro da faixa terapêutica.
+ */
+export function derivePKStatus(input: PKStatusInput): CoverageClass {
+  const { concentration, therapeuticMin, therapeuticMax, missedDoses, hoursUntilBelowMin } = input
+  if (concentration > therapeuticMax) return 'acima_faixa'
+  if (concentration < therapeuticMin) return 'vulnerabilidade'
+  if (hoursUntilBelowMin != null && hoursUntilBelowMin <= 12) return 'queda'
+  if (missedDoses > 0 && concentration < therapeuticMin * 1.2) return 'cobertura_incompleta'
+  return 'adequada'
+}
 
 export interface CoverageStatus {
   presetKey: string
@@ -154,16 +184,13 @@ export function computeCoverageStatus(
 
     const hoursUntilBelowMin = projectHoursUntilBelowMin(med, substanceDoses, now, min, bodyWeight)
 
-    let klass: CoverageClass
-    if (cNow < min) {
-      klass = 'vulnerabilidade'
-    } else if (missed > 0) {
-      klass = 'nao_registrada'
-    } else if (hoursUntilBelowMin != null && hoursUntilBelowMin <= 12) {
-      klass = 'queda'
-    } else {
-      klass = 'adequada'
-    }
+    const klass = derivePKStatus({
+      concentration: cNow,
+      therapeuticMin: min,
+      therapeuticMax: max,
+      missedDoses: missed,
+      hoursUntilBelowMin,
+    })
 
     out.push({
       presetKey,

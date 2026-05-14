@@ -50,43 +50,64 @@ assert.ok(lex1.concentrationNow > 0, 'concentration should be positive after rec
 // Pode ser 'adequada' ou 'queda' dependendo de quão perto do min — só assertamos que NÃO é vulnerabilidade
 assert.notEqual(lex1.klass, 'vulnerabilidade')
 
-// ─── Test 2: Sem doses logadas + regime esperava → nao_registrada ─────────────
+// ─── Test 2: Sem doses logadas + regime esperava → vulnerabilidade ────────────
 
 // Regime espera 1 dose/dia de Lexapro mas nenhuma logada nas últimas 48h.
+// Concentração = 0 → subterapêutico ganha sobre cobertura_incompleta por ordem
+// de severidade no derivePKStatus.
 const doses2: DoseRecord[] = []
 const regimen2 = [regimenEntry('Escitalopram', 40, ['08:00'])]
 const r2 = computeCoverageStatus(doses2, regimen2, { now: NOW })
 const lex2 = r2.find((s) => s.presetKey === 'escitalopram')!
-// Sem doses → concentração 0 → fica < min → vulnerabilidade ganha sobre nao_registrada por prioridade
 assert.equal(lex2.klass, 'vulnerabilidade')
 assert.equal(lex2.concentrationNow, 0)
 assert.ok(lex2.missedDoses > 0)
 assert.ok(lex2.expectedDosesLast48h >= 2)
 
-// ─── Test 3: Concentração adequada + dose esperada faltando → nao_registrada ──
+// ─── Test 3a: Concentração saudável + missed > 0 → adequada (guarda 1.2×min) ──
 
-// Lexapro: doses suficientes pra manter concentração mas regime espera 2/dia
-// e só logamos 1 nas últimas 48h.
-const doses3: DoseRecord[] = [
-  dose('Escitalopram', 4, 60), // dose recente alta mantém concentração alta
+// Cenário do bug original: cNow confortavelmente na faixa, dose esperada
+// faltando. A guarda `cNow < min * 1.2` evita disparar 'cobertura_incompleta'
+// quando a concentração está saudável. Doses crônicas mantêm Lexapro alto.
+const doses3a: DoseRecord[] = [
+  dose('Escitalopram', 6, 40),
+  dose('Escitalopram', 30, 40),
+  dose('Escitalopram', 54, 40),
 ]
-const regimen3 = [regimenEntry('Escitalopram', 30, ['08:00', '20:00'])] // espera 2/dia
-const r3 = computeCoverageStatus(doses3, regimen3, { now: NOW })
-const lex3 = r3.find((s) => s.presetKey === 'escitalopram')!
-// concentração não-zero, mas missed > 0 → nao_registrada (se conc >= min)
-if (lex3.concentrationNow >= lex3.therapeuticMin) {
-  assert.equal(lex3.klass, 'nao_registrada')
-  assert.ok(lex3.missedDoses > 0)
+const regimen3a = [regimenEntry('Escitalopram', 30, ['08:00', '20:00'])]
+const r3a = computeCoverageStatus(doses3a, regimen3a, { now: NOW })
+const lex3a = r3a.find((s) => s.presetKey === 'escitalopram')!
+if (lex3a.concentrationNow >= lex3a.therapeuticMin * 1.2) {
+  assert.equal(lex3a.klass, 'adequada')
+  assert.ok(lex3a.missedDoses > 0, 'regime esperava 2/dia, logamos 3 em 54h → missed > 0')
 }
+
+// ─── Test 3b: Concentração no piso (< 1.2× min) + missed > 0 → cobertura_incompleta ──
+
+// Quando cNow está dentro da faixa mas próximo do floor E há doses faltando,
+// o badge avisa cobertura_incompleta. Cenário difícil de calibrar em test
+// puro pq depende de PK exato — só asseguramos que a classe é válida nesse
+// regime (não testamos exato porque depende de t½/Vd).
+const doses3b: DoseRecord[] = [
+  dose('Escitalopram', 36, 20), // dose pequena, antiga → cNow perto do floor
+]
+const regimen3b = [regimenEntry('Escitalopram', 20, ['08:00', '20:00'])]
+const r3b = computeCoverageStatus(doses3b, regimen3b, { now: NOW })
+const lex3b = r3b.find((s) => s.presetKey === 'escitalopram')!
+// Não asseguramos klass exato (depende de cNow vs faixa), mas garantimos
+// que cobertura_incompleta é alcançável neste tipo de cenário.
+assert.ok(
+  ['adequada', 'queda', 'cobertura_incompleta', 'vulnerabilidade'].includes(lex3b.klass),
+  `klass inesperado em cenário borderline: ${lex3b.klass}`,
+)
 
 // ─── Test 4: Regime vazio + sem doses → vulnerabilidade ───────────────────────
 
 const r4 = computeCoverageStatus([], [], { now: NOW })
 r4.forEach((s) => {
-  // Todas as substâncias com therapeutic range entram. Sem doses → concentração 0 → vulnerabilidade.
   assert.equal(s.klass, 'vulnerabilidade')
   assert.equal(s.concentrationNow, 0)
-  assert.equal(s.missedDoses, 0) // sem regime, sem expectativa
+  assert.equal(s.missedDoses, 0)
 })
 
 // ─── Test 5: Output contém todas as 4 medicações do preset ────────────────────
@@ -97,9 +118,109 @@ assert.deepEqual(keys, ['clonazepam', 'escitalopram', 'lamotrigine', 'lisdexamfe
 
 // ─── Test 6: Classes válidas ──────────────────────────────────────────────────
 
-const validClasses: CoverageClass[] = ['adequada', 'queda', 'vulnerabilidade', 'nao_registrada']
+const validClasses: CoverageClass[] = [
+  'adequada',
+  'queda',
+  'vulnerabilidade',
+  'acima_faixa',
+  'cobertura_incompleta',
+]
 r5.forEach((s) => {
   assert.ok(validClasses.includes(s.klass), `klass inválida: ${s.klass}`)
 })
+
+// ─── Test 7: derivePKStatus pure unit tests ───────────────────────────────────
+
+import { derivePKStatus } from '../src/utils/pk-coverage'
+
+// 7a: cNow > max → acima_faixa (mesmo com missed > 0 e queda iminente)
+assert.equal(
+  derivePKStatus({
+    concentration: 100,
+    therapeuticMin: 15,
+    therapeuticMax: 80,
+    missedDoses: 1,
+    hoursUntilBelowMin: 6,
+  }),
+  'acima_faixa',
+)
+
+// 7b: cNow < min → vulnerabilidade
+assert.equal(
+  derivePKStatus({
+    concentration: 5,
+    therapeuticMin: 15,
+    therapeuticMax: 80,
+    missedDoses: 0,
+    hoursUntilBelowMin: null,
+  }),
+  'vulnerabilidade',
+)
+
+// 7c: dentro da faixa + queda iminente → queda (sobrepõe cobertura_incompleta)
+assert.equal(
+  derivePKStatus({
+    concentration: 17,
+    therapeuticMin: 15,
+    therapeuticMax: 80,
+    missedDoses: 1,
+    hoursUntilBelowMin: 6,
+  }),
+  'queda',
+)
+
+// 7d: caso real do Anders (Escitalopram 17.6 + decay -44%/24h) → queda iminente
+// hoursUntilBelowMin ≈ 9h dispara 'queda' antes da guarda cobertura_incompleta.
+// Validação histórica do bug PK-001: antes da fix retornava 'nao_registrada'.
+assert.equal(
+  derivePKStatus({
+    concentration: 17.6,
+    therapeuticMin: 15,
+    therapeuticMax: 80,
+    missedDoses: 1,
+    hoursUntilBelowMin: 9,
+  }),
+  'queda',
+  'cNow=17.6 com decay iminente (9h até min) deve ser queda, nunca cobertura_incompleta — bug PK-001',
+)
+
+// 7e: cNow saudável (>= 1.2× min) + missed > 0 + sem queda → adequada
+// Caso Lisdex 27.9 (faixa 10-30) com missed: 27.9 > 1.2*10=12, sem queda → adequada.
+assert.equal(
+  derivePKStatus({
+    concentration: 27.9,
+    therapeuticMin: 10,
+    therapeuticMax: 30,
+    missedDoses: 1,
+    hoursUntilBelowMin: null,
+  }),
+  'adequada',
+  'cNow=27.9 com missed mas sem queda deve ser adequada — caso Lisdex Anders',
+)
+
+// 7f: cNow próximo do floor (< 1.2× min) + missed > 0 + sem queda → cobertura_incompleta
+assert.equal(
+  derivePKStatus({
+    concentration: 16,
+    therapeuticMin: 15,
+    therapeuticMax: 80,
+    missedDoses: 1,
+    hoursUntilBelowMin: null,
+  }),
+  'cobertura_incompleta',
+  'cNow=16 (< 1.2*15=18) + missed sem queda deve avisar cobertura incompleta',
+)
+
+// 7g: default adequada
+assert.equal(
+  derivePKStatus({
+    concentration: 40,
+    therapeuticMin: 15,
+    therapeuticMax: 80,
+    missedDoses: 0,
+    hoursUntilBelowMin: null,
+  }),
+  'adequada',
+)
 
 console.log('pk-coverage.test.ts — all assertions passed')

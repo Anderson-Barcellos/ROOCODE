@@ -22,7 +22,7 @@ interface ClassMeta {
 const CLASS_META: Record<CoverageClass, ClassMeta> = {
   adequada: {
     headline: 'Cobertura adequada',
-    short: 'Adequada',
+    short: 'Em faixa',
     badgeBg: 'bg-emerald-50 border-emerald-200',
     badgeText: 'text-emerald-700',
     bar: 'bg-emerald-500',
@@ -36,21 +36,34 @@ const CLASS_META: Record<CoverageClass, ClassMeta> = {
   },
   vulnerabilidade: {
     headline: 'Janela de vulnerabilidade',
-    short: 'Vulnerável',
+    short: 'Subterapêutico',
     badgeBg: 'bg-rose-50 border-rose-200',
     badgeText: 'text-rose-700',
     bar: 'bg-rose-500',
   },
-  nao_registrada: {
-    headline: 'Dose esperada não registrada',
-    short: 'Não registrada',
+  acima_faixa: {
+    headline: 'Concentração acima da faixa',
+    short: 'Supraterapêutico',
+    badgeBg: 'bg-red-50 border-red-200',
+    badgeText: 'text-red-700',
+    bar: 'bg-red-500',
+  },
+  cobertura_incompleta: {
+    headline: 'Cobertura incompleta no histórico',
+    short: 'Cobertura incompleta',
     badgeBg: 'bg-fuchsia-50 border-fuchsia-200',
     badgeText: 'text-fuchsia-700',
     bar: 'bg-fuchsia-500',
   },
 }
 
-const CLASS_PRIORITY: CoverageClass[] = ['vulnerabilidade', 'nao_registrada', 'queda', 'adequada']
+const CLASS_PRIORITY: CoverageClass[] = [
+  'vulnerabilidade',
+  'acima_faixa',
+  'cobertura_incompleta',
+  'queda',
+  'adequada',
+]
 
 function worstClass(statuses: CoverageStatus[]): CoverageClass | null {
   if (statuses.length === 0) return null
@@ -203,9 +216,10 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
 
       {!isSummary && (
         <p className="mt-3 text-[0.7rem] leading-4 text-slate-400">
-          Classificação prioritária: vulnerabilidade &gt; não-registrada &gt; queda &gt; adequada.
-          Concentrações são estimadas pelo motor PK (preset por substância), comparadas ao range
-          terapêutico publicado. Doses esperadas vêm do regime ativo no `/farma/regimen`.
+          Classificação prioritária: subterapêutico &gt; supraterapêutico &gt; cobertura incompleta &gt; em
+          queda &gt; em faixa. Concentrações são estimadas pelo motor PK (preset por substância),
+          comparadas ao range terapêutico publicado. Doses esperadas vêm do regime ativo no
+          `/farma/regimen`.
         </p>
       )}
     </div>

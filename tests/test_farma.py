@@ -201,18 +201,18 @@ class ConcentrationSeriesEndpointTests(unittest.TestCase):
         self.assertEqual(len(payload["series"]), 5)
         self.assertGreater(payload["events_count"], 0)
 
-    def test_rejects_range_exceeding_90_days(self) -> None:
+    def test_rejects_range_exceeding_5_years(self) -> None:
         response = self.client.get(
             "/concentration-series",
             params={
                 "substance": "venvanse",
-                "from": "2026-01-01",
-                "to": "2026-06-01",
+                "from": "2020-01-01",
+                "to": "2026-01-01",
             },
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("90 dias", response.json()["detail"])
+        self.assertIn("5 anos", response.json()["detail"])
 
     def test_rejects_unknown_substance(self) -> None:
         response = self.client.get(

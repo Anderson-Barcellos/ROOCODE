@@ -223,4 +223,33 @@ assert.equal(
   'adequada',
 )
 
+// ─── Test 8: Lamotrigina em uso contínuo não deve ficar presa em vulnerabilidade
+
+const doses8: DoseRecord[] = Array.from({ length: 23 }, (_, i) =>
+  dose('Lamotrigina', 8 + i * 24, 200),
+)
+const regimen8 = [regimenEntry('Lamotrigina', 200, ['10:00'])]
+const r8 = computeCoverageStatus(doses8, regimen8, { now: NOW })
+const lam8 = r8.find((s) => s.presetKey === 'lamotrigine')!
+assert.ok(lam8)
+assert.notEqual(
+  lam8.klass,
+  'vulnerabilidade',
+  'Lamotrigina com uso diário contínuo não deveria ficar permanentemente em vulnerabilidade',
+)
+
+// ─── Test 9: Concentração acima do teto deve classificar como acima_faixa ─────
+
+const doses9: DoseRecord[] = [
+  dose('Lisdexanfetamina', 2, 200),
+  dose('Lisdexanfetamina', 26, 200),
+]
+const regimen9 = [regimenEntry('Lisdexanfetamina', 200, ['07:00'])]
+const r9 = computeCoverageStatus(doses9, regimen9, { now: NOW })
+const lis9 = r9.find((s) => s.presetKey === 'lisdexamfetamine')!
+assert.ok(lis9)
+if (lis9.concentrationNow > lis9.therapeuticMax) {
+  assert.equal(lis9.klass, 'acima_faixa')
+}
+
 console.log('pk-coverage.test.ts — all assertions passed')

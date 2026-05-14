@@ -146,6 +146,9 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
       <p className="mt-1 text-sm text-slate-500">
         FR (rpm) com variabilidade rolling SD 7d · Wrist temperature como desvio da baseline pessoal (média 30d, n≥14). Painéis sincronizados.
       </p>
+      <p className="mt-1 text-xs text-slate-500">
+        Leitura rápida de wrist temp: desvio pode subir com infecção, álcool e estresse fisiológico; interprete junto de sintomas e contexto.
+      </p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
           Contexto clínico

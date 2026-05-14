@@ -34,6 +34,7 @@ export interface HeatmapCellProps {
   isPeak?: boolean
   isControl?: boolean
   significanceThreshold?: number
+  muteNonSignificant?: boolean
 }
 
 export function HeatmapCell({
@@ -41,6 +42,7 @@ export function HeatmapCell({
   isPeak = false,
   isControl = false,
   significanceThreshold = 0.05,
+  muteNonSignificant = false,
 }: HeatmapCellProps) {
   if (!estimate) {
     return (
@@ -53,6 +55,10 @@ export function HeatmapCell({
   }
   const significant =
     estimate.qFdr != null && Number.isFinite(estimate.qFdr) && estimate.qFdr < significanceThreshold
+  const backgroundColor =
+    muteNonSignificant && !significant
+      ? 'rgba(226, 232, 240, 0.75)'
+      : heatmapColorForR(estimate.r)
   const tooltip =
     `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)}` +
     ` · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr)} · n ${estimate.n}`
@@ -62,7 +68,7 @@ export function HeatmapCell({
       className={`relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
         isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
       } ${isControl ? 'opacity-70' : ''}`}
-      style={{ background: heatmapColorForR(estimate.r) }}
+      style={{ background: backgroundColor }}
     >
       {estimate.r > 0.05 && (
         <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-teal-700">↑</span>

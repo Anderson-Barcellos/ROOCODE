@@ -14,7 +14,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Activity } from 'lucide-react'
 
-import { useDoses, useSubstances } from '../../lib/api'
+import { FULL_HISTORY_DOSE_HOURS, useDoses, useSubstances } from '../../lib/api'
 import type { DoseRecord, Substance } from '../../lib/api'
 import {
   calculateConcentration,
@@ -100,7 +100,7 @@ function statusColor(status: CardStatus): string {
 }
 
 function statusLabel(status: CardStatus): string {
-  return status === 'within' ? 'na faixa' : status === 'supra' ? 'supra' : 'sub'
+  return status === 'within' ? 'na faixa' : status === 'supra' ? 'acima da faixa' : 'abaixo da faixa'
 }
 
 type TooltipShape = {
@@ -195,6 +195,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
   const hasData = hasRange
     ? data.some((p) => (p.pct ?? 0) > 0.1)
     : data.some((p) => (p.conc_ng_ml ?? 0) > 0.001)
+  const doseMarkers = doses.filter((dose) => dose.timestamp >= windowStart && dose.timestamp <= windowEnd)
 
   // Key da série e domínio do Y axis dependem do modo.
   const seriesKey = hasRange ? 'pct' : 'conc_ng_ml'
@@ -313,7 +314,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
               strokeDasharray="2 2"
               strokeOpacity={0.6}
             />
-            {doses.map((dose) => (
+            {doseMarkers.map((dose) => (
               <ReferenceLine
                 key={`${dose.timestamp}-${dose.doseAmount}`}
                 x={dose.timestamp}
@@ -340,11 +341,11 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
 }
 
 export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
-  const { data: allDoses = [], isLoading: loadingDoses } = useDoses(hoursWindow)
+  const { data: allDoses = [], isLoading: loadingDoses } = useDoses(FULL_HISTORY_DOSE_HOURS)
   const { data: substances = [], isLoading: loadingSubs } = useSubstances()
   const [nowTimestamp] = useState(() => Date.now())
 
-  const { cards, orphanNames } = useMemo(() => {
+  const { cards, orphanNames, hiddenNoRecent } = useMemo(() => {
     const medsById = new Map<string, PKMedication>()
     const orphans: string[] = []
     for (const sub of substances) {
@@ -367,20 +368,31 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
       dosesByMed.set(dose.substance, arr)
     }
 
+    const windowStart = nowTimestamp - hoursWindow * 3600 * 1000
+    const windowEnd = nowTimestamp + 12 * 3600 * 1000
     const cards: Array<{ med: PKMedication; pkDoses: PKDose[]; records: DoseRecord[] }> = []
+    const hiddenNoRecent: string[] = []
     for (const [medId, records] of dosesByMed) {
       const med = medsById.get(medId)
       if (!med) continue
-      cards.push({
-        med,
-        pkDoses: records.map(toPKDose),
-        records,
+      const visibleRecords = records.filter((record) => {
+        const ts = new Date(record.taken_at).getTime()
+        return Number.isFinite(ts) && ts >= windowStart && ts <= windowEnd
       })
+      if (visibleRecords.length > 0) {
+        cards.push({
+          med,
+          pkDoses: records.map(toPKDose),
+          records: visibleRecords,
+        })
+      } else if (!med.therapeuticRange) {
+        hiddenNoRecent.push(med.name)
+      }
     }
     cards.sort((a, b) => a.med.name.localeCompare(b.med.name))
     const uniqueOrphans = Array.from(new Set(orphans))
-    return { cards, orphanNames: uniqueOrphans }
-  }, [substances, allDoses])
+    return { cards, orphanNames: uniqueOrphans, hiddenNoRecent }
+  }, [substances, allDoses, nowTimestamp, hoursWindow])
 
   const windowStart = nowTimestamp - hoursWindow * 3600 * 1000
   const windowEnd = nowTimestamp + 12 * 3600 * 1000 // 12h de projeção pra frente
@@ -454,6 +466,15 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
           padding: '4px 0',
         }}>
           desconhecidas no catálogo: {orphanNames.join(', ')} · adicione PK completo em "Catálogo de substâncias"
+        </div>
+      )}
+      {hiddenNoRecent.length > 0 && (
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+          color: 'var(--muted)', opacity: 0.7,
+          padding: '2px 0',
+        }}>
+          sem registro recente (colapsadas): {hiddenNoRecent.join(', ')}
         </div>
       )}
     </div>

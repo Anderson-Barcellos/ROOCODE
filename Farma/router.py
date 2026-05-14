@@ -20,6 +20,8 @@ router = APIRouter()
 DOSE_LOG_PATH = Path(__file__).parent / "dose_log.json"
 REGIMEN_CONFIG_PATH = Path(__file__).parent / "regimen_config.json"
 SUBSTANCES_CUSTOM_PATH = Path(__file__).parent / "substances_custom.json"
+MAX_DOSE_QUERY_HOURS = 24 * 365 * 5
+MAX_CONCENTRATION_SERIES_DAYS = 365 * 5
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 SUBSTANCE_KEY_RE = re.compile(r"^[a-z0-9_]{2,40}$")
 
@@ -573,8 +575,8 @@ async def logDose(entry: DoseEntry):
 
 
 @router.get("/doses")
-async def getDoses(hours: int = Query(default=72, ge=1, le=8760)):
-    """Retorna doses registradas nas últimas N horas (default: 72h, máx: 8760h = 1 ano)."""
+async def getDoses(hours: int = Query(default=72, ge=1, le=MAX_DOSE_QUERY_HOURS)):
+    """Retorna doses registradas nas últimas N horas (default: 72h, máx: 5 anos)."""
     doses = _load_doses()
     if not doses:
         return JSONResponse(content=[])
@@ -675,9 +677,9 @@ async def concentrationSeries(
         raise HTTPException(status_code=422, detail="to deve ser >= from")
 
     span_days = (to_date - from_date).days + 1
-    if span_days > 90:
+    if span_days > MAX_CONCENTRATION_SERIES_DAYS:
         raise HTTPException(
-            status_code=400, detail="range não pode exceder 90 dias"
+            status_code=400, detail="range não pode exceder 5 anos"
         )
 
     try:

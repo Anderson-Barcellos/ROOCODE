@@ -32,6 +32,7 @@ import {
 } from '@/utils/intraday-correlation'
 import {
   analyzePkVariabilityVsMood,
+  getPkVariabilityAnalysisWindow,
   PK_VARIABILITY_METRICS,
   PK_VARIABILITY_METRIC_LABELS,
   type PKVariabilityHypothesis,
@@ -41,17 +42,6 @@ import { HeatmapCell, type HeatmapCellEstimate } from '@/components/charts/share
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
 const SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse'] as const
-const ANALYSIS_DAYS = 60
-const DOSES_HOURS = 24 * 90
-
-function isoDaysAgo(days: number): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() - days)
-  return d.toISOString().slice(0, 10)
-}
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 interface SubstanceCell {
   substanceId: string
@@ -67,15 +57,13 @@ interface Props {
 
 export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const { data: substances = [] } = useSubstances()
-  const { data: doses = [] } = useDoses(DOSES_HOURS)
-
-  const fromIso = useMemo(() => isoDaysAgo(ANALYSIS_DAYS), [])
-  const toIso = useMemo(() => isoToday(), [])
+  const analysisWindow = useMemo(() => getPkVariabilityAnalysisWindow(snapshots), [snapshots])
+  const { data: doses = [] } = useDoses(analysisWindow.doseHours)
 
   // 3 hooks pra cobrir as 3 substâncias. TanStack Query dedup por queryKey.
-  const lex = useConcentrationSeries('lexapro', fromIso, toIso, weightKg)
-  const lam = useConcentrationSeries('lamictal', fromIso, toIso, weightKg)
-  const lis = useConcentrationSeries('venvanse', fromIso, toIso, weightKg)
+  const lex = useConcentrationSeries('lexapro', analysisWindow.fromIso, analysisWindow.toIso, weightKg)
+  const lam = useConcentrationSeries('lamictal', analysisWindow.fromIso, analysisWindow.toIso, weightKg)
+  const lis = useConcentrationSeries('venvanse', analysisWindow.fromIso, analysisWindow.toIso, weightKg)
 
   const seriesByKey = useMemo<Record<string, ConcentrationSeriesPoint[]>>(() => ({
     lexapro: lex.data?.series ?? [],
@@ -181,7 +169,7 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
         Substância × métrica de variabilidade
       </h3>
       <p className="mt-1 text-xs text-slate-500 leading-5">
-        r de Pearson no lag de pico (0–3d) entre a métrica de variabilidade e humor diário. FDR Benjamini-Hochberg sobre as 9 células.
+        r de Pearson no lag de pico (0–3d) entre a métrica de variabilidade e humor diário. FDR Benjamini-Hochberg sobre as 9 células. Base de cálculo: {analysisWindow.spanDays} dias reais disponíveis.
       </p>
       <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
         <span>Sinais significativos (q &lt; 0.05):</span>

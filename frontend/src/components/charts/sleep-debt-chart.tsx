@@ -30,19 +30,25 @@ const TOOLTIP_STYLE = {
 
 interface SleepDebtChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
   target?: number
 }
 
-export function SleepDebtChart({ snapshots, target = TARGET_HOURS }: SleepDebtChartProps) {
+export function SleepDebtChart({ snapshots, baselineSnapshots, target = TARGET_HOURS }: SleepDebtChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
   const data = useMemo(() => {
-    const series = computeSleepDebt(snapshots, target)
-    return series.map((p) => ({
-      date: p.date,
-      label: dayLabel(p.date),
-      debt7d: p.debt_cumulative_7d,
-      debt30d: p.debt_cumulative_30d,
-    }))
-  }, [snapshots, target])
+    const series = computeSleepDebt(baselineSource, target)
+    const byDate = new Map(series.map((p) => [p.date, p]))
+    return snapshots.map((snapshot) => {
+      const point = byDate.get(snapshot.date)
+      return {
+        date: snapshot.date,
+        label: dayLabel(snapshot.date),
+        debt7d: point?.debt_cumulative_7d ?? null,
+        debt30d: point?.debt_cumulative_30d ?? null,
+      }
+    })
+  }, [baselineSource, snapshots, target])
 
   const maxDebt = useMemo(() => {
     let max = 0

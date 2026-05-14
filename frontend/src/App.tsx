@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { format } from 'date-fns'
+import { format, getDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Activity, Compass, MoonStar, FlaskConical, Pill, Telescope } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
@@ -25,7 +25,6 @@ import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
-import { PkRemSuppression } from '@/components/charts/pk-rem-suppression'
 import { PKVariabilityHumorLab } from '@/components/charts/pk-variability-humor-lab'
 import { PKVariabilityHeatmap } from '@/components/charts/pk-variability-heatmap'
 import { PKVariabilityReportCard } from '@/components/cards/pk-variability-report-card'
@@ -52,6 +51,10 @@ import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { OverviewMetrics } from '@/types/apple-health'
 import { selectSnapshotRange } from '@/utils/aggregation'
+import { FULL_HISTORY_DOSE_HOURS, useDoses, useRegimen } from '@/lib/api'
+import { computeCoverageStatus } from '@/utils/pk-coverage'
+import { computeRecoveryScoreSeries } from '@/utils/recovery-score'
+import { rankLimitingFactors, type RecoveryComponentKey } from '@/utils/recovery-score-ranking'
 
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
 
@@ -90,7 +93,19 @@ function buildExecutiveMetrics(
   // Score composto HRV(40%) + FC(30%) + Sono(30%) já calculado em useCardioAnalysis;
   // resgatado aqui pra encabeçar o cluster como métrica consolidada.
   const recovery = enoughReal ? cardio.recoveryScore : null
-  const moodPct = mood != null ? Math.round(mood * 100) : null
+  const moodScale5 = mood != null ? ((Math.max(-1, Math.min(1, mood)) + 1) / 2) * 5 : null
+  const moodText =
+    moodScale5 != null
+      ? moodScale5.toFixed(1).replace('.', ',')
+      : null
+  const moodDetail =
+    mood == null
+      ? null
+      : mood >= 0.35
+        ? 'tendência positiva'
+        : mood >= -0.1
+          ? 'estável'
+          : 'em baixa'
   const kcal = enoughReal ? ov.activeEnergy7dKcal : null
   const exMin = enoughReal ? ov.exercise7dMinutes : null
   // Fase 8A — novos KPIs Activity/Physiology
@@ -167,9 +182,10 @@ function buildExecutiveMetrics(
       title: 'Humor',
       metrics: [
         {
-          label: 'Humor 7d',
-          value: moodPct,
-          unit: '%',
+          label: 'Humor médio 7d',
+          value: moodText,
+          unit: '/5',
+          detail: moodDetail,
           tone: mood == null
             ? 'neutral'
             : mood >= 0.35
@@ -181,6 +197,118 @@ function buildExecutiveMetrics(
       ],
     },
   ]
+}
+
+const LIMITING_LABEL: Record<RecoveryComponentKey, string> = {
+  hrv: 'autonômico baixo (HRV)',
+  sleepEff: 'sono fragmentado',
+  rhr: 'FC de repouso elevada',
+  sleepDebt: 'débito de sono acumulado',
+  mood: 'humor em baixa',
+}
+
+function mean(values: Array<number | null>): number | null {
+  const numeric = values.filter((value): value is number => value != null && Number.isFinite(value))
+  if (!numeric.length) return null
+  return numeric.reduce((sum, value) => sum + value, 0) / numeric.length
+}
+
+function computeWeekSignal(snapshots: Parameters<typeof computeRecoveryScoreSeries>[0]) {
+  const real = snapshots.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted)
+  const hrvWeekday = mean(
+    real
+      .filter((snapshot) => {
+        const day = getDay(parseISO(snapshot.date))
+        return day >= 1 && day <= 5
+      })
+      .map((snapshot) => snapshot.health?.hrvSdnn ?? null),
+  )
+  const hrvWeekend = mean(
+    real
+      .filter((snapshot) => {
+        const day = getDay(parseISO(snapshot.date))
+        return day === 0 || day === 6
+      })
+      .map((snapshot) => snapshot.health?.hrvSdnn ?? null),
+  )
+  const rhrWeekday = mean(
+    real
+      .filter((snapshot) => {
+        const day = getDay(parseISO(snapshot.date))
+        return day >= 1 && day <= 5
+      })
+      .map((snapshot) => snapshot.health?.restingHeartRate ?? null),
+  )
+  const rhrWeekend = mean(
+    real
+      .filter((snapshot) => {
+        const day = getDay(parseISO(snapshot.date))
+        return day === 0 || day === 6
+      })
+      .map((snapshot) => snapshot.health?.restingHeartRate ?? null),
+  )
+
+  const hrvDeltaPct =
+    hrvWeekend != null && hrvWeekday != null && hrvWeekday > 0
+      ? ((hrvWeekend - hrvWeekday) / hrvWeekday) * 100
+      : null
+  const rhrWeekVsWeekendDelta =
+    rhrWeekday != null && rhrWeekend != null
+      ? rhrWeekday - rhrWeekend
+      : null
+
+  return { hrvDeltaPct, rhrWeekVsWeekendDelta }
+}
+
+function computeSleepSummaryLine(snapshots: Parameters<typeof computeRecoveryScoreSeries>[0]): string {
+  const real = snapshots.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted)
+  const recent = real
+    .filter((snapshot) => (snapshot.health?.sleepTotalHours ?? 0) > 0)
+    .slice(-7)
+
+  const avgSleep = mean(recent.map((snapshot) => snapshot.health?.sleepTotalHours ?? null))
+  const avgEfficiency = mean(recent.map((snapshot) => snapshot.health?.sleepEfficiencyPct ?? null))
+
+  const weekdaySleep = mean(
+    real
+      .filter((snapshot) => {
+        const day = getDay(parseISO(snapshot.date))
+        return day >= 1 && day <= 5
+      })
+      .map((snapshot) => snapshot.health?.sleepTotalHours ?? null),
+  )
+  const weekendSleep = mean(
+    real
+      .filter((snapshot) => {
+        const day = getDay(parseISO(snapshot.date))
+        return day === 0 || day === 6
+      })
+      .map((snapshot) => snapshot.health?.sleepTotalHours ?? null),
+  )
+
+  const fmt1 = (value: number) => value.toFixed(1).replace('.', ',')
+  const target = 7.5
+
+  const summaryLead =
+    avgSleep != null
+      ? `Últimas 7 noites: média ${fmt1(avgSleep)}h (${avgSleep - target >= 0 ? '+' : ''}${fmt1(avgSleep - target)}h vs meta ${fmt1(target)}h).`
+      : 'Últimas 7 noites: dados ainda insuficientes para média robusta.'
+
+  const efficiencyText =
+    avgEfficiency != null
+      ? ` Eficiência ${Math.round(avgEfficiency)}% (alvo 85%).`
+      : ' Eficiência sem dados suficientes no período.'
+
+  const patternText =
+    weekdaySleep != null && weekendSleep != null
+      ? weekendSleep - weekdaySleep >= 0.8
+        ? ' Padrão: você dorme melhor no fim de semana que nos dias úteis.'
+        : weekendSleep - weekdaySleep <= -0.8
+          ? ' Padrão: sono pior no fim de semana do que nos dias úteis.'
+          : ' Padrão: sem diferença relevante entre úteis e fim de semana.'
+      : ' Padrão semanal ainda em coleta.'
+
+  return `${summaryLead}${efficiencyText}${patternText}`
 }
 
 function MockBanner() {
@@ -315,6 +443,8 @@ export default function App() {
   }
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const data = useRooCodeData(interpolation, 'on')
+  const dosesQuery = useDoses(FULL_HISTORY_DOSE_HOURS)
+  const regimenQuery = useRegimen(true)
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
   const todayIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const rangedWithForecast = useMemo(
@@ -324,7 +454,14 @@ export default function App() {
         : ranged,
     [ranged, data.forecastedSnapshots],
   )
-  const cardio = useCardioAnalysis(ranged)
+  const allWithForecast = useMemo(
+    () =>
+      data.forecastedSnapshots.length > 0
+        ? [...data.snapshots, ...data.forecastedSnapshots]
+        : data.snapshots,
+    [data.snapshots, data.forecastedSnapshots],
+  )
+  const cardio = useCardioAnalysis(data.snapshots)
   // Fase 8A — agregações 7d pros novos KPIs Activity/Physiology
   // Fase 9D — adicionada physiology (vitals sem chart dedicado)
   const { activitySummary, physiologySummary } = useMemo(() => {
@@ -366,6 +503,41 @@ export default function App() {
       cardio.recoveryScore,
     ],
   )
+  const dailyVerdict = useMemo(() => {
+    const series = computeRecoveryScoreSeries(allWithForecast)
+    const latest = [...series].reverse().find((point) => point.score != null && point.components != null)
+    const topFactor = latest?.components
+      ? rankLimitingFactors(latest.components)[0]?.component
+      : null
+
+    const coverageStatuses = computeCoverageStatus(dosesQuery.data ?? [], regimenQuery.data ?? [])
+    const adequateCount = coverageStatuses.filter((status) => status.klass === 'adequada').length
+    const totalCoverage = coverageStatuses.length
+    const weekSignal = computeWeekSignal(data.snapshots)
+    const dayRef = latest?.date ?? todayIso
+    const dayLabel = format(parseISO(dayRef), 'd MMM', { locale: ptBR })
+    const scoreText = latest?.score != null ? `${latest.score.toFixed(0)}/100` : 'em construção'
+    const limiterText = topFactor ? LIMITING_LABEL[topFactor] : 'dados ainda incompletos'
+    const pkText =
+      totalCoverage > 0
+        ? `${adequateCount}/${totalCoverage} substâncias em faixa adequada`
+        : 'sem cobertura PK suficiente para classificar'
+
+    const stressText =
+      weekSignal.rhrWeekVsWeekendDelta != null
+        ? `FC repouso de semana ${Math.abs(Math.round(weekSignal.rhrWeekVsWeekendDelta))} bpm ${
+            weekSignal.rhrWeekVsWeekendDelta >= 0 ? 'acima' : 'abaixo'
+          } do fim de semana`
+        : 'sem contraste semana × FDS ainda'
+
+    const hrvText =
+      weekSignal.hrvDeltaPct != null
+        ? `Δ HRV FDS ${weekSignal.hrvDeltaPct >= 0 ? '+' : ''}${Math.round(weekSignal.hrvDeltaPct)}%`
+        : null
+
+    return `Hoje (${dayLabel}): recovery ${scoreText}. Limitador principal: ${limiterText}. Farmacoterapia: ${pkText}. Atenção: ${stressText}${hrvText ? ` · ${hrvText}` : ''}.`
+  }, [allWithForecast, dosesQuery.data, regimenQuery.data, data.snapshots, todayIso])
+  const sleepSummaryLine = useMemo(() => computeSleepSummaryLine(data.snapshots), [data.snapshots])
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHash)
@@ -440,15 +612,21 @@ export default function App() {
                     </div>
                   ))}
 
+                  <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    <span className="font-semibold">Veredito do dia:</span> {dailyVerdict}
+                  </p>
+
+                  <WeekdayWeekendCard snapshots={data.snapshots} />
+
                   <DecisionSection
                     eyebrow="Decisão diária"
                     title="O que mais merece atenção hoje?"
                     description="Cards priorizados por ação: primeiro o gargalo fisiológico do dia, depois noite e cobertura medicamentosa."
                   >
-                    <LimitingFactorCard snapshots={rangedWithForecast} />
+                    <LimitingFactorCard snapshots={data.snapshots} />
 
                     <div className="grid gap-4 xl:grid-cols-2">
-                      <NightQualityCard snapshots={rangedWithForecast} variant="summary" />
+                      <NightQualityCard snapshots={data.snapshots} variant="summary" />
                       <PKCoverageCard variant="summary" />
                     </div>
                   </DecisionSection>
@@ -458,8 +636,7 @@ export default function App() {
                     title="A direção geral está melhorando ou piorando?"
                     description="Depois da decisão de hoje, estes painéis mostram trajetória e padrões semanais."
                   >
-                    <RecoveryScoreChart snapshots={rangedWithForecast} />
-                    <WeekdayWeekendCard snapshots={ranged} />
+                    <RecoveryScoreChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
                   </DecisionSection>
 
                 </div>
@@ -472,11 +649,15 @@ export default function App() {
               icon={<Pill className="h-4 w-4" />}
               kicker="Farmaco"
               title="A medicação está funcionando?"
-              description="Concentração plasmática (% Cmax) sobreposta ao humor — com doses, lags e regressões."
+              description="Humor, cobertura medicamentosa e registro de doses em uma leitura única e prática."
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
               <div className="min-w-0 space-y-4">
+                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-700">
+                  <span className="font-semibold">Nota importante:</span> as concentrações exibidas são estimativas de um modelo farmacocinético baseado no regime registrado, não medições laboratoriais.
+                </p>
+
                 <div className="flex justify-end">
                   <button
                     onClick={() => setCatalogOpen(true)}
@@ -489,7 +670,7 @@ export default function App() {
                 </div>
                 <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
-                <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                <MoodTimeline snapshots={ranged} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                 <PKCoverageCard />
 
@@ -522,11 +703,15 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
-                  <NightQualityCard snapshots={rangedWithForecast} />
+                  <p className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm leading-6 text-indigo-900">
+                    <span className="font-semibold">Leitura rápida:</span> {sleepSummaryLine}
+                  </p>
+
+                  <NightQualityCard snapshots={data.snapshots} />
 
                   <SleepStagesChart snapshots={ranged} />
 
-                  <SleepDebtChart snapshots={ranged} />
+                  <SleepDebtChart snapshots={ranged} baselineSnapshots={data.snapshots} />
 
                   <Spo2Chart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
@@ -552,17 +737,17 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
-                  <AutonomicBalanceChart snapshots={rangedWithForecast} />
+                  <AutonomicBalanceChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
 
-                  <HrvVariabilityChart snapshots={rangedWithForecast} />
+                  <HrvVariabilityChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
 
                   <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
-                  <HeartRateReserveChart snapshots={rangedWithForecast} />
+                  <HeartRateReserveChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
 
-                  <ChronotropicResponseChart snapshots={rangedWithForecast} />
+                  <ChronotropicResponseChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
 
-                  <CardioRecoveryChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                  <CardioRecoveryChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
                 </div>
               )}
             </SurfaceFrame>
@@ -581,7 +766,7 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
-                  <ActivityReadinessCard snapshots={rangedWithForecast} />
+                  <ActivityReadinessCard snapshots={ranged} />
 
                   <ActivityBars snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
@@ -628,11 +813,10 @@ export default function App() {
                     <LabGroup
                       eyebrow="Cross-domain"
                       title="Sono, autonomia, temperatura e farmacocinética"
-                      description="Hipóteses específicas que cruzam domínios: dívida de sono × HRV, temperatura do pulso × humor (lag sweep), e concentração estimada × REM."
+                      description="Hipóteses específicas que cruzam domínios: dívida de sono × HRV e temperatura do pulso × humor (lag sweep)."
                     >
                       <SleepDebtHrvCard snapshots={ranged} />
                       <TempHumorCorrelation snapshots={ranged} />
-                      <PkRemSuppression />
                     </LabGroup>
 
                     <LabGroup

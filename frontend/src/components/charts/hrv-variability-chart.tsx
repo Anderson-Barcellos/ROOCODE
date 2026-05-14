@@ -19,6 +19,7 @@ import { computeHrvVariabilitySeries, HRV_BANDS_MALE_39, type HrvBand } from '@/
 
 interface HrvVariabilityChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
 }
 
 const COLOR_TEAL = '#0f766e'
@@ -45,35 +46,39 @@ interface ChartRow {
   derivedFromInterpolated: boolean
 }
 
-function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
-  const series = computeHrvVariabilitySeries(snapshots)
+function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[]): ChartRow[] {
+  const series = computeHrvVariabilitySeries(baselineSnapshots)
+  const byDate = new Map(series.map((point) => [point.date, point]))
 
-  const rows: ChartRow[] = series.map((point, idx) => {
-    const isInterp = point.derivedFromInterpolated
-    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
-    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+  const rows: ChartRow[] = snapshots.map((snapshot, idx) => {
+    const point = byDate.get(snapshot.date)
+    const prevPoint = idx > 0 ? byDate.get(snapshots[idx - 1].date) : null
+    const nextPoint = idx < snapshots.length - 1 ? byDate.get(snapshots[idx + 1].date) : null
+    const isInterp = point?.derivedFromInterpolated ?? !!(snapshot.interpolated || snapshot.forecasted)
+    const prevIsInterp = prevPoint?.derivedFromInterpolated ?? false
+    const nextIsInterp = nextPoint?.derivedFromInterpolated ?? false
 
     const sdBandWidth =
-      point.sdBandHigh != null && point.sdBandLow != null
+      point?.sdBandHigh != null && point?.sdBandLow != null
         ? point.sdBandHigh - point.sdBandLow
         : null
 
     return {
-      date: point.date,
-      label: dayLabel(point.date),
-      hrv: point.hrv,
-      hrvReal: isInterp ? null : point.hrv,
+      date: snapshot.date,
+      label: dayLabel(snapshot.date),
+      hrv: point?.hrv ?? null,
+      hrvReal: isInterp ? null : (point?.hrv ?? null),
       hrvInterp: isInterp
-        ? point.hrv
+        ? (point?.hrv ?? null)
         : prevIsInterp || nextIsInterp
-          ? point.hrv
+          ? (point?.hrv ?? null)
           : null,
-      sma7: point.sma7,
-      sma30: point.sma30,
-      sdBandLow: point.sdBandLow,
+      sma7: point?.sma7 ?? null,
+      sma30: point?.sma30 ?? null,
+      sdBandLow: point?.sdBandLow ?? null,
       sdBandWidth,
-      rollingSd7: point.rollingSd7,
-      band: point.band,
+      rollingSd7: point?.rollingSd7 ?? null,
+      band: point?.band ?? null,
       derivedFromInterpolated: isInterp,
     }
   })
@@ -111,6 +116,28 @@ function sdLabel(sd: number | null): { text: string; color: string } | null {
   if (sd < 5) return { text: 'Baixa (rígido)', color: '#f59e0b' }
   if (sd <= 15) return { text: 'Normal', color: '#10b981' }
   return { text: 'Alta (flexível)', color: '#6366f1' }
+}
+
+function hrvVerdict(
+  hrv: number,
+  tone: HrvBand['tone'],
+): { text: string; mood: 'good' | 'watch' | 'alert' } {
+  if (tone === 'positive') {
+    return {
+      text: `VFC em boa faixa para teu perfil (${hrv.toFixed(1)} ms). Tendência compatível com recuperação preservada.`,
+      mood: 'good',
+    }
+  }
+  if (tone === 'watch') {
+    return {
+      text: `VFC em faixa médio-baixa (${hrv.toFixed(1)} ms). Dá para melhorar com sono consistente e carga mais estável.`,
+      mood: 'watch',
+    }
+  }
+  return {
+    text: `VFC baixa para teu baseline (${hrv.toFixed(1)} ms). Sinal de estresse fisiológico; priorize recuperação hoje.`,
+    mood: 'alert',
+  }
 }
 
 interface TooltipProps {
@@ -180,8 +207,9 @@ function HrvTooltip({ active, payload }: TooltipProps) {
   )
 }
 
-export function HrvVariabilityChart({ snapshots }: HrvVariabilityChartProps) {
-  const data = useMemo(() => buildRows(snapshots), [snapshots])
+export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabilityChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
+  const data = useMemo(() => buildRows(baselineSource, snapshots), [baselineSource, snapshots])
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.hrvVariabilityChart, 'HRV Variability'),
     [snapshots],
@@ -300,6 +328,13 @@ export function HrvVariabilityChart({ snapshots }: HrvVariabilityChartProps) {
         ? '#f59e0b'
         : '#10b981'
     : undefined
+  const verdict = latestHrv != null && latestBand ? hrvVerdict(latestHrv, latestBand.tone) : null
+  const verdictClass =
+    verdict?.mood === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.mood === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -315,6 +350,11 @@ export function HrvVariabilityChart({ snapshots }: HrvVariabilityChartProps) {
             HRV (SDNN) diário com tendências de curto (7d) e longo prazo (30d). Banda cinza = variabilidade
             dia-a-dia (rolling SD 7d). Bandas coloridas = referências populacionais para homem ~39 anos.
           </p>
+          {verdict && (
+            <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+              <span className="font-semibold">Veredito:</span> {verdict.text}
+            </p>
+          )}
         </div>
         {latestHrv != null && latestBand && (
           <div className="text-right">
@@ -332,9 +372,9 @@ export function HrvVariabilityChart({ snapshots }: HrvVariabilityChartProps) {
 
       <DataReadinessGate readiness={readiness}>{chartBody}</DataReadinessGate>
 
-      <details open className="mt-5">
+      <details className="mt-5">
         <summary className="cursor-pointer text-xs font-medium text-slate-600 hover:text-slate-800">
-          Métricas de Variabilidade da Frequência Cardíaca (VFC / HRV)
+          Saiba mais: siglas da VFC (SDNN, RMSSD, HF/LF…)
         </summary>
         <div className="mt-3 space-y-3 text-[0.78rem] leading-5 text-slate-500">
           <p>

@@ -24,6 +24,7 @@ import {
 
 interface AutonomicBalanceChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
 }
 
 const COLOR_LINE = '#0f766e'
@@ -55,22 +56,63 @@ function bandLabel(z: number): { text: string; color: string } {
   return { text: 'Equilibrado', color: COLOR_AMBER }
 }
 
-function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
-  const series = computeAbiSeries(snapshots)
-  const abiValues = series.map((p) => p.abi)
+function abiVerdict(z: number): { text: string; tone: 'good' | 'watch' | 'alert' } {
+  if (z >= 1.5) {
+    return {
+      text: 'Sistema nervoso em modo recuperação forte. Bom para recuperação; se houver fadiga/queda de performance, monitorar excesso de carga.',
+      tone: 'good',
+    }
+  }
+  if (z >= 1) {
+    return {
+      text: 'Predomínio parassimpático saudável hoje. Boa prontidão para esforço com recuperação preservada.',
+      tone: 'good',
+    }
+  }
+  if (z > -0.6) {
+    return {
+      text: 'Sistema nervoso em equilíbrio funcional, levemente voltado à recuperação.',
+      tone: 'watch',
+    }
+  }
+  if (z > -1) {
+    return {
+      text: 'Equilíbrio pendendo para ativação simpática. Vale reduzir carga e reforçar sono hoje.',
+      tone: 'watch',
+    }
+  }
+  return {
+    text: 'Predomínio simpático importante: sinal de estresse fisiológico. Priorize recuperação antes de esforço intenso.',
+    tone: 'alert',
+  }
+}
+
+function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[]): ChartRow[] {
+  const series = computeAbiSeries(baselineSnapshots)
+  const byDate = new Map(series.map((point) => [point.date, point]))
+  const alignedSeries = snapshots.map((snapshot) => byDate.get(snapshot.date) ?? null)
+  const abiValues = alignedSeries.map((p) => p?.abi ?? null)
   const smaValues = sma(abiValues, 7)
 
-  const rows: ChartRow[] = series.map((point, idx) => {
-    const isInterp = point.derivedFromInterpolated
-    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
-    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+  const rows: ChartRow[] = snapshots.map((snapshot, idx) => {
+    const point = alignedSeries[idx]
+    const prevPoint = idx > 0 ? alignedSeries[idx - 1] : null
+    const nextPoint = idx < alignedSeries.length - 1 ? alignedSeries[idx + 1] : null
+    const isInterp = point?.derivedFromInterpolated ?? !!(snapshot.interpolated || snapshot.forecasted)
+    const prevIsInterp = prevPoint?.derivedFromInterpolated ?? false
+    const nextIsInterp = nextPoint?.derivedFromInterpolated ?? false
     return {
-      date: point.date,
-      label: dayLabel(point.date),
-      abiReal: isInterp ? null : point.abi,
-      abiInterp: isInterp ? point.abi : (prevIsInterp || nextIsInterp ? point.abi : null),
+      date: snapshot.date,
+      label: dayLabel(snapshot.date),
+      abiReal: isInterp ? null : (point?.abi ?? null),
+      abiInterp:
+        isInterp
+          ? (point?.abi ?? null)
+          : prevIsInterp || nextIsInterp
+            ? (point?.abi ?? null)
+            : null,
       sma7: smaValues[idx],
-      components: point.components,
+      components: point?.components ?? null,
       derivedFromInterpolated: isInterp,
     }
   })
@@ -159,8 +201,9 @@ function AbiTooltip({ active, payload }: TooltipProps) {
   )
 }
 
-export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps) {
-  const data = useMemo(() => buildRows(snapshots), [snapshots])
+export function AutonomicBalanceChart({ snapshots, baselineSnapshots }: AutonomicBalanceChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
+  const data = useMemo(() => buildRows(baselineSource, snapshots), [baselineSource, snapshots])
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.autonomicBalanceChart, 'Autonomic Balance'),
     [snapshots],
@@ -253,6 +296,13 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
 
   const latestAbi = latest != null ? (latest.abiReal ?? latest.abiInterp) : null
   const latestBand = latestAbi != null ? bandLabel(latestAbi) : null
+  const verdict = latestAbi != null ? abiVerdict(latestAbi) : null
+  const verdictClass =
+    verdict?.tone === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.tone === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -267,9 +317,14 @@ export function AutonomicBalanceChart({ snapshots }: AutonomicBalanceChartProps)
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
             z-score pessoal de <span className="font-mono text-[0.78rem]">ln(HRV / FC repouso)</span>.
             Captura balanço simpato-parassimpático em uma única série. Linha tênue = z diário;
-            linha grossa = SMA 7d (tendência). Banda verde (z ≥ +1σ) = recovery alto / parassimpático;
-            âmbar = equilibrado; vermelha (z &lt; −1σ) = stress / overtraining.
+            linha grossa = SMA 7d (tendência). As bandas são referência visual; o veredito clínico
+            em linguagem humana é a fonte principal de leitura.
           </p>
+          {verdict && (
+            <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+              <span className="font-semibold">Veredito:</span> {verdict.text}
+            </p>
+          )}
         </div>
         {latestAbi != null && latestBand && (
           <div className="text-right">

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { useDoses, useMetrics, useMood, useRegimen, useSleep, type DoseRecord } from '@/lib/api'
+import { FULL_HISTORY_DOSE_HOURS, useDoses, useMetrics, useMood, useRegimen, useSleep, type DoseRecord } from '@/lib/api'
 import { MOCK_DOSES, MOCK_DATES, MOCK_MED_ROWS, MOCK_REGIMEN } from '@/mocks/doseMock'
 import { MOCK_SNAPSHOTS } from '@/mocks/snapshotMock'
 import type { DailySnapshot, ForecastSignal, MedicationRow, OverviewMetrics } from '@/types/apple-health'
@@ -64,7 +64,7 @@ export function useRooCodeData(interpolation: InterpolationMode = 'off', forecas
   const sleepQuery = useSleep()
   const metricsQuery = useMetrics()
   const moodQuery = useMood()
-  const dosesQuery = useDoses(14 * 24)
+  const dosesQuery = useDoses(FULL_HISTORY_DOSE_HOURS)
   const regimenQuery = useRegimen(!USE_MOCK)
 
   const loading =

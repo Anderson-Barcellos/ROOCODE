@@ -1,7 +1,7 @@
 /**
  * PKVariabilityReportCard — bloco textual destacável que surge SOMENTE
  * quando há sinal forte (|r|≥0.3, n≥20, p<0.05) em ao menos 1 das 9
- * combinações (3 substâncias × 3 métricas) sobre 60 dias.
+ * combinações (3 substâncias × 3 métricas) sobre todo o histórico real disponível.
  *
  * Pareado com PKVariabilityHumorLab e PKVariabilityHeatmap; serve como
  * resumo proativo de "vale a pena olhar". Se zero sinais, retorna null
@@ -29,6 +29,7 @@ import {
 } from '@/utils/intraday-correlation'
 import {
   analyzePkVariabilityVsMood,
+  getPkVariabilityAnalysisWindow,
   hasStrongVariabilitySignal,
   PK_VARIABILITY_METRICS,
   PK_VARIABILITY_METRIC_LABELS,
@@ -39,17 +40,6 @@ import {
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
 const SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse'] as const
-const ANALYSIS_DAYS = 60
-const DOSES_HOURS = 24 * 90
-
-function isoDaysAgo(days: number): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() - days)
-  return d.toISOString().slice(0, 10)
-}
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 interface StrongSignal {
   substanceId: string
@@ -91,14 +81,12 @@ interface Props {
 
 export function PKVariabilityReportCard({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const { data: substances = [] } = useSubstances()
-  const { data: doses = [] } = useDoses(DOSES_HOURS)
+  const analysisWindow = useMemo(() => getPkVariabilityAnalysisWindow(snapshots), [snapshots])
+  const { data: doses = [] } = useDoses(analysisWindow.doseHours)
 
-  const fromIso = useMemo(() => isoDaysAgo(ANALYSIS_DAYS), [])
-  const toIso = useMemo(() => isoToday(), [])
-
-  const lex = useConcentrationSeries('lexapro', fromIso, toIso, weightKg)
-  const lam = useConcentrationSeries('lamictal', fromIso, toIso, weightKg)
-  const lis = useConcentrationSeries('venvanse', fromIso, toIso, weightKg)
+  const lex = useConcentrationSeries('lexapro', analysisWindow.fromIso, analysisWindow.toIso, weightKg)
+  const lam = useConcentrationSeries('lamictal', analysisWindow.fromIso, analysisWindow.toIso, weightKg)
+  const lis = useConcentrationSeries('venvanse', analysisWindow.fromIso, analysisWindow.toIso, weightKg)
 
   const lexSeries = lex.data?.series
   const lamSeries = lam.data?.series
@@ -163,7 +151,7 @@ export function PKVariabilityReportCard({ snapshots, weightKg = DEFAULT_PK_BODY_
         </span>
       </div>
       <h3 className="mt-3 font-['Fraunces'] text-xl tracking-[-0.04em] text-slate-900">
-        Variabilidade da concentração × humor ({ANALYSIS_DAYS}d)
+        Variabilidade da concentração × humor (base {analysisWindow.spanDays}d)
       </h3>
       <ul className="mt-3 space-y-2.5">
         {signals.map((sig) => (

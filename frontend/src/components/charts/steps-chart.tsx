@@ -69,6 +69,40 @@ export function StepsChart({ snapshots, forecastStartDate }: StepsChartProps) {
 
   const stepsTone = getStepsTone(avgSteps)
   const stepsLabel = getStepsLabel(avgSteps)
+  const verdict = useMemo(() => {
+    if (avgSteps == null) return null
+    if (stepsTone === 'positive') {
+      return {
+        text: `Nível de movimento ativo (${Math.round(avgSteps).toLocaleString('pt-BR')} passos/dia). Boa proteção cardiorrespiratória para rotina diária.`,
+        tone: 'good' as const,
+      }
+    }
+    if (stepsTone === 'watch') {
+      return {
+        text: `Movimento abaixo do ideal (${Math.round(avgSteps).toLocaleString('pt-BR')} passos/dia). Tenta subir progressivamente para >7.500 passos/dia.`,
+        tone: 'watch' as const,
+      }
+    }
+    if (stepsTone === 'negative') {
+      return {
+        text: `Padrão sedentário sustentado (${Math.round(avgSteps).toLocaleString('pt-BR')} passos/dia). Vale intervenção ativa na rotina de deslocamento e pausas de movimento.`,
+        tone: 'alert' as const,
+      }
+    }
+    return {
+      text: `Movimento em faixa intermediária (${Math.round(avgSteps).toLocaleString('pt-BR')} passos/dia).`,
+      tone: 'neutral' as const,
+    }
+  }, [avgSteps, stepsTone])
+
+  const verdictClass =
+    verdict?.tone === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.tone === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : verdict?.tone === 'watch'
+          ? 'border-amber-200 bg-amber-50 text-amber-900'
+          : 'border-slate-200 bg-slate-50 text-slate-800'
 
   if (!data.length) {
     return (
@@ -99,6 +133,11 @@ export function StepsChart({ snapshots, forecastStartDate }: StepsChartProps) {
         )}
       </div>
       <p className="mt-1 text-sm text-slate-500">Proxy de atividade psicomotora · linha sólida = SMA 7d · meta {TARGET_STEPS.toLocaleString('pt-BR')} passos/dia</p>
+      {verdict && (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito:</span> {verdict.text}
+        </p>
+      )}
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">Contexto clínico</summary>
         <p className="mt-1 text-xs leading-5 text-slate-500">

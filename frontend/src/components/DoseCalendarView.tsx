@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 
 import {
+  FULL_HISTORY_DOSE_HOURS,
   useDoses,
   useDeleteDose,
   useLogDose,
@@ -35,7 +36,7 @@ import type { DoseRecord } from '../lib/api'
 import { getSubstanceColor } from '../lib/substance-colors'
 
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
-const HOURS_WINDOW = 24 * 90 // 90 dias
+const HOURS_WINDOW = FULL_HISTORY_DOSE_HOURS
 
 const toLocalInput = (iso: string): string => {
   try {

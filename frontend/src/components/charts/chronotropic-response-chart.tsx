@@ -19,6 +19,7 @@ import { computeChronotropicSeries, type ChronotropicComponents } from '@/utils/
 
 interface ChronotropicResponseChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
 }
 
 const BAND_THRESHOLD = 1
@@ -47,24 +48,59 @@ interface ChartRow {
 
 function bandLabel(z: number): { text: string; color: string } {
   if (z >= BAND_THRESHOLD) return { text: 'Elevado', color: COLOR_GREEN }
-  if (z < -BAND_THRESHOLD) return { text: 'Comprimido', color: COLOR_RED }
+  if (z < -BAND_THRESHOLD) return { text: 'Reduzido', color: COLOR_RED }
   return { text: 'Normal', color: COLOR_AMBER }
 }
 
-function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
-  const series = computeChronotropicSeries(snapshots)
-
-  const rows: ChartRow[] = series.map((point, idx) => {
-    const isInterp = point.derivedFromInterpolated
-    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
-    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+function chronotropicVerdict(z: number): { text: string; mood: 'good' | 'watch' | 'alert' } {
+  if (z >= 1) {
     return {
-      date: point.date,
-      label: dayLabel(point.date),
-      zReal: isInterp ? null : point.zScore,
-      zInterp: isInterp ? point.zScore : (prevIsInterp || nextIsInterp ? point.zScore : null),
-      sma7: point.sma7,
-      components: point.components,
+      text: 'Resposta cardíaca ao esforço leve acima do teu padrão. Boa competência cronotrópica hoje.',
+      mood: 'good',
+    }
+  }
+  if (z > -0.5) {
+    return {
+      text: 'Resposta cardíaca ao esforço leve dentro do esperado para teu baseline.',
+      mood: 'good',
+    }
+  }
+  if (z > -1) {
+    return {
+      text: 'Resposta cardíaca a esforço leve dentro do esperado, porém levemente comprimida — manter monitoramento.',
+      mood: 'watch',
+    }
+  }
+  return {
+    text: 'Resposta cronotrópica reduzida frente ao teu baseline. Pode sugerir sedação autonômica ou baixa prontidão; acompanhar tendência.',
+    mood: 'alert',
+  }
+}
+
+function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[]): ChartRow[] {
+  const series = computeChronotropicSeries(baselineSnapshots)
+  const byDate = new Map(series.map((point) => [point.date, point]))
+  const alignedSeries = snapshots.map((snapshot) => byDate.get(snapshot.date) ?? null)
+
+  const rows: ChartRow[] = snapshots.map((snapshot, idx) => {
+    const point = alignedSeries[idx]
+    const prevPoint = idx > 0 ? alignedSeries[idx - 1] : null
+    const nextPoint = idx < alignedSeries.length - 1 ? alignedSeries[idx + 1] : null
+    const isInterp = point?.derivedFromInterpolated ?? !!(snapshot.interpolated || snapshot.forecasted)
+    const prevIsInterp = prevPoint?.derivedFromInterpolated ?? false
+    const nextIsInterp = nextPoint?.derivedFromInterpolated ?? false
+    return {
+      date: snapshot.date,
+      label: dayLabel(snapshot.date),
+      zReal: isInterp ? null : (point?.zScore ?? null),
+      zInterp:
+        isInterp
+          ? (point?.zScore ?? null)
+          : prevIsInterp || nextIsInterp
+            ? (point?.zScore ?? null)
+            : null,
+      sma7: point?.sma7 ?? null,
+      components: point?.components ?? null,
       derivedFromInterpolated: isInterp,
     }
   })
@@ -149,8 +185,9 @@ function ChronotropicTooltip({ active, payload }: TooltipProps) {
   )
 }
 
-export function ChronotropicResponseChart({ snapshots }: ChronotropicResponseChartProps) {
-  const data = useMemo(() => buildRows(snapshots), [snapshots])
+export function ChronotropicResponseChart({ snapshots, baselineSnapshots }: ChronotropicResponseChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
+  const data = useMemo(() => buildRows(baselineSource, snapshots), [baselineSource, snapshots])
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.chronotropicResponseChart, 'Chronotropic Response'),
     [snapshots],
@@ -243,6 +280,13 @@ export function ChronotropicResponseChart({ snapshots }: ChronotropicResponseCha
 
   const latestZ = latest != null ? (latest.zReal ?? latest.zInterp) : null
   const latestBand = latestZ != null ? bandLabel(latestZ) : null
+  const verdict = latestZ != null ? chronotropicVerdict(latestZ) : null
+  const verdictClass =
+    verdict?.mood === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.mood === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -256,8 +300,14 @@ export function ChronotropicResponseChart({ snapshots }: ChronotropicResponseCha
           </h3>
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
             z-score pessoal de FC Caminhada − FC Repouso. Mede a competência cronotrópica — quanto o coração
-            acelera durante esforço leve. Banda vermelha (z &lt; −1σ) = delta comprimido; verde (z ≥ +1σ) = delta expandido.
+            acelera durante esforço leve. As bandas servem como referência visual; a leitura clínica final
+            está no veredito textual.
           </p>
+          {verdict && (
+            <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+              <span className="font-semibold">Veredito:</span> {verdict.text}
+            </p>
+          )}
         </div>
         {latestZ != null && latestBand && (
           <div className="text-right">

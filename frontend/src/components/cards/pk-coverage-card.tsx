@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { useDoses, useRegimen } from '@/lib/api'
+import { FULL_HISTORY_DOSE_HOURS, useDoses, useRegimen } from '@/lib/api'
 import {
   computeCoverageStatus,
   type CoverageClass,
@@ -79,11 +79,9 @@ function fmt(n: number, digits = 1): string {
 }
 
 export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
-  // 14 dias = ~10 meias-vidas das LHL drugs (Lexapro/Lamictal/Clonazepam ~30h),
-  // suficiente pra `calculateConcentration` integrar contribuições residuais
-  // sem partir de quase-zero. Janela menor subestima cNow em uso crônico.
-  // Bonus: mesma queryKey que useRooCodeData(336) → reaproveita cache.
-  const dosesQuery = useDoses(24 * 14)
+  // O classificador é das últimas 48h, mas concentração atual/queda precisa
+  // integrar o histórico de doses, não só a janela visual/operacional.
+  const dosesQuery = useDoses(FULL_HISTORY_DOSE_HOURS)
   const regimenQuery = useRegimen(true)
 
   const statuses = useMemo(() => {
@@ -170,7 +168,9 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
                 {s.trendPctPerDay != null && (
                   <span
                     className={
-                      s.trendPctPerDay < -5
+                      s.klass === 'acima_faixa'
+                        ? 'text-red-600'
+                        : s.trendPctPerDay < -5
                         ? 'text-amber-600'
                         : s.trendPctPerDay > 5
                           ? 'text-emerald-600'
@@ -194,7 +194,11 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
 
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.7rem] text-slate-500">
                     <span>
-                      Doses 48h: {s.loggedDosesLast48h}/{s.expectedDosesLast48h} esperadas
+                      {s.expectedDosesLast48h > 0
+                        ? `Doses 48h: ${s.loggedDosesLast48h}/${s.expectedDosesLast48h} esperadas`
+                        : s.loggedDosesLast48h > 0
+                          ? `Doses 48h: ${s.loggedDosesLast48h} registradas (uso sob demanda)`
+                          : 'Doses 48h: sem dose registrada'}
                     </span>
                     {s.missedDoses > 0 && (
                       <span className="text-fuchsia-700">
@@ -203,7 +207,7 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
                     )}
                     {s.hoursUntilBelowMin != null && s.klass !== 'vulnerabilidade' && (
                       <span className="text-amber-700">
-                        cruza min em ~{s.hoursUntilBelowMin}h
+                        cobre até ~{s.hoursUntilBelowMin}h
                       </span>
                     )}
                   </div>
@@ -219,7 +223,8 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
           Classificação prioritária: subterapêutico &gt; supraterapêutico &gt; cobertura incompleta &gt; em
           queda &gt; em faixa. Concentrações são estimadas pelo motor PK (preset por substância),
           comparadas ao range terapêutico publicado. Doses esperadas vêm do regime ativo no
-          `/farma/regimen`.
+          `/farma/regimen`. Em psiquiatria, faixas terapêuticas são referenciais e a resposta clínica
+          individual segue sendo soberana.
         </p>
       )}
     </div>

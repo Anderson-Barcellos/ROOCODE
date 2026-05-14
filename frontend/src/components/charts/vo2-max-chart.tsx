@@ -70,6 +70,33 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
     [snapshots],
   )
 
+  const verdict = useMemo(() => {
+    if (latest == null || !latestCategory) return null
+    if (latestCategory.tone === 'positive') {
+      return {
+        text: `Capacidade cardiorrespiratória estimada em boa faixa (${latest.toFixed(1)} ml/(kg·min)).`,
+        tone: 'good' as const,
+      }
+    }
+    if (latestCategory.tone === 'watch') {
+      return {
+        text: `VO2 estimado em faixa médio-baixa (${latest.toFixed(1)} ml/(kg·min)). Há espaço para ganho com treino aeróbico progressivo.`,
+        tone: 'watch' as const,
+      }
+    }
+    return {
+      text: `VO2 estimado baixo (${latest.toFixed(1)} ml/(kg·min)). Sinal de condicionamento reduzido no momento.`,
+      tone: 'alert' as const,
+    }
+  }, [latest, latestCategory])
+
+  const verdictClass =
+    verdict?.tone === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.tone === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
+
   if (!data.length) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -86,7 +113,7 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
         Cardiorrespiratório
       </span>
       <div className="mt-3 flex items-center gap-3 flex-wrap">
-        <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">VO2 Máx estimado (Uth-Sørensen)</h3>
+        <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">Capacidade cardiorrespiratória (VO2 estimado)</h3>
         {latest != null && latestCategory && (
           <span
             className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold"
@@ -96,7 +123,13 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
           </span>
         )}
       </div>
-      <p className="mt-1 text-sm text-slate-500">Estimativa Uth-Sørensen via FC de repouso (homem 35-44a) · faixas de referência como bands coloridas · SMA 7d em linha sólida</p>
+      <p className="mt-1 text-sm text-slate-500">Estimativa por FC de repouso · faixas de referência por idade · SMA 7d em linha sólida</p>
+      {verdict && (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito:</span> {verdict.text}
+        </p>
+      )}
+      <p className="mt-1 text-xs text-amber-700">Estimativa a partir de FC de repouso — menos precisa que teste cardiopulmonar/ergométrico com medida direta.</p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">Contexto clínico</summary>
         <p className="mt-1 text-xs leading-5 text-slate-500">

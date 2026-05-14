@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 
-import { useDoses, useMood, useSubstances } from '@/lib/api'
+import { FULL_HISTORY_DOSE_HOURS, useDoses, useMood, useSubstances } from '@/lib/api'
 import type { MoodRecord } from '@/lib/api'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
@@ -49,6 +49,15 @@ const LAGS = [-6, -4, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12]
 const METHOD_OPTIONS: IntradayCorrelationMethod[] = ['pearson', 'spearman']
 const FDR_SIGNIFICANCE_THRESHOLD = 0.05
 
+function dotColorForR(r: number | null | undefined): string {
+  if (r == null || !Number.isFinite(r)) return '#94a3b8'
+  const clamped = Math.max(-1, Math.min(1, r))
+  const intensity = Math.max(0.2, Math.abs(clamped))
+  if (clamped < 0) return `rgba(239, 68, 68, ${0.35 + intensity * 0.55})`
+  if (clamped > 0) return `rgba(20, 184, 166, ${0.35 + intensity * 0.55})`
+  return '#94a3b8'
+}
+
 function formatPValue(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return 'sem dado'
   if (value < 0.001) return '<0.001'
@@ -62,27 +71,32 @@ function formatCi95(lower: number | null, upper: number | null): string {
   return `[${lower.toFixed(2)}, ${upper.toFixed(2)}]`
 }
 
-function renderLagDot(props: { cx?: number; cy?: number; payload?: { qValueFdr?: number | null } }) {
+function renderLagDot(props: {
+  cx?: number
+  cy?: number
+  payload?: { qValueFdr?: number | null; r?: number | null }
+}) {
   const { cx, cy, payload } = props
   if (typeof cx !== 'number' || typeof cy !== 'number') return null
   const q = payload?.qValueFdr
   const isSignificant = typeof q === 'number' && Number.isFinite(q) && q < FDR_SIGNIFICANCE_THRESHOLD
+  const fill = dotColorForR(payload?.r)
 
   return (
     <circle
       cx={cx}
       cy={cy}
       r={isSignificant ? 4.5 : 3}
-      fill={isSignificant ? '#d97706' : '#0f766e'}
-      stroke="#fff"
-      strokeWidth={1}
+      fill={fill}
+      stroke={isSignificant ? '#d97706' : '#fff'}
+      strokeWidth={isSignificant ? 1.5 : 1}
     />
   )
 }
 
 export function LagCorrelationChart() {
   const { data: substances = [] } = useSubstances()
-  const { data: allDoses = [] } = useDoses(30 * 24)
+  const { data: allDoses = [] } = useDoses(FULL_HISTORY_DOSE_HOURS)
   const { data: moodRows = [] } = useMood()
   const [selectedMedId, setSelectedMedId] = useState<string>('lexapro')
   const [correlationMethod, setCorrelationMethod] = useState<IntradayCorrelationMethod>('pearson')
@@ -136,6 +150,30 @@ export function LagCorrelationChart() {
     return typeof row.qValueFdr === 'number' && Number.isFinite(row.qValueFdr) && row.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
   }).length
 
+  const futureImpact = (() => {
+    const future = data.filter((row) => {
+      return (
+        row.lag > 0 &&
+        typeof row.r === 'number' &&
+        Number.isFinite(row.r) &&
+        row.n >= 3
+      )
+    })
+    if (future.length === 0) return []
+    const significantFuture = future.filter((row) => {
+      return (
+        typeof row.qValueFdr === 'number' &&
+        Number.isFinite(row.qValueFdr) &&
+        row.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
+      )
+    })
+    const pool = significantFuture.length > 0 ? significantFuture : future
+    return [...pool]
+      .sort((a, b) => Math.abs((b.r as number)) - Math.abs((a.r as number)))
+      .slice(0, 3)
+      .sort((a, b) => a.lag - b.lag)
+  })()
+
   const availableMeds = substances
     .map((s) => substanceToPKMedication(s))
     .filter((m): m is NonNullable<ReturnType<typeof substanceToPKMedication>> => m !== null)
@@ -166,6 +204,35 @@ export function LagCorrelationChart() {
       <p className="mt-1 text-xs text-slate-500">
         Pontos dourados: {`q_fdr < ${FDR_SIGNIFICANCE_THRESHOLD.toFixed(2)}`} · lags significativos: {significantLagCount}
       </p>
+      <p className="mt-1 text-xs text-slate-500">
+        Cor do ponto: <span className="font-semibold text-teal-700">verde</span> = associação positiva, <span className="font-semibold text-red-500">vermelho</span> = negativa (intensidade proporcional a |r|).
+      </p>
+      {futureImpact.length > 0 && (
+        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
+          <span className="font-semibold">Impacto para frente (+1h…+12h):</span>
+          <div className="mt-1 space-y-1">
+            {futureImpact.map((item) => (
+              <div key={item.lag} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className={item.r != null && item.r >= 0 ? 'text-teal-700' : 'text-red-600'}>
+                  {item.r != null && item.r >= 0 ? 'tendência de melhora' : 'tendência de piora'} em +{item.lag}h
+                </span>
+                <span className="text-slate-600">(r={item.r?.toFixed(2) ?? '—'}, n={item.n})</span>
+                <span
+                  className={
+                    typeof item.qValueFdr === 'number' && item.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
+                      ? 'text-amber-700'
+                      : 'text-slate-500'
+                  }
+                >
+                  {typeof item.qValueFdr === 'number' && item.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
+                    ? 'q<0.05'
+                    : 'exploratório'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2 items-center">
         <label className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Substância</label>

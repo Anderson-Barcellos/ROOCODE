@@ -55,7 +55,9 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
             {result.headline}
           </h3>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{result.summary}</p>
+          <p className="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">
+            <span className="font-semibold">Veredito:</span> {result.summary}
+          </p>
         </div>
         <div className="text-right">
           <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Score</div>

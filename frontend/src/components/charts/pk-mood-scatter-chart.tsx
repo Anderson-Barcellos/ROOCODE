@@ -13,7 +13,7 @@ import {
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-import { useDoses, useMood, useSubstances } from '@/lib/api'
+import { FULL_HISTORY_DOSE_HOURS, useDoses, useMood, useSubstances } from '@/lib/api'
 import type { MoodRecord } from '@/lib/api'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
@@ -69,7 +69,7 @@ function formatCi95(lower: number | null, upper: number | null, digits = 2): str
 
 export function PKMoodScatterChart() {
   const { data: substances = [] } = useSubstances()
-  const { data: allDoses = [] } = useDoses(30 * 24)
+  const { data: allDoses = [] } = useDoses(FULL_HISTORY_DOSE_HOURS)
   const { data: moodRows = [] } = useMood()
   const [selectedMedId, setSelectedMedId] = useState<string>('lexapro')
   const [lagHours, setLagHours] = useState(0)

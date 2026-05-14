@@ -9,6 +9,10 @@ interface DataReadinessGateProps {
 }
 
 export function DataReadinessGate({ readiness, children }: DataReadinessGateProps) {
+  const robustLabel = readiness.label.includes('pares')
+    ? `${readiness.current} pares válidos`
+    : `${readiness.current} dias válidos`
+
   if (readiness.status === 'standby') {
     return <EmptyAnalyticsState message={readiness.pendingMessage} />
   }
@@ -42,7 +46,7 @@ export function DataReadinessGate({ readiness, children }: DataReadinessGateProp
       {children}
       <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
         <span aria-hidden>●</span>
-        <span>Robusto · {readiness.label}</span>
+        <span>Robusto · {robustLabel}</span>
       </p>
     </>
   )

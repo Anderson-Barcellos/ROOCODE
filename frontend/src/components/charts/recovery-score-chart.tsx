@@ -22,6 +22,7 @@ import {
 
 interface RecoveryScoreChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
 }
 
 const BAND_LOW = 33
@@ -44,23 +45,34 @@ interface ChartRow {
   scoreInterp: number | null
   components: RecoveryComponents | null
   derivedFromInterpolated: boolean
+  reason?: 'baseline_missing' | 'inputs_missing'
 }
 
-function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
-  const series = computeRecoveryScoreSeries(snapshots)
-  const rows: ChartRow[] = series.map((point, idx) => {
-    const isInterp = point.derivedFromInterpolated
-    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
-    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[]): ChartRow[] {
+  const series = computeRecoveryScoreSeries(baselineSnapshots)
+  const byDate = new Map(series.map((point) => [point.date, point]))
+  const rows: ChartRow[] = snapshots.map((snapshot, idx) => {
+    const point = byDate.get(snapshot.date)
+    const prevPoint = idx > 0 ? byDate.get(snapshots[idx - 1].date) : null
+    const nextPoint = idx < snapshots.length - 1 ? byDate.get(snapshots[idx + 1].date) : null
+    const isInterp = point?.derivedFromInterpolated ?? !!(snapshot.interpolated || snapshot.forecasted)
+    const prevIsInterp = prevPoint?.derivedFromInterpolated ?? false
+    const nextIsInterp = nextPoint?.derivedFromInterpolated ?? false
     return {
-      date: point.date,
-      label: dayLabel(point.date),
-      scoreReal: isInterp ? null : point.score,
+      date: snapshot.date,
+      label: dayLabel(snapshot.date),
+      scoreReal: isInterp ? null : (point?.score ?? null),
       // Include boundary real days adjacent to interp segments so the dashed
       // line connects without gaps at the transition point.
-      scoreInterp: isInterp ? point.score : (prevIsInterp || nextIsInterp ? point.score : null),
-      components: point.components,
+      scoreInterp:
+        isInterp
+          ? (point?.score ?? null)
+          : prevIsInterp || nextIsInterp
+            ? (point?.score ?? null)
+            : null,
+      components: point?.components ?? null,
       derivedFromInterpolated: isInterp,
+      reason: point?.reason,
     }
   })
 
@@ -77,7 +89,14 @@ function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
     const next = rows[i + 1]
     if (!next) continue
     if (calculateDayGapDays(current.date, next.date) > 2) {
-      withGaps.push({ date: `${current.date}-gap`, label: '', scoreReal: null, scoreInterp: null, components: null, derivedFromInterpolated: false })
+      withGaps.push({
+        date: `${current.date}-gap`,
+        label: '',
+        scoreReal: null,
+        scoreInterp: null,
+        components: null,
+        derivedFromInterpolated: false,
+      })
     }
   }
   return withGaps
@@ -136,8 +155,9 @@ function RecoveryTooltip({ active, payload }: TooltipProps) {
   )
 }
 
-export function RecoveryScoreChart({ snapshots }: RecoveryScoreChartProps) {
-  const data = useMemo(() => buildRows(snapshots), [snapshots])
+export function RecoveryScoreChart({ snapshots, baselineSnapshots }: RecoveryScoreChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
+  const data = useMemo(() => buildRows(baselineSource, snapshots), [baselineSource, snapshots])
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.recoveryScoreChart, 'Recovery Score'),
     [snapshots],
@@ -150,6 +170,19 @@ export function RecoveryScoreChart({ snapshots }: RecoveryScoreChartProps) {
     }
     return null
   }, [data])
+
+  const coverageSummary = useMemo(() => {
+    const nonGapRows = data.filter((row) => !row.date.endsWith('-gap'))
+    const validDays = nonGapRows.filter((row) => row.scoreReal != null || row.scoreInterp != null).length
+    const baselineMissingDays = nonGapRows.filter((row) => row.reason === 'baseline_missing').length
+    const inputsMissingDays = nonGapRows.filter((row) => row.reason === 'inputs_missing').length
+    return {
+      totalDays: snapshots.length,
+      validDays,
+      baselineMissingDays,
+      inputsMissingDays,
+    }
+  }, [data, snapshots.length])
 
   const chartBody = (
     <div className="h-[320px] w-full">
@@ -216,6 +249,15 @@ export function RecoveryScoreChart({ snapshots }: RecoveryScoreChartProps) {
             Score 0-100 estilo Whoop. Pesos: 30% HRV, 25% eficiência sono, 20% FC repouso, 15%
             débito sono 7d, 10% humor. Pesos preliminares — sprint futura pode recalibrar via
             correlação com sintomas reportados.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Dias com score completo: {coverageSummary.validDays}/{coverageSummary.totalDays}
+            {coverageSummary.baselineMissingDays > 0
+              ? ` · baseline em formação: ${coverageSummary.baselineMissingDays}`
+              : ''}
+            {coverageSummary.inputsMissingDays > 0
+              ? ` · inputs faltantes: ${coverageSummary.inputsMissingDays}`
+              : ''}
           </p>
         </div>
         {latest != null && (latest.scoreReal != null || latest.scoreInterp != null) && (

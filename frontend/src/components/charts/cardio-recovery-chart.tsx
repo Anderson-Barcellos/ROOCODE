@@ -21,6 +21,7 @@ import { sma } from '@/utils/statistics'
 
 interface CardioRecoveryChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
   forecastStartDate?: string
 }
 
@@ -30,31 +31,45 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-export function CardioRecoveryChart({ snapshots, forecastStartDate }: CardioRecoveryChartProps) {
+export function CardioRecoveryChart({ snapshots, baselineSnapshots, forecastStartDate }: CardioRecoveryChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
   const { data, latest, latestCategory } = useMemo(() => {
-    const filtered = snapshots.filter((s) => s.health?.cardioRecoveryBpm != null)
-    const values = filtered.map((s) => s.health?.cardioRecoveryBpm ?? null)
+    const baselineFiltered = baselineSource.filter((s) => s.health?.cardioRecoveryBpm != null)
+    const values = baselineFiltered.map((s) => s.health?.cardioRecoveryBpm ?? null)
     // SMA-14d: janela mais longa porque o dado é esporádico (só após exercício)
     const smaValues = sma(values, 14)
+    const baselineByDate = new Map(
+      baselineFiltered.map((s, i) => [
+        s.date,
+        {
+          value: s.health?.cardioRecoveryBpm ?? null,
+          isForecast: s.forecasted === true,
+          sma14: smaValues[i],
+          forecastConfidence: s.forecastConfidence ?? null,
+        },
+      ]),
+    )
 
-    const data = filtered.map((s, i) => {
-      const v = s.health?.cardioRecoveryBpm ?? null
-      const isForecast = s.forecasted === true
+    const filtered = snapshots.filter((s) => s.health?.cardioRecoveryBpm != null)
+    const data = filtered.map((s) => {
+      const base = baselineByDate.get(s.date)
+      const v = base?.value ?? (s.health?.cardioRecoveryBpm ?? null)
+      const isForecast = base?.isForecast ?? (s.forecasted === true)
       return {
         label: dayLabel(s.date),
         hrr: v,
         hrr_real: isForecast ? null : v,
         hrr_forecast: isForecast ? v : null,
-        sma14: smaValues[i],
+        sma14: base?.sma14 ?? null,
         forecasted: isForecast,
-        forecastConfidence: s.forecastConfidence ?? null,
+        forecastConfidence: base?.forecastConfidence ?? (s.forecastConfidence ?? null),
       }
     })
 
     const latest = filtered.at(-1)?.health?.cardioRecoveryBpm ?? null
     const latestCategory = getCardioRecoveryCategory(latest)
     return { data, latest, latestCategory }
-  }, [snapshots])
+  }, [baselineSource, snapshots])
 
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.cardioRecoveryChart, 'Recuperação cardíaca'),
@@ -74,6 +89,31 @@ export function CardioRecoveryChart({ snapshots, forecastStartDate }: CardioReco
       </div>
     )
   }
+
+  const verdict =
+    latest == null
+      ? null
+      : latest < 8
+        ? {
+            text: 'Recuperação cardíaca pós-esforço baixa no momento. Indica reativação autonômica lenta; vale reduzir carga e otimizar recuperação.',
+            mood: 'alert' as const,
+          }
+        : latest < 13
+          ? {
+              text: 'Recuperação cardíaca regular. Há espaço para ganho com treino aeróbico consistente e melhor higiene de sono.',
+              mood: 'watch' as const,
+            }
+          : {
+              text: 'Recuperação cardíaca boa para excelente. Sistema autonômico tende a reativar bem após esforço.',
+              mood: 'good' as const,
+            }
+
+  const verdictClass =
+    verdict?.mood === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.mood === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -100,6 +140,11 @@ export function CardioRecoveryChart({ snapshots, forecastStartDate }: CardioReco
       <p className="mt-1 text-sm text-slate-500">
         Queda da FC no 1º min pós-exercício (HRR-1) · maior = melhor · SMA 14d em linha sólida
       </p>
+      {verdict && (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito:</span> {verdict.text}
+        </p>
+      )}
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
           Contexto clínico

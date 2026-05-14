@@ -10,6 +10,7 @@ import {
   computeRollingCv,
   computeSwingSeries,
   computeTirSeries,
+  getPkVariabilityAnalysisWindow,
   hasStrongVariabilitySignal,
   PK_VARIABILITY_LAG_DAYS,
   PK_VARIABILITY_WINDOW_DAYS,
@@ -86,6 +87,24 @@ const STUB_MED: PKMedication = {
   volumeOfDistribution: 20,
   bioavailability: 0.8,
   absorptionRate: 1.0,
+}
+
+// ─── getPkVariabilityAnalysisWindow ───────────────────────────────────────────
+
+{
+  const snapshots: DailySnapshot[] = [
+    snapshot(0, 0.1),
+    { ...snapshot(5, 0.2), interpolated: true },
+    { ...snapshot(10, 0.3), forecasted: true },
+    snapshot(20, 0.4),
+  ]
+  const now = new Date('2026-05-01T12:00:00Z')
+  const window = getPkVariabilityAnalysisWindow(snapshots, now)
+  assert.equal(window.fromIso, '2026-04-01')
+  assert.equal(window.toIso, '2026-04-21')
+  assert.equal(window.spanDays, 21)
+  assert.equal(window.usesFallback, false)
+  assert.ok(window.doseHours > 24 * 30, 'dose lookback inclui histórico + warm-up')
 }
 
 // ─── computeRollingCv ─────────────────────────────────────────────────────────

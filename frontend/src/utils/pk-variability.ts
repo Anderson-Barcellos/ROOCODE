@@ -30,6 +30,8 @@ import type { ConcentrationSeriesPoint } from '@/lib/api'
 export const PK_VARIABILITY_WINDOW_DAYS = 14
 export const PK_VARIABILITY_LAG_DAYS = [0, 1, 2, 3] as const
 export const PK_VARIABILITY_TIR_HOURS_PER_DAY = 24
+export const PK_VARIABILITY_FALLBACK_ANALYSIS_DAYS = 60
+export const PK_VARIABILITY_DOSE_WARMUP_DAYS = 14
 
 export type PKVariabilityMetric = 'cv' | 'swing' | 'tir'
 
@@ -51,6 +53,54 @@ export const PK_VARIABILITY_METRIC_DESCRIPTIONS: Record<PKVariabilityMetric, str
   cv: 'Coeficiente de variação dos picos diários numa janela de 14 dias. Baixo = pico consistente.',
   swing: '(cmax − cmin) / média do dia × 100. Baixo = curva plana no dia. Alto = montanha-russa.',
   tir: 'Horas do dia em que a concentração ficou dentro do range terapêutico da substância.',
+}
+
+export interface PKVariabilityAnalysisWindow {
+  fromIso: string
+  toIso: string
+  doseHours: number
+  spanDays: number
+  usesFallback: boolean
+}
+
+function isoFromUtcMs(timestamp: number): string {
+  return new Date(timestamp).toISOString().slice(0, 10)
+}
+
+/**
+ * Janela canônica da feature: usa todo o histórico real recebido no componente.
+ * A UI pode mostrar poucos dias, mas a estatística não deve cortar a base sem
+ * que o card declare explicitamente uma janela própria.
+ */
+export function getPkVariabilityAnalysisWindow(
+  snapshots: DailySnapshot[],
+  now: Date = new Date(),
+): PKVariabilityAnalysisWindow {
+  const dayMs = 24 * 3600 * 1000
+  const nowMs = now.getTime()
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const validDays = snapshots
+    .filter((s) => !s.forecasted && !s.interpolated && /^\d{4}-\d{2}-\d{2}$/.test(s.date))
+    .map((s) => Date.parse(`${s.date}T00:00:00Z`))
+    .filter((t) => Number.isFinite(t) && t <= todayUtc)
+    .sort((a, b) => a - b)
+
+  const usesFallback = validDays.length === 0
+  const fromMs = usesFallback
+    ? todayUtc - (PK_VARIABILITY_FALLBACK_ANALYSIS_DAYS - 1) * dayMs
+    : validDays[0]
+  const toMs = usesFallback ? todayUtc : validDays[validDays.length - 1]
+  const spanDays = Math.max(1, Math.round((toMs - fromMs) / dayMs) + 1)
+  const doseLookbackMs = Math.max(0, nowMs - fromMs) + PK_VARIABILITY_DOSE_WARMUP_DAYS * dayMs
+  const doseHours = Math.max(24, Math.ceil(doseLookbackMs / 3600000))
+
+  return {
+    fromIso: isoFromUtcMs(fromMs),
+    toIso: isoFromUtcMs(toMs),
+    doseHours,
+    spanDays,
+    usesFallback,
+  }
 }
 
 export type PKVariabilityQuality = 'insufficient' | 'partial' | 'observable'

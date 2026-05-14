@@ -37,6 +37,17 @@ export function TempHumorCorrelation({ snapshots }: Props) {
     [lags],
   )
 
+  const futureImpact = useMemo(() => {
+    const future = lags.filter((l) => l.lagDays > 0)
+    if (future.length === 0) return []
+    const significantFuture = future.filter((l) => l.qFdr != null && l.qFdr < 0.05)
+    const pool = significantFuture.length > 0 ? significantFuture : future
+    return [...pool]
+      .sort((a, b) => Math.abs(b.r) - Math.abs(a.r))
+      .slice(0, 3)
+      .sort((a, b) => a.lagDays - b.lagDays)
+  }, [lags])
+
   if (samples.length < MIN_TOTAL_SAMPLES || lags.length === 0) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -86,6 +97,24 @@ export function TempHumorCorrelation({ snapshots }: Props) {
           <span>Sinais significativos (q &lt; 0.05):</span>
           <span>{significantCount}</span>
         </p>
+        {futureImpact.length > 0 && (
+          <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
+            <span className="font-semibold">Impacto para frente (+1d…+3d):</span>
+            <div className="mt-1 space-y-1">
+              {futureImpact.map((item) => (
+                <div key={item.lagDays} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className={item.r >= 0 ? 'text-teal-700' : 'text-red-600'}>
+                    {item.r >= 0 ? 'tendência de melhora' : 'tendência de piora'} em +{item.lagDays}d
+                  </span>
+                  <span className="text-slate-600">(r={item.r.toFixed(2)}, n={item.n})</span>
+                  <span className={item.qFdr != null && item.qFdr < 0.05 ? 'text-amber-700' : 'text-slate-500'}>
+                    {item.qFdr != null && item.qFdr < 0.05 ? 'q<0.05' : 'exploratório'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {peak && (

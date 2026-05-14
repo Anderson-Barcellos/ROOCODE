@@ -32,9 +32,11 @@ const TOOLTIP_STYLE = {
 }
 
 export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps) {
-  const { data, avgMean, avgMin, avgMax } = useMemo(() => {
+  const { data, avgMean, avgMin, avgMax, avgResting } = useMemo(() => {
     const filtered = snapshots.filter((s) => s.health?.heartRateMean != null)
     const meanValues = filtered.map((s) => s.health?.heartRateMean ?? null)
+    const realSnapshots = snapshots.filter((s) => !s.forecasted && !s.interpolated)
+    const avgResting = mean(realSnapshots.map((s) => s.health?.restingHeartRate ?? null))
     const smaValues = sma(meanValues, 7)
     const data = filtered.map((s, i) => {
       const hrMin = s.health?.heartRateMin ?? null
@@ -59,8 +61,44 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
     const avgMean = mean(meanValues)
     const avgMin = mean(filtered.map((s) => s.health?.heartRateMin ?? null))
     const avgMax = mean(filtered.map((s) => s.health?.heartRateMax ?? null))
-    return { data, avgMean, avgMin, avgMax }
+    return { data, avgMean, avgMin, avgMax, avgResting }
   }, [snapshots])
+
+  const verdict = useMemo(() => {
+    if (avgResting != null) {
+      if (avgResting >= 80) {
+        return {
+          text: `FC de repouso média ${Math.round(avgResting)} bpm: acima do esperado para tua faixa etária. Vale investigar carga, sono e condicionamento.`,
+          mood: 'alert' as const,
+        }
+      }
+      if (avgResting >= 70) {
+        return {
+          text: `FC de repouso média ${Math.round(avgResting)} bpm: limítrofe. Mantém monitoramento e higiene de recuperação.`,
+          mood: 'watch' as const,
+        }
+      }
+      return {
+        text: `FC de repouso média ${Math.round(avgResting)} bpm: dentro de faixa confortável para recuperação cardiovascular.`,
+        mood: 'good' as const,
+      }
+    }
+
+    if (avgMean != null && avgMean >= 90) {
+      return {
+        text: `FC média diária ${Math.round(avgMean)} bpm sustentada alta. Sem FC de repouso suficiente, mas já merece vigilância clínica.`,
+        mood: 'watch' as const,
+      }
+    }
+    return null
+  }, [avgMean, avgResting])
+
+  const verdictClass =
+    verdict?.mood === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.mood === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
 
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.hrRangeChart, 'FC Range'),
@@ -96,6 +134,11 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
         )}
       </div>
       <p className="mt-1 text-sm text-slate-500">Min–Max diário com média · SMA 7d em tracejado · zonas: bradicardia &lt;60, normal 60–100, taquicardia &gt;100</p>
+      {verdict && (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito:</span> {verdict.text}
+        </p>
+      )}
 
       <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">

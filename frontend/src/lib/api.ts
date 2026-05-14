@@ -133,6 +133,8 @@ async function readJson<T>(response: Response): Promise<T> {
 
 const get = <T,>(path: string) => fetch(`${BASE}${path}`).then((response) => readJson<T>(response))
 
+export const FULL_HISTORY_DOSE_HOURS = 24 * 365 * 5
+
 export const useSubstances = () =>
   useQuery<Substance[]>({
     queryKey: ['substances'],
@@ -408,4 +410,3 @@ export const useDeleteSubstance = () => {
     },
   })
 }
-

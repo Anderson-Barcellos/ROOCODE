@@ -31,8 +31,8 @@ const TOOLTIP_STYLE = {
 }
 
 export function ActivityBars({ snapshots, forecastStartDate }: ActivityBarsProps) {
-  const data = useMemo(() => {
-    return snapshots
+  const { data, avgEnergy, avgExercise, avgDaylight } = useMemo(() => {
+    const rows = snapshots
       .filter((s) => s.health != null && (
         s.health.activeEnergyKcal != null ||
         s.health.exerciseMinutes != null ||
@@ -47,7 +47,46 @@ export function ActivityBars({ snapshots, forecastStartDate }: ActivityBarsProps
         forecasted: s.forecasted === true,
         forecastConfidence: s.forecastConfidence ?? null,
       }))
+    const numeric = (values: Array<number | null>) => values.filter((value): value is number => value != null)
+    const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null)
+    return {
+      data: rows,
+      avgEnergy: mean(numeric(rows.map((row) => row.energia))),
+      avgExercise: mean(numeric(rows.map((row) => row.exercicio))),
+      avgDaylight: mean(numeric(rows.map((row) => row.luz))),
+    }
   }, [snapshots])
+
+  const verdict = useMemo(() => {
+    if (avgEnergy == null && avgExercise == null) return null
+    const energyText = avgEnergy != null ? `${Math.round(avgEnergy)} kcal/dia` : 'energia sem dado suficiente'
+    const exerciseText = avgExercise != null ? `${Math.round(avgExercise)} min/dia` : 'exercício sem dado suficiente'
+    const daylightText = avgDaylight != null ? `${Math.round(avgDaylight)} min/dia de luz` : 'luz sem dado suficiente'
+
+    if ((avgExercise ?? 0) >= 30 && (avgEnergy ?? 0) >= 350) {
+      return {
+        text: `Movimento global em boa faixa (${energyText}, ${exerciseText}). Ritmo funcional sem sobrecarga aparente (${daylightText}).`,
+        tone: 'good' as const,
+      }
+    }
+    if ((avgExercise ?? 0) < 20 || (avgEnergy ?? 0) < 220) {
+      return {
+        text: `Movimento abaixo do ideal (${energyText}, ${exerciseText}). Vale buscar constância diária e exposição à luz (${daylightText}).`,
+        tone: 'watch' as const,
+      }
+    }
+    return {
+      text: `Ritmo de movimento intermediário (${energyText}, ${exerciseText}). Dá para subir 10-15% sem forçar demais (${daylightText}).`,
+      tone: 'neutral' as const,
+    }
+  }, [avgDaylight, avgEnergy, avgExercise])
+
+  const verdictClass =
+    verdict?.tone === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.tone === 'watch'
+        ? 'border-amber-200 bg-amber-50 text-amber-900'
+        : 'border-slate-200 bg-slate-50 text-slate-800'
 
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.activityBars, 'Atividade'),
@@ -75,6 +114,18 @@ export function ActivityBars({ snapshots, forecastStartDate }: ActivityBarsProps
         Energia e Movimento
       </h3>
       <p className="mt-1 text-sm text-slate-500">Energia ativa (kcal) · exercício e luz do dia (min)</p>
+      {verdict && (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito:</span> {verdict.text}
+        </p>
+      )}
+      <details className="mt-2">
+        <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">Sobre esta métrica</summary>
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          Este painel usa dois eixos (kcal e minutos) para preservar unidade real de cada sinal. Compare
+          tendências entre curvas e barras, não valores absolutos entre eixos.
+        </p>
+      </details>
 
       <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">

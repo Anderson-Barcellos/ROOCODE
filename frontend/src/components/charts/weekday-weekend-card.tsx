@@ -51,6 +51,35 @@ export function WeekdayWeekendCard({ snapshots }: WeekdayWeekendCardProps) {
 
   const { data, isLoading, error } = useForecastSummary(apiInput)
 
+  const clinicalCallout = useMemo(() => {
+    if (!data) return null
+    const hrv = data.weekday_effect.hrvSdnn
+    const rhr = data.weekday_effect.restingHeartRate
+    const hrvDelta = hrv?.weekend_minus_weekday ?? null
+    const hrvWeek = hrv?.weekday_mean ?? null
+    const rhrDelta = rhr?.weekend_minus_weekday ?? null
+    const rhrWeek = rhr?.weekday_mean ?? null
+
+    const hrvPct =
+      hrvDelta != null && hrvWeek != null && hrvWeek > 0
+        ? (hrvDelta / hrvWeek) * 100
+        : null
+    const rhrPct =
+      rhrDelta != null && rhrWeek != null && rhrWeek > 0
+        ? (rhrDelta / rhrWeek) * 100
+        : null
+
+    if (hrvDelta == null && rhrDelta == null) return null
+
+    return {
+      hrvDelta,
+      hrvPct,
+      rhrDelta,
+      rhrPct,
+      improvedOnWeekend: (hrvDelta ?? 0) > 0 && (rhrDelta ?? 0) < 0,
+    }
+  }, [data])
+
   if (snapshots.length < 7) {
     return null
   }
@@ -74,6 +103,35 @@ export function WeekdayWeekendCard({ snapshots }: WeekdayWeekendCardProps) {
           <p className="text-xs text-slate-500">{data.context_days} dias</p>
         )}
       </header>
+
+      {clinicalCallout && (
+        <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
+          <span className="font-semibold">
+            {clinicalCallout.improvedOnWeekend
+              ? 'Seu corpo descansa de verdade no fim de semana.'
+              : 'Semana × FDS com diferença fisiológica relevante.'}
+          </span>{' '}
+          {clinicalCallout.hrvDelta != null && (
+            <>
+              Δ HRV {clinicalCallout.hrvDelta >= 0 ? '+' : ''}
+              {clinicalCallout.hrvDelta.toFixed(0)}ms
+              {clinicalCallout.hrvPct != null
+                ? ` (${clinicalCallout.hrvPct >= 0 ? '+' : ''}${clinicalCallout.hrvPct.toFixed(0)}%)`
+                : ''}
+            </>
+          )}
+          {clinicalCallout.hrvDelta != null && clinicalCallout.rhrDelta != null ? ' · ' : ''}
+          {clinicalCallout.rhrDelta != null && (
+            <>
+              Δ FC repouso {clinicalCallout.rhrDelta >= 0 ? '+' : ''}
+              {clinicalCallout.rhrDelta.toFixed(0)}bpm
+              {clinicalCallout.rhrPct != null
+                ? ` (${clinicalCallout.rhrPct >= 0 ? '+' : ''}${clinicalCallout.rhrPct.toFixed(0)}%)`
+                : ''}
+            </>
+          )}
+        </p>
+      )}
 
       {isLoading && (
         <p className="text-sm text-slate-500">Calculando agregados…</p>

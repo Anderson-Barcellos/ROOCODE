@@ -356,7 +356,8 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     volumeOfDistribution: 1.1,
     bioavailability: 0.98,
     absorptionRate: 1.2,
-    therapeuticRange: { min: 3000, max: 14000, unit: 'ng/mL' },
+    // Alinhado ao backend (Farma/medDataBase.json): 2-10 µg/mL.
+    therapeuticRange: { min: 2000, max: 10000, unit: 'ng/mL' },
   },
   clonazepam: {
     name: 'Clonazepam',

@@ -69,6 +69,36 @@ export function WalkingVitalityChart({ snapshots, forecastStartDate }: WalkingVi
   const asymLabel = getWalkingAsymmetryLabel(avgAsymmetry)
   const speedTone = getWalkingSpeedTone(avgSpeed)
 
+  const verdict = useMemo(() => {
+    if (avgSpeed == null && avgAsymmetry == null) return null
+
+    if (asymTone === 'negative') {
+      return {
+        text: `Assimetria de marcha significativa (${avgAsymmetry?.toFixed(1)}%). Recomenda-se avaliação de marcha e revisão de fatores de sedação/neuromusculares.`,
+        tone: 'alert' as const,
+      }
+    }
+
+    if (speedTone === 'watch' || asymTone === 'watch') {
+      return {
+        text: `Vitalidade de marcha em atenção (velocidade ${avgSpeed != null ? `${avgSpeed.toFixed(2)} km/h` : 'n/d'}, assimetria ${avgAsymmetry != null ? `${avgAsymmetry.toFixed(1)}%` : 'n/d'}). Monitorar tendência nas próximas semanas.`,
+        tone: 'watch' as const,
+      }
+    }
+
+    return {
+      text: `Marcha funcional estável (velocidade ${avgSpeed != null ? `${avgSpeed.toFixed(2)} km/h` : 'n/d'}). Sem sinal relevante de assimetria persistente.`,
+      tone: 'good' as const,
+    }
+  }, [asymTone, avgAsymmetry, avgSpeed, speedTone])
+
+  const verdictClass =
+    verdict?.tone === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.tone === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
+
   if (!data.length) {
     return (
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -98,6 +128,11 @@ export function WalkingVitalityChart({ snapshots, forecastStartDate }: WalkingVi
         )}
       </div>
       <p className="mt-1 text-sm text-slate-500">Velocidade de marcha (km/h) · FC média ao caminhar (bpm) · assimetria como watchdog</p>
+      {verdict && (
+        <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito:</span> {verdict.text}
+        </p>
+      )}
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">Contexto clínico</summary>
         <p className="mt-1 text-xs leading-5 text-slate-500">

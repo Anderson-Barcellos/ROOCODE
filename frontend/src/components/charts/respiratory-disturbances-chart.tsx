@@ -110,16 +110,21 @@ export function RespiratoryDisturbancesChart({
         )}
       </div>
       <p className="mt-1 text-sm text-slate-500">
-        Eventos/hora durante o sono · IAH &lt;5 normal, 5-15 leve, 15-30 moderado, &gt;30 severo · SMA 7d em linha sólida
+        Proxy de eventos respiratórios noturnos (wearable) · não é IAH de polissonografia ·
+        faixas operacionais (&lt;5, 5-15, 15-30, &gt;30) usadas só para tendência · SMA 7d em linha sólida
+      </p>
+      <p className="mt-1 text-xs text-amber-700">
+        Este painel não fecha diagnóstico de apneia e não substitui PSG/laudo médico.
       </p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
           Contexto clínico
         </summary>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          IAH (Índice Apneia-Hipopneia) quantifica eventos obstrutivos por hora de sono. AOS não-tratada amplifica
-          depressão, prejudica memória e bloqueia resposta a antidepressivos. Clonazepam e GABAérgicos podem elevar
-          o IAH ao relaxar musculatura faríngea. Threshold de tratamento: IAH ≥15 ou ≥5 com sintomas.
+          O Apple Watch não mede IAH de PSG diretamente. Aqui usamos um <strong>proxy longitudinal</strong>
+          de eventos respiratórios por hora para acompanhar tendência individual ao longo das semanas.
+          Se houver padrão persistente de piora, o próximo passo é validação formal com estudo do sono
+          (PSG/HSAT), especialmente se coexistirem sonolência diurna, ronco ou pausas respiratórias observadas.
         </p>
       </details>
 

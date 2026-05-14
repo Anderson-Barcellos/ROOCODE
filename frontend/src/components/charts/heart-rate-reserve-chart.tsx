@@ -21,6 +21,7 @@ import { USER_PROFILE } from '@/utils/user-profile'
 
 interface HeartRateReserveChartProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
 }
 
 const COLOR_TEAL = '#0f766e'
@@ -48,24 +49,33 @@ interface ChartRow {
   derivedFromInterpolated: boolean
 }
 
-function buildRows(snapshots: DailySnapshot[]): ChartRow[] {
-  const series = computeHeartRateReserveSeries(snapshots)
+function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[]): ChartRow[] {
+  const series = computeHeartRateReserveSeries(baselineSnapshots)
+  const byDate = new Map(series.map((point) => [point.date, point]))
 
-  const rows: ChartRow[] = series.map((point, idx) => {
-    const isInterp = point.derivedFromInterpolated
-    const prevIsInterp = idx > 0 ? series[idx - 1].derivedFromInterpolated : false
-    const nextIsInterp = idx < series.length - 1 ? series[idx + 1].derivedFromInterpolated : false
+  const rows: ChartRow[] = snapshots.map((snapshot, idx) => {
+    const point = byDate.get(snapshot.date)
+    const prevPoint = idx > 0 ? byDate.get(snapshots[idx - 1].date) : null
+    const nextPoint = idx < snapshots.length - 1 ? byDate.get(snapshots[idx + 1].date) : null
+    const isInterp = point?.derivedFromInterpolated ?? !!(snapshot.interpolated || snapshot.forecasted)
+    const prevIsInterp = prevPoint?.derivedFromInterpolated ?? false
+    const nextIsInterp = nextPoint?.derivedFromInterpolated ?? false
     return {
-      date: point.date,
-      label: dayLabel(point.date),
-      hrr: point.hrr,
-      hrrReal: isInterp ? null : point.hrr,
-      hrrInterp: isInterp ? point.hrr : (prevIsInterp || nextIsInterp ? point.hrr : null),
-      hrrSma7: point.hrrSma7,
-      walkingReservePct: point.walkingReservePct,
-      rhr: point.rhr,
-      walkingHR: point.walkingHR,
-      band: point.band,
+      date: snapshot.date,
+      label: dayLabel(snapshot.date),
+      hrr: point?.hrr ?? null,
+      hrrReal: isInterp ? null : (point?.hrr ?? null),
+      hrrInterp:
+        isInterp
+          ? (point?.hrr ?? null)
+          : prevIsInterp || nextIsInterp
+            ? (point?.hrr ?? null)
+            : null,
+      hrrSma7: point?.hrrSma7 ?? null,
+      walkingReservePct: point?.walkingReservePct ?? null,
+      rhr: point?.rhr ?? null,
+      walkingHR: point?.walkingHR ?? null,
+      band: point?.band ?? null,
       derivedFromInterpolated: isInterp,
     }
   })
@@ -166,8 +176,37 @@ function HrrTooltip({ active, payload }: HrrTooltipProps) {
   )
 }
 
-export function HeartRateReserveChart({ snapshots }: HeartRateReserveChartProps) {
-  const data = useMemo(() => buildRows(snapshots), [snapshots])
+function buildHrrVerdict(row: ChartRow): { text: string; mood: 'good' | 'watch' | 'alert' } {
+  if (row.hrr == null || row.band == null) {
+    return {
+      text: 'Sem dados suficientes para estimar reserva cardíaca de forma confiável.',
+      mood: 'watch',
+    }
+  }
+
+  if (row.band.tone === 'positive') {
+    return {
+      text: 'Reserva cardíaca boa para esforço aeróbico. Sinal favorável de capacidade cardiovascular funcional.',
+      mood: 'good',
+    }
+  }
+
+  if (row.band.tone === 'watch') {
+    return {
+      text: 'Reserva cardíaca moderada. Dá para evoluir com treino regular e melhora de recuperação basal.',
+      mood: 'watch',
+    }
+  }
+
+  return {
+    text: 'Reserva cardíaca reduzida no momento. Priorize condicionamento progressivo e revisão de carga de estresse.',
+    mood: 'alert',
+  }
+}
+
+export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRateReserveChartProps) {
+  const baselineSource = baselineSnapshots ?? snapshots
+  const data = useMemo(() => buildRows(baselineSource, snapshots), [baselineSource, snapshots])
 
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.heartRateReserveChart, 'Heart Rate Reserve'),
@@ -307,6 +346,13 @@ export function HeartRateReserveChart({ snapshots }: HeartRateReserveChartProps)
 
   const latestBandColor = latest?.band?.color
   const latestBandLabel = latest?.band?.label
+  const verdict = latest ? buildHrrVerdict(latest) : null
+  const verdictClass =
+    verdict?.mood === 'good'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      : verdict?.mood === 'alert'
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-amber-200 bg-amber-50 text-amber-900'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -323,6 +369,11 @@ export function HeartRateReserveChart({ snapshots }: HeartRateReserveChartProps)
             resposta ao esforço. Linha rosa tracejada = % da reserva utilizada durante caminhada
             (fórmula de Karvonen).
           </p>
+          {verdict && (
+            <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+              <span className="font-semibold">Veredito:</span> {verdict.text}
+            </p>
+          )}
         </div>
         {latest != null && latest.hrr != null && (
           <div className="text-right">

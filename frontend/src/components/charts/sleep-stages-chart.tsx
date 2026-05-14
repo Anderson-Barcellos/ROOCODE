@@ -25,6 +25,7 @@ interface SleepStagesPoint {
   rem: number | null
   core: number | null
   awake: number | null
+  total: number | null
   efficiency: number | null
   interpolated: boolean
 }
@@ -62,6 +63,26 @@ const TOOLTIP_STYLE = {
 export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
   const { points: data, hasStages } = buildSleepStagesData(snapshots)
   const readiness = evaluateReadiness(snapshots, CHART_REQUIREMENTS.sleepStagesChart, 'Estágios de sono')
+  const summary = (() => {
+    const validTotal = data.map((point) => point.total).filter((v): v is number => typeof v === 'number')
+    const validEff = data.map((point) => point.efficiency).filter((v): v is number => typeof v === 'number')
+    const remPct = data
+      .map((point) =>
+        point.rem != null && point.total != null && point.total > 0
+          ? (point.rem / point.total) * 100
+          : null,
+      )
+      .filter((v): v is number => typeof v === 'number')
+
+    const mean = (values: number[]): number | null =>
+      values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+
+    return {
+      avgHours: mean(validTotal),
+      avgEfficiency: mean(validEff),
+      avgRemPct: mean(remPct),
+    }
+  })()
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -70,8 +91,19 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
           Sono
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          {hasStages ? 'Estágios por noite' : 'Sono total e REM por noite'}
+          Eficiência e arquitetura
         </h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+            Média: {summary.avgHours != null ? `${summary.avgHours.toFixed(1).replace('.', ',')}h` : '—'}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-800">
+            Eficiência: {summary.avgEfficiency != null ? `${Math.round(summary.avgEfficiency)}%` : '—'}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800">
+            REM: {summary.avgRemPct != null ? `${Math.round(summary.avgRemPct)}%` : '—'}
+          </span>
+        </div>
         <p className="mt-1 text-sm leading-6 text-slate-500">
           {hasStages
             ? 'Profundo + Núcleo + REM + Acordado (eixo esquerdo, h). Linha de eficiência (eixo direito, %) com alvo de 85%.'

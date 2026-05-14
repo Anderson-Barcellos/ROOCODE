@@ -31,6 +31,7 @@ import {
 } from '@/utils/intraday-correlation'
 import {
   analyzePkVariabilityVsMood,
+  getPkVariabilityAnalysisWindow,
   hasStrongVariabilitySignal,
   PK_VARIABILITY_METRICS,
   PK_VARIABILITY_METRIC_DESCRIPTIONS,
@@ -57,19 +58,6 @@ const QUALITY_CLASS: Record<PKVariabilityQuality, string> = {
   insufficient: 'border-slate-200 bg-slate-50 text-slate-500',
   partial: 'border-amber-200 bg-amber-50 text-amber-800',
   observable: 'border-teal-200 bg-teal-50 text-teal-800',
-}
-
-const ANALYSIS_DAYS = 60
-const DOSES_HOURS = 24 * 90
-
-function isoDaysAgo(days: number): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() - days)
-  return d.toISOString().slice(0, 10)
-}
-
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function formatNumber(value: number | null | undefined, digits = 2): string {
@@ -126,7 +114,8 @@ interface Props {
 
 export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const { data: substances = [] } = useSubstances()
-  const { data: doses = [] } = useDoses(DOSES_HOURS)
+  const analysisWindow = useMemo(() => getPkVariabilityAnalysisWindow(snapshots), [snapshots])
+  const { data: doses = [] } = useDoses(analysisWindow.doseHours)
 
   const subs = useMemo(() => availableSubstances(substances), [substances])
 
@@ -140,13 +129,10 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
     return subs[0].id
   }, [subs, substanceId])
 
-  const fromIso = useMemo(() => isoDaysAgo(ANALYSIS_DAYS), [])
-  const toIso = useMemo(() => isoToday(), [])
-
   const { data: pkPayload, isFetching } = useConcentrationSeries(
     effectiveSubstanceId,
-    fromIso,
-    toIso,
+    analysisWindow.fromIso,
+    analysisWindow.toIso,
     weightKg,
   )
 
@@ -209,7 +195,7 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
         </div>
         <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">
           <FlaskConical className="h-3.5 w-3.5" />
-          humor pareado: {hypothesis?.realMoodDays ?? 0}
+          base {analysisWindow.spanDays}d · humor pareado: {hypothesis?.realMoodDays ?? 0}
         </span>
       </div>
 
@@ -334,7 +320,8 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
             <span className="font-semibold text-slate-700">Ressalvas:</span> emoções momentâneas têm
             sampling bias (logadas quando algo chama atenção). LHL drugs (Lexapro/Lamictal) têm
             swing baixo natural — desvios são sinal real. Venvanse (t½=11h) tem swing alto
-            fisiológico. Variabilidade mistura PK + adesão — não causal.
+            fisiológico. Variabilidade mistura PK + adesão — não causal. Base de cálculo: todo
+            histórico real disponível no dashboard, mesmo que a UI esteja exibindo um recorte.
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <span className="rounded-lg bg-white/80 p-2 text-slate-500">

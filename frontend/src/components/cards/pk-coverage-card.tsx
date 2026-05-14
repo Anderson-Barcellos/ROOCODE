@@ -1,6 +1,12 @@
 import { useMemo } from 'react'
 
-import { FULL_HISTORY_DOSE_HOURS, useDoses, useRegimen } from '@/lib/api'
+import {
+  FULL_HISTORY_DOSE_HOURS,
+  useDoses,
+  useRegimen,
+  useSubstances,
+  type Substance,
+} from '@/lib/api'
 import {
   computeCoverageStatus,
   type CoverageClass,
@@ -78,17 +84,75 @@ function fmt(n: number, digits = 1): string {
   return n.toFixed(digits)
 }
 
+/**
+ * Mapeia presetKey do frontend (escitalopram, lisdexamfetamine, lamotrigine,
+ * clonazepam) pra Substance do backend usando aliases. Backend usa brand names
+ * como id (lexapro, venvanse, lamictal); aliases incluem os nomes genéricos.
+ */
+function buildSubstanceMap(substances: Substance[] | undefined): Map<string, Substance> {
+  const map = new Map<string, Substance>()
+  if (!substances) return map
+  for (const sub of substances) {
+    map.set(sub.id.toLowerCase(), sub)
+    for (const alias of sub.aliases) {
+      map.set(alias.toLowerCase(), sub)
+    }
+  }
+  return map
+}
+
+const CONFIDENCE_LABEL_PT: Record<NonNullable<Substance['confidence']>, string> = {
+  high: 'alta',
+  medium: 'média',
+  low: 'baixa',
+  unknown: 'não informada',
+}
+
+function buildRangeTooltip(sub: Substance | undefined, fallbackUnit: string): string {
+  if (!sub) return ''
+  const lines: string[] = []
+  if (
+    sub.therapeutic_range_min != null &&
+    sub.therapeutic_range_max != null
+  ) {
+    const unit = sub.therapeutic_range_unit ?? fallbackUnit
+    lines.push(
+      `Faixa terapêutica: ${sub.therapeutic_range_min}–${sub.therapeutic_range_max} ${unit}`,
+    )
+  }
+  if (sub.confidence) {
+    lines.push(`Confiança da referência: ${CONFIDENCE_LABEL_PT[sub.confidence]}`)
+  }
+  if (sub.notes && sub.notes.length > 0) {
+    lines.push('') // separador visual
+    lines.push('Notas:')
+    for (const note of sub.notes) lines.push(`· ${note}`)
+  }
+  if (sub.sources && sub.sources.length > 0) {
+    lines.push('') // separador
+    lines.push('Fontes:')
+    for (const src of sub.sources) lines.push(`· ${src}`)
+  }
+  return lines.join('\n')
+}
+
 export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
   // O classificador é das últimas 48h, mas concentração atual/queda precisa
   // integrar o histórico de doses, não só a janela visual/operacional.
   const dosesQuery = useDoses(FULL_HISTORY_DOSE_HOURS)
   const regimenQuery = useRegimen(true)
+  const substancesQuery = useSubstances()
 
   const statuses = useMemo(() => {
     const doses = dosesQuery.data ?? []
     const regimen = regimenQuery.data ?? []
     return computeCoverageStatus(doses, regimen)
   }, [dosesQuery.data, regimenQuery.data])
+
+  const substanceMap = useMemo(
+    () => buildSubstanceMap(substancesQuery.data),
+    [substancesQuery.data],
+  )
 
   const overall = worstClass(statuses)
 
@@ -139,6 +203,13 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
           const max = s.therapeuticMax
           const range = Math.max(1, max - min)
           const pctOfRange = Math.min(100, Math.max(0, ((s.concentrationNow - min) / range) * 100))
+          // BACKLOG #33: tooltip rico com notes + sources + confidence vindo do
+          // /farma/substances?full=true. Match via aliases (frontend usa
+          // 'escitalopram'/'lamotrigine', backend usa 'lexapro'/'lamictal').
+          const sub =
+            substanceMap.get(s.presetKey.toLowerCase()) ??
+            (s.brandName ? substanceMap.get(s.brandName.toLowerCase()) : undefined)
+          const rangeTooltip = buildRangeTooltip(sub, s.unit)
           return (
             <div
               key={s.presetKey}
@@ -162,7 +233,10 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
                 <span className="font-mono text-slate-800">
                   {fmt(s.concentrationNow)} {s.unit}
                 </span>
-                <span className="text-slate-400">
+                <span
+                  className={`text-slate-400 ${rangeTooltip ? 'cursor-help underline decoration-dotted underline-offset-2' : ''}`}
+                  title={rangeTooltip || undefined}
+                >
                   faixa {fmt(min)}–{fmt(max)} {s.unit}
                 </span>
                 {s.trendPctPerDay != null && (

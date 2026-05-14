@@ -634,7 +634,7 @@ export default function App() {
                   <DecisionSection
                     eyebrow="Tendência"
                     title="A direção geral está melhorando ou piorando?"
-                    description="Depois da decisão de hoje, estes painéis mostram trajetória e padrões semanais."
+                    description="Trajetória e padrões semanais — complementam a foto do dia mostrada acima."
                   >
                     <RecoveryScoreChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
                   </DecisionSection>

@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import {
   RECOVERY_WEIGHTS,
@@ -253,13 +254,11 @@ export function RecoveryScoreChart({ snapshots, baselineSnapshots }: RecoverySco
           </p>
         </div>
         {latest != null && (
-          <div className="text-right">
-            <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
-            <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {(latest.scoreReal ?? latest.scorePartial ?? latest.scoreInterp)!.toFixed(0)}
-            </div>
-            <div className="text-[0.7rem] text-slate-500">{latest.label}</div>
-          </div>
+          <CardScoreBadge
+            label="Último"
+            value={(latest.scoreReal ?? latest.scorePartial ?? latest.scoreInterp)!.toFixed(0)}
+            hint={latest.label}
+          />
         )}
       </div>
 

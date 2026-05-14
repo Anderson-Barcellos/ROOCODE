@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
@@ -376,21 +377,13 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
           )}
         </div>
         {latest != null && latest.hrr != null && (
-          <div className="text-right">
-            <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
-            <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {latest.hrr.toFixed(0)} bpm
-            </div>
-            {latestBandLabel && (
-              <div
-                className="text-[0.7rem] font-semibold uppercase tracking-wider"
-                style={{ color: latestBandColor }}
-              >
-                {latestBandLabel}
-              </div>
-            )}
-            <div className="text-[0.65rem] text-slate-500">{latest.label}</div>
-          </div>
+          <CardScoreBadge
+            label="Último"
+            value={`${latest.hrr.toFixed(0)} bpm`}
+            band={latestBandLabel || undefined}
+            bandColor={latestBandColor}
+            hint={latest.label}
+          />
         )}
       </div>
 

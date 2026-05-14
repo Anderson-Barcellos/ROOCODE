@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
@@ -327,17 +328,13 @@ export function AutonomicBalanceChart({ snapshots, baselineSnapshots }: Autonomi
           )}
         </div>
         {latestAbi != null && latestBand && (
-          <div className="text-right">
-            <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
-            <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {latestAbi >= 0 ? '+' : ''}
-              {latestAbi.toFixed(2)}σ
-            </div>
-            <div className="text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: latestBand.color }}>
-              {latestBand.text}
-            </div>
-            <div className="text-[0.65rem] text-slate-500">{latest?.label}</div>
-          </div>
+          <CardScoreBadge
+            label="Último"
+            value={`${latestAbi >= 0 ? '+' : ''}${latestAbi.toFixed(2)}σ`}
+            band={latestBand.text}
+            bandColor={latestBand.color}
+            hint={latest?.label}
+          />
         )}
       </div>
 

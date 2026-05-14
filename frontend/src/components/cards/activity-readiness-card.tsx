@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { dayLabel } from '@/utils/aggregation'
 import {
   computeActivityReadiness,
@@ -59,12 +60,10 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
             <span className="font-semibold">Veredito:</span> {result.summary}
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Score</div>
-          <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-            {result.score != null ? result.score.toFixed(0) : '—'}
-          </div>
-        </div>
+        <CardScoreBadge
+          label="Score"
+          value={result.score != null ? result.score.toFixed(0) : '—'}
+        />
       </div>
 
       {topFactors.length > 0 && (

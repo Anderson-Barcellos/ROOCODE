@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { format, startOfDay } from 'date-fns'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { dayLabel } from '@/utils/aggregation'
 import {
   SLEEP_QUALITY_WEIGHTS,
@@ -221,12 +222,11 @@ export function NightQualityCard({ snapshots, variant = 'full' }: NightQualityCa
             )}
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Score</div>
-          <div className={`font-['Fraunces'] text-3xl tracking-[-0.04em] ${meta.scoreBg}`}>
-            {point.score.toFixed(0)}
-          </div>
-        </div>
+        <CardScoreBadge
+          label="Score"
+          value={point.score.toFixed(0)}
+          valueColorClass={meta.scoreBg}
+        />
       </div>
 
       {!isSummary && (

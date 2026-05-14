@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { format, startOfDay } from 'date-fns'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { dayLabel } from '@/utils/aggregation'
 import { computeRecoveryScoreSeries, type RecoveryScorePoint } from '@/utils/recovery-score'
 import { computeSleepDebt } from '@/utils/sleep-debt'
@@ -210,12 +211,7 @@ export function LimitingFactorCard({ snapshots, variant = 'full' }: LimitingFact
             </p>
           )}
         </div>
-        <div className="text-right">
-          <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Score do dia</div>
-          <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-            {state.point.score!.toFixed(0)}
-          </div>
-        </div>
+        <CardScoreBadge label="Score do dia" value={state.point.score!.toFixed(0)} />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">

@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
@@ -357,16 +358,13 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
           )}
         </div>
         {latestHrv != null && latestBand && (
-          <div className="text-right">
-            <div className="text-[0.65rem] uppercase tracking-wider text-slate-500">Último</div>
-            <div className="font-['Fraunces'] text-3xl tracking-[-0.04em] text-slate-900">
-              {latestHrv.toFixed(1)} ms
-            </div>
-            <div className="text-[0.7rem] font-semibold uppercase tracking-wider" style={{ color: bandColor }}>
-              {latestBand.label}
-            </div>
-            <div className="text-[0.65rem] text-slate-500">{latest?.label}</div>
-          </div>
+          <CardScoreBadge
+            label="Último"
+            value={`${latestHrv.toFixed(1)} ms`}
+            band={latestBand.label}
+            bandColor={bandColor}
+            hint={latest?.label}
+          />
         )}
       </div>
 

@@ -219,15 +219,16 @@ export function LimitingFactorCard({ snapshots }: LimitingFactorCardProps) {
           return (
             <div
               key={factor.component}
-              className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${tone.bg} ${tone.border} ${tone.text}`}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs ${tone.bg} ${tone.border} ${tone.text}`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
               <span className="font-semibold">{meta.shortLabel}</span>
               <span className="text-[0.7rem] opacity-70">
                 {Math.round(factor.componentValue)}/100
               </span>
-              <span className="text-[0.65rem] opacity-60">
-                −{factor.weightedShortfall.toFixed(1)} pts
+              <span className="text-[0.6rem] opacity-40">·</span>
+              <span className="text-[0.65rem] italic opacity-60">
+                −{factor.weightedShortfall.toFixed(1)} pts no dia
               </span>
             </div>
           )

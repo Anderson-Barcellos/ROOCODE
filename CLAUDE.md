@@ -22,8 +22,9 @@ App em **modo manutenção**: tickets pontuais em `BACKLOG.md`, sem sprint forma
 - Proxy Apache:
   - `/health/` → frontend (`localhost:3031`)
   - `/health/api/` → backend (`localhost:8011`)
-- Forecast backend é OpenAI-only com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito).
+- Forecast backend é OpenAI-only com hardening de saída (dedupe/ordem por data futura, clamp de faixa, erro HTTP explícito). Runtime atual: `OPENAI_MODEL=gpt-5.1`, `OPENAI_REASONING_EFFORT=high`, `OPENAI_TIMEOUT_SECONDS=300`. Validação real em 2026-05-14: `gpt-5.1` rejeita `xhigh`; `gpt-5.1/high` respondeu `/forecast` em ~48s.
 - Logging de trace do forecast é opt-in via `FORECAST_DEBUG=true`.
+- PK coverage: `queda` só deve alertar quando a concentração está perto do piso terapêutico (`<1.2× min`) e projeta cruzar o mínimo em até 12h; substância confortavelmente em faixa fica `adequada`. Cards PK com faixa usam escala `% do teto terapêutico` e mantêm ng/mL no tooltip.
 
 ## Comandos principais
 

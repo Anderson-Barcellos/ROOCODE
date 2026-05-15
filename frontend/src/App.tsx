@@ -49,7 +49,7 @@ import { ChronotropicResponseChart } from '@/components/charts/chronotropic-resp
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
-import type { OverviewMetrics } from '@/types/apple-health'
+import type { DailySnapshot, OverviewMetrics } from '@/types/apple-health'
 import { selectSnapshotRange } from '@/utils/aggregation'
 import { FULL_HISTORY_DOSE_HOURS, useDoses, useRegimen } from '@/lib/api'
 import { computeCoverageStatus } from '@/utils/pk-coverage'
@@ -213,53 +213,6 @@ function mean(values: Array<number | null>): number | null {
   return numeric.reduce((sum, value) => sum + value, 0) / numeric.length
 }
 
-function computeWeekSignal(snapshots: Parameters<typeof computeRecoveryScoreSeries>[0]) {
-  const real = snapshots.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted)
-  const hrvWeekday = mean(
-    real
-      .filter((snapshot) => {
-        const day = getDay(parseISO(snapshot.date))
-        return day >= 1 && day <= 5
-      })
-      .map((snapshot) => snapshot.health?.hrvSdnn ?? null),
-  )
-  const hrvWeekend = mean(
-    real
-      .filter((snapshot) => {
-        const day = getDay(parseISO(snapshot.date))
-        return day === 0 || day === 6
-      })
-      .map((snapshot) => snapshot.health?.hrvSdnn ?? null),
-  )
-  const rhrWeekday = mean(
-    real
-      .filter((snapshot) => {
-        const day = getDay(parseISO(snapshot.date))
-        return day >= 1 && day <= 5
-      })
-      .map((snapshot) => snapshot.health?.restingHeartRate ?? null),
-  )
-  const rhrWeekend = mean(
-    real
-      .filter((snapshot) => {
-        const day = getDay(parseISO(snapshot.date))
-        return day === 0 || day === 6
-      })
-      .map((snapshot) => snapshot.health?.restingHeartRate ?? null),
-  )
-
-  const hrvDeltaPct =
-    hrvWeekend != null && hrvWeekday != null && hrvWeekday > 0
-      ? ((hrvWeekend - hrvWeekday) / hrvWeekday) * 100
-      : null
-  const rhrWeekVsWeekendDelta =
-    rhrWeekday != null && rhrWeekend != null
-      ? rhrWeekday - rhrWeekend
-      : null
-
-  return { hrvDeltaPct, rhrWeekVsWeekendDelta }
-}
-
 function computeSleepSummaryLine(snapshots: Parameters<typeof computeRecoveryScoreSeries>[0]): string {
   const real = snapshots.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted)
   const recent = real
@@ -309,6 +262,109 @@ function computeSleepSummaryLine(snapshots: Parameters<typeof computeRecoverySco
       : ' Padrão semanal ainda em coleta.'
 
   return `${summaryLead}${efficiencyText}${patternText}`
+}
+
+type PanoramaConfidenceTier = 'robusta' | 'parcial' | 'baixa'
+
+interface PanoramaConfidence {
+  tier: PanoramaConfidenceTier
+  label: string
+  detail: string
+  className: string
+}
+
+function computePanoramaConfidence({
+  snapshotsInRange,
+  score,
+  completeness,
+  confidence,
+  derivedFromInterpolated,
+}: {
+  snapshotsInRange: DailySnapshot[]
+  score: number | null
+  completeness: number
+  confidence: number
+  derivedFromInterpolated: boolean
+}): PanoramaConfidence {
+  const realDays = snapshotsInRange.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted).length
+  const interpolatedDays = snapshotsInRange.filter((snapshot) => snapshot.interpolated).length
+  const completenessPct = Math.round(completeness * 100)
+  const confidencePct = Math.round(confidence * 100)
+
+  if (score == null || realDays < 3) {
+    return {
+      tier: 'baixa',
+      label: 'Confiança baixa',
+      detail: `${realDays} dias reais na janela · score ${score == null ? 'indisponível' : 'parcial'}`,
+      className: 'border-rose-200 bg-rose-50 text-rose-800',
+    }
+  }
+
+  if (realDays < 7 || completeness < 0.8 || confidence < 0.9 || derivedFromInterpolated || interpolatedDays > 0) {
+    const caveats = [
+      realDays < 7 ? `${realDays} dias reais` : null,
+      completeness < 0.8 ? `${completenessPct}% dos inputs` : null,
+      confidence < 0.9 ? `${confidencePct}% confiança` : null,
+      derivedFromInterpolated || interpolatedDays > 0 ? `${interpolatedDays} dia(s) interpolado(s)` : null,
+    ].filter(Boolean)
+
+    return {
+      tier: 'parcial',
+      label: 'Confiança parcial',
+      detail: caveats.join(' · '),
+      className: 'border-amber-200 bg-amber-50 text-amber-800',
+    }
+  }
+
+  return {
+    tier: 'robusta',
+    label: 'Confiança robusta',
+    detail: `${realDays} dias reais · ${completenessPct}% dos inputs · sem interpolação relevante`,
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  }
+}
+
+function buildPanoramaActions({
+  status,
+  limiter,
+  pkConcern,
+}: {
+  status: 'green' | 'yellow' | 'red' | 'neutral'
+  limiter: RecoveryComponentKey | null
+  pkConcern: string | null
+}): string[] {
+  const actions: string[] = []
+
+  if (status === 'red') {
+    actions.push('Priorizar recuperação nas próximas 24h: baixa carga, sono e regularidade.')
+  } else if (status === 'yellow') {
+    actions.push('Manter carga moderada e evitar treino/decisão de alto custo se sintomas aparecerem.')
+  } else if (status === 'green') {
+    actions.push('Janela favorável para carga planejada, mantendo checagem subjetiva antes de intensificar.')
+  } else {
+    actions.push('Aguardar dados suficientes antes de tomar decisão pelo painel.')
+  }
+
+  const limiterAction: Partial<Record<RecoveryComponentKey, string>> = {
+    hrv: 'Limitante autonômico: preferir Z2 leve, respiração/descanso e monitorar HRV amanhã.',
+    sleepEff: 'Sono fragmentado: reduzir estimulantes tardios e proteger janela de dormir hoje.',
+    rhr: 'FC repouso elevada: tratar como sinal de carga sistêmica; hidratação e menor intensidade.',
+    sleepDebt: 'Débito de sono: pagar parte da dívida antes de buscar performance.',
+    mood: 'Humor em baixa: priorizar rotina simples, luz/manhã e reduzir decisões pesadas.',
+  }
+  if (limiter) actions.push(limiterAction[limiter] ?? `Fator limitante: ${LIMITING_LABEL[limiter]}.`)
+
+  if (pkConcern === 'vulnerabilidade') {
+    actions.push('PK subterapêutico: conferir log/regime antes de interpretar queda de humor como primária.')
+  } else if (pkConcern === 'queda') {
+    actions.push('PK em queda: monitorar próxima janela de dose e sintomas de vale.')
+  } else if (pkConcern === 'acima_faixa') {
+    actions.push('PK acima da faixa: considerar concentração como confundidor de sono/humor hoje.')
+  } else if (pkConcern === 'cobertura_incompleta') {
+    actions.push('Cobertura incompleta: revisar registros de dose antes de concluir falha farmacológica.')
+  }
+
+  return actions.slice(0, 3)
 }
 
 function MockBanner() {
@@ -504,39 +560,69 @@ export default function App() {
     ],
   )
   const dailyVerdict = useMemo(() => {
-    const series = computeRecoveryScoreSeries(allWithForecast)
-    const latest = [...series].reverse().find((point) => point.score != null && point.components != null)
+    // Usa apenas snapshots reais para evitar drift com forecast no resumo diário.
+    const series = computeRecoveryScoreSeries(data.snapshots)
+    const latestIdx = [...series].reverse().findIndex((point) => point.score != null && point.components != null)
+    const idxFromEnd = latestIdx >= 0 ? latestIdx : null
+    const idx = idxFromEnd != null ? series.length - 1 - idxFromEnd : null
+    const latest = idx != null ? series[idx] : null
+    const latestDate = idx != null ? data.snapshots[idx]?.date ?? null : null
     const topFactor = latest?.components
       ? rankLimitingFactors(latest.components)[0]?.component
       : null
 
+    const score = latest?.score ?? null
+    let status: 'green' | 'yellow' | 'red' | 'neutral' = 'neutral'
+    let title = 'Aguardando dados'
+
+    if (score != null) {
+      if (score >= 66) {
+        status = 'green'
+        title = 'Pronto para impacto'
+      } else if (score >= 33) {
+        status = 'yellow'
+        title = 'Carga moderada recomendada'
+      } else {
+        status = 'red'
+        title = 'Dia de recuperação prioritária'
+      }
+    }
+
+    const limiterText = topFactor ? LIMITING_LABEL[topFactor] : null
+
     const coverageStatuses = computeCoverageStatus(dosesQuery.data ?? [], regimenQuery.data ?? [])
     const adequateCount = coverageStatuses.filter((status) => status.klass === 'adequada').length
     const totalCoverage = coverageStatuses.length
-    const weekSignal = computeWeekSignal(data.snapshots)
-    const dayRef = latest?.date ?? todayIso
-    const dayLabel = format(parseISO(dayRef), 'd MMM', { locale: ptBR })
-    const scoreText = latest?.score != null ? `${latest.score.toFixed(0)}/100` : 'em construção'
-    const limiterText = topFactor ? LIMITING_LABEL[topFactor] : 'dados ainda incompletos'
-    const pkText =
-      totalCoverage > 0
-        ? `${adequateCount}/${totalCoverage} substâncias em faixa adequada`
-        : 'sem cobertura PK suficiente para classificar'
+    const pkConcern = ['vulnerabilidade', 'acima_faixa', 'cobertura_incompleta', 'queda']
+      .find((klass) => coverageStatuses.some((status) => status.klass === klass)) ?? null
+    const pkText = totalCoverage > 0 ? `${adequateCount}/${totalCoverage} substâncias na faixa` : 'Sem dados PK'
+    const actions = buildPanoramaActions({ status, limiter: topFactor, pkConcern })
 
-    const stressText =
-      weekSignal.rhrWeekVsWeekendDelta != null
-        ? `FC repouso de semana ${Math.abs(Math.round(weekSignal.rhrWeekVsWeekendDelta))} bpm ${
-            weekSignal.rhrWeekVsWeekendDelta >= 0 ? 'acima' : 'abaixo'
-          } do fim de semana`
-        : 'sem contraste semana × FDS ainda'
-
-    const hrvText =
-      weekSignal.hrvDeltaPct != null
-        ? `Δ HRV FDS ${weekSignal.hrvDeltaPct >= 0 ? '+' : ''}${Math.round(weekSignal.hrvDeltaPct)}%`
-        : null
-
-    return `Hoje (${dayLabel}): recovery ${scoreText}. Limitador principal: ${limiterText}. Farmacoterapia: ${pkText}. Atenção: ${stressText}${hrvText ? ` · ${hrvText}` : ''}.`
-  }, [allWithForecast, dosesQuery.data, regimenQuery.data, data.snapshots, todayIso])
+    return {
+      status,
+      title,
+      score,
+      limiter: topFactor,
+      limiterText,
+      pkText,
+      pkConcern,
+      latestDate,
+      actions,
+      completeness: latest?.completeness ?? 0,
+      confidence: latest?.confidence ?? 0,
+      derivedFromInterpolated: latest?.derivedFromInterpolated ?? false,
+    }
+  }, [data.snapshots, dosesQuery.data, regimenQuery.data])
+  const panoramaConfidence = useMemo(
+    () => computePanoramaConfidence({
+      snapshotsInRange: ranged,
+      score: dailyVerdict.score,
+      completeness: dailyVerdict.completeness,
+      confidence: dailyVerdict.confidence,
+      derivedFromInterpolated: dailyVerdict.derivedFromInterpolated,
+    }),
+    [ranged, dailyVerdict.score, dailyVerdict.completeness, dailyVerdict.confidence, dailyVerdict.derivedFromInterpolated],
+  )
   const sleepSummaryLine = useMemo(() => computeSleepSummaryLine(data.snapshots), [data.snapshots])
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
@@ -603,6 +689,30 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-6">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-400">Agora</p>
+                      <p className="mt-1 font-semibold text-slate-900">Decisão diária</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        {dailyVerdict.latestDate
+                          ? `Último score válido: ${format(parseISO(dailyVerdict.latestDate), 'd MMM', { locale: ptBR })}`
+                          : 'Aguardando score válido'}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-400">Janela</p>
+                      <p className="mt-1 font-semibold text-slate-900">{range}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Tendência e padrão semanal usam {ranged.length} dia(s) selecionado(s).
+                      </p>
+                    </div>
+                    <div className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${panoramaConfidence.className}`}>
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] opacity-70">Confiança</p>
+                      <p className="mt-1 font-semibold">{panoramaConfidence.label}</p>
+                      <p className="mt-1 text-xs leading-5 opacity-80">{panoramaConfidence.detail}</p>
+                    </div>
+                  </div>
+
                   {executiveMetrics.map((cluster) => (
                     <div key={cluster.title} className="space-y-2">
                       <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -612,11 +722,71 @@ export default function App() {
                     </div>
                   ))}
 
-                  <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                    <span className="font-semibold">Veredito do dia:</span> {dailyVerdict}
-                  </p>
+                  {(() => {
+                    const { status, title, score, limiterText, pkText, latestDate, actions } = dailyVerdict
+                    const palette = {
+                      green: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+                      yellow: 'border-amber-200 bg-amber-50 text-amber-900',
+                      red: 'border-rose-200 bg-rose-50 text-rose-900',
+                      neutral: 'border-slate-200 bg-slate-50 text-slate-900',
+                    }[status]
 
-                  <WeekdayWeekendCard snapshots={data.snapshots} />
+                    const icon = {
+                      green: '🟢',
+                      yellow: '🟡',
+                      red: '🔴',
+                      neutral: '⚪',
+                    }[status]
+
+                    return (
+                      <div className={`rounded-2xl border px-4 py-3 ${palette}`}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="flex items-start gap-3">
+                            <span className="text-xl">{icon}</span>
+                            <div>
+                              <p className="font-semibold text-base tracking-tight">{title}</p>
+                              {latestDate && (
+                                <p className="text-[0.75rem] opacity-75">
+                                  Dados de {format(parseISO(latestDate), 'd MMM', { locale: ptBR })}
+                                  {latestDate !== todayIso && ' · último dia completo'}
+                                </p>
+                              )}
+                              {status !== 'neutral' && limiterText && (
+                                <p className="text-sm opacity-90">
+                                  Fator limitante: <span className="font-bold">{limiterText}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {score != null && (
+                            <div className="flex gap-4 text-sm font-medium opacity-80 sm:text-right">
+                              <div className="flex flex-col">
+                                <span>Recovery</span>
+                                <span>{score.toFixed(0)}/100</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span>Farmaco</span>
+                                <span>{pkText}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {actions.length > 0 && (
+                          <div className="mt-3 rounded-xl border border-current/10 bg-white/45 px-3 py-2">
+                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] opacity-65">Próximas 24h</p>
+                            <ul className="mt-1 space-y-1 text-xs leading-5 opacity-90">
+                              {actions.map((action) => (
+                                <li key={action}>• {action}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  <WeekdayWeekendCard snapshots={ranged} />
 
                   <DecisionSection
                     eyebrow="Decisão diária"

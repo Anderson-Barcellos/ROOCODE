@@ -7,6 +7,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
@@ -126,7 +127,7 @@ function CardTooltip({ active, payload, hasRange }: TooltipShape & { hasRange?: 
       <div style={{ color: 'var(--muted)', marginBottom: 3 }}>{point.label}</div>
       <div>
         {hasRange && point.pct != null
-          ? `${point.pct.toFixed(1)}% do pico · ${(point.conc_ng_ml ?? 0).toFixed(2)} ng/mL`
+          ? `${point.pct.toFixed(1)}% do teto terap. · ${(point.conc_ng_ml ?? 0).toFixed(2)} ng/mL`
           : point.conc_ng_ml != null
             ? `${point.conc_ng_ml.toFixed(2)} ng/mL`
             : '—'}
@@ -149,7 +150,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
   const range = med.therapeuticRange
   const hasRange = range != null
 
-  const { data, currentPct, currentConc, maxConc } = useMemo(() => {
+  const { data, currentPct, currentConc, maxConc, maxPct } = useMemo(() => {
     const stepMinutes = 30
     const stepMs = stepMinutes * 60 * 1000
     const n = Math.max(1, Math.floor((windowEnd - windowStart) / stepMs))
@@ -164,47 +165,68 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
       concs.push(conc)
     }
 
-    const emaWindowMs = getMoodCorrelationWindowMs()
+    const emaWindowMs = getMoodCorrelationWindowMs(med)
     const emaSeries = computeTrendFromSamples(timestamps, concs, emaWindowMs, 3)
 
+    let maxPct = 0
     const series: GridPoint[] = timestamps.map((t, i) => {
       const conc = concs[i]
       const emaVal = emaSeries[i]
+      const pct = range && range.max > 0
+        ? (conc / range.max) * 100
+        : maxConc > 0 ? (conc / maxConc) * 100 : null
+      const emaPct = emaVal != null
+        ? range && range.max > 0
+          ? (emaVal / range.max) * 100
+          : maxConc > 0 ? (emaVal / maxConc) * 100 : null
+        : null
+      if (pct != null && pct > maxPct) maxPct = pct
+      if (emaPct != null && emaPct > maxPct) maxPct = emaPct
       return {
         timestamp: t,
         conc_ng_ml: conc,
-        pct: maxConc > 0 ? (conc / maxConc) * 100 : null,
+        pct,
         ema_ng_ml: emaVal,
-        ema_pct: emaVal != null && maxConc > 0 ? (emaVal / maxConc) * 100 : null,
+        ema_pct: emaPct,
         label: format(t, "d MMM · HH:mm", { locale: ptBR }),
       }
     })
 
     const nowConc = calculateConcentration(med, doses, nowTimestamp, weightKg)
-    const currentPct = maxConc > 0 ? (nowConc / maxConc) * 100 : 0
+    const currentPct = range && range.max > 0
+      ? (nowConc / range.max) * 100
+      : maxConc > 0 ? (nowConc / maxConc) * 100 : 0
+    if (currentPct > maxPct) maxPct = currentPct
     return {
       data: series,
       currentPct,
       currentConc: nowConc,
       maxConc,
+      maxPct,
     }
-  }, [med, doses, windowStart, windowEnd, nowTimestamp, weightKg])
+  }, [med, doses, range, windowStart, windowEnd, nowTimestamp, weightKg])
 
   const color = COLORS_BY_ID[med.id] ?? '#8b5cf6'
   const status = hasRange && range ? statusFromConc(currentConc, range.min, range.max) : null
+  const showTherapeuticBand = !!(hasRange && range && range.max > range.min)
   const hasData = hasRange
     ? data.some((p) => (p.pct ?? 0) > 0.1)
     : data.some((p) => (p.conc_ng_ml ?? 0) > 0.001)
   const doseMarkers = doses.filter((dose) => dose.timestamp >= windowStart && dose.timestamp <= windowEnd)
 
-  // Key da série e domínio do Y axis dependem do modo.
   const seriesKey = hasRange ? 'pct' : 'conc_ng_ml'
   const emaKey = hasRange ? 'ema_pct' : 'ema_ng_ml'
-  const yDomain: [number, number] = hasRange ? [0, 115] : [0, Math.max(maxConc * 1.2, 1)]
-  const yTicks = hasRange ? [0, 25, 50, 75, 100] : undefined
-  const yTickFormatter = hasRange
-    ? (v: number) => `${v}%`
-    : (v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(2))
+  const therapeuticMinPct = showTherapeuticBand && range ? (range.min / range.max) * 100 : null
+  const yDomain: [number, number] = showTherapeuticBand
+    ? [0, Math.max(maxPct * 1.1, 115)]
+    : [0, Math.max(maxConc * 1.2, 1)]
+  const yTicks = showTherapeuticBand ? [0, 25, 50, 75, 100] : undefined
+  const yTickFormatter = (v: number) => {
+    if (showTherapeuticBand) return `${v.toFixed(0)}%`
+    if (v >= 100) return v.toFixed(0)
+    if (v >= 10) return v.toFixed(1)
+    return v.toFixed(2)
+  }
 
   return (
     <div style={{
@@ -288,6 +310,16 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
               tickFormatter={yTickFormatter}
             />
             <Tooltip content={<CardTooltip hasRange={hasRange} />} />
+            {showTherapeuticBand && therapeuticMinPct != null && (
+              <ReferenceArea
+                y1={therapeuticMinPct}
+                y2={100}
+                ifOverflow="extendDomain"
+                fill="#22c55e"
+                fillOpacity={0.10}
+                strokeOpacity={0}
+              />
+            )}
             <Area
               type="monotone"
               dataKey={seriesKey}
@@ -333,7 +365,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
         color: 'var(--muted)', letterSpacing: '0.04em',
       }}>
         {hasRange && range
-          ? `faixa ${range.min}–${range.max} ${range.unit}`
+          ? `escala: % do teto terapêutico · faixa sombreada ${therapeuticMinPct?.toFixed(0) ?? 0}–100% (${range.min}–${range.max} ${range.unit})`
           : 'sem faixa terapêutica · concentração bruta pra correlação futura'}
       </div>
     </div>

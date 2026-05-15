@@ -2,7 +2,7 @@
  * PK×Humor Correlation — Pipeline Diário
  *
  * Hipótese pré-registrada:
- *   - Janela: EMA-48h (observação clínica externa, ver pharmacokinetics.ts)
+ *   - Janela: EMA por substância (ex.: 48h para Lexapro/Lamictal, 72h para Rivotril)
  *   - Lag esperado: 0 (correlação contemporânea concentração×humor)
  *   - Cauda esperada: ≤ +3d (perda de efeito não persiste pós-reposição)
  *
@@ -19,6 +19,7 @@ import { FULL_HISTORY_DOSE_HOURS, useDoses, useSubstances } from '@/lib/api'
 import {
   calculateConcentration,
   DEFAULT_PK_BODY_WEIGHT_KG,
+  formatMoodCorrelationWindowLabel,
   getMoodCorrelationWindowMs,
   PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML,
   type PKDose,
@@ -46,7 +47,7 @@ function buildDailyEmaSamples(
   snapshots: DailySnapshot[],
   weightKg: number,
 ): DailyEmaSample[] {
-  const windowMs = getMoodCorrelationWindowMs()
+  const windowMs = getMoodCorrelationWindowMs(med)
   const hourMs = 60 * 60 * 1000
   const numPoints = Math.max(6, Math.round(windowMs / hourMs))
 
@@ -115,6 +116,7 @@ interface LagEstimate {
 interface CorrelationRow {
   subId: string
   subName: string
+  windowLabel: string
   lags: LagEstimate[]
   peakLagDays: number | null
 }
@@ -166,7 +168,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
     if (!substances.length || !doses.length) return []
 
     type RawLagsBase = Array<Omit<LagEstimate, 'qFdr'> | null>
-    type RawRow = { subId: string; subName: string; lagsBase: RawLagsBase }
+    type RawRow = { subId: string; subName: string; windowLabel: string; lagsBase: RawLagsBase }
 
     const raw: RawRow[] = []
     for (const sub of substances) {
@@ -199,6 +201,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
       raw.push({
         subId: sub.id,
         subName: sub.display_name.split(' ')[0],
+        windowLabel: formatMoodCorrelationWindowLabel(med),
         lagsBase,
       })
     }
@@ -229,6 +232,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
       return {
         subId: row.subId,
         subName: row.subName,
+        windowLabel: row.windowLabel,
         lags,
         peakLagDays,
       }
@@ -311,7 +315,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           Remédio × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          Esta medicação muda meu humor? (teste em 7 janelas)
+          Esta medicação muda meu humor? (teste em 7 lags)
         </h3>
         <p className="mt-4 text-sm text-slate-500">
           Sem substâncias com ≥3 doses + ≥{MIN_TOTAL_SAMPLES} dias de snapshots no período. Aumente a janela de visualização ou logue mais doses.
@@ -327,12 +331,15 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           Remédio × Humor
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-          Esta medicação muda meu humor? (teste em 7 janelas)
+          Esta medicação muda meu humor? (teste em 7 lags)
         </h3>
         <p className="mt-1 text-xs text-slate-500 leading-5">
           {showRaw
             ? 'Modo bruto ativo: verde/vermelho em gradiente (intensidade = |r|, sinal = direção), mesmo sem significância estatística.'
             : 'Modo conservador: só achados com q < 0.05 ficam coloridos. Não significativos aparecem em cinza para reduzir falso padrão visual.'}
+        </p>
+        <p className="mt-2 text-[0.72rem] leading-5 text-slate-500">
+          Exposição suavizada por janela pré-fixada por substância: Lexapro/Lamictal usam 48h; Rivotril usa 72h. Evitamos 2 meias-vidas universal para não defasar sinais clínicos.
         </p>
         <div className="mt-2">
           <button
@@ -433,7 +440,10 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ background: SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6' }}
                 />
-                {row.subName}
+                <span>{row.subName}</span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[0.62rem] font-medium uppercase tracking-wide text-slate-500">
+                  {row.windowLabel}
+                </span>
               </div>
               {LAG_DAYS_SWEEP.map((lag) => {
                 const est = row.lags.find((l) => l.lagDays === lag) ?? null

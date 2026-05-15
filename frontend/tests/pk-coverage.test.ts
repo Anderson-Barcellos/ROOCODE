@@ -223,6 +223,19 @@ assert.equal(
   'adequada',
 )
 
+// 7h: dentro da faixa com folga + projeção abaixo do min não deve alarmar queda
+assert.equal(
+  derivePKStatus({
+    concentration: 5000,
+    therapeuticMin: 2000,
+    therapeuticMax: 10000,
+    missedDoses: 0,
+    hoursUntilBelowMin: 9,
+  }),
+  'adequada',
+  'Lamotrigina confortavelmente dentro da faixa não deve aparecer como em queda',
+)
+
 // ─── Test 8: Lamotrigina em uso contínuo não deve ficar presa em vulnerabilidade
 
 const doses8: DoseRecord[] = Array.from({ length: 23 }, (_, i) =>

@@ -7,7 +7,7 @@
  *
  *   1. `acima_faixa`           — concentração estimada > therapeutic max.
  *   2. `vulnerabilidade`       — concentração estimada < therapeutic min.
- *   3. `queda`                 — concentração caindo e projeta < min em ≤12h.
+ *   3. `queda`                 — concentração perto do piso e projeta < min em ≤12h.
  *   4. `cobertura_incompleta`  — regime esperava dose nas últimas 48h e o
  *                                histórico logado não cobre o intervalo
  *                                (cNow < 1.2× min como guarda — concentração
@@ -48,7 +48,7 @@ export interface PKStatusInput {
  * Pure classifier — order matters and encodes severity:
  *   1. supraterapêutico (acima do ceiling)
  *   2. subterapêutico (abaixo do floor)
- *   3. decay acentuado (cruza min em ≤12h)
+ *   3. decay acentuado perto do piso (cNow < 1.2× min e cruza min em ≤12h)
  *   4. cobertura incompleta + concentração já saudável-pra-baixo (< 1.2× min)
  *   5. default: em faixa
  *
@@ -60,7 +60,11 @@ export function derivePKStatus(input: PKStatusInput): CoverageClass {
   const { concentration, therapeuticMin, therapeuticMax, missedDoses, hoursUntilBelowMin } = input
   if (concentration > therapeuticMax) return 'acima_faixa'
   if (concentration < therapeuticMin) return 'vulnerabilidade'
-  if (hoursUntilBelowMin != null && hoursUntilBelowMin <= 12) return 'queda'
+  if (
+    hoursUntilBelowMin != null &&
+    hoursUntilBelowMin <= 12 &&
+    concentration < therapeuticMin * 1.2
+  ) return 'queda'
   if (missedDoses > 0 && concentration < therapeuticMin * 1.2) return 'cobertura_incompleta'
   return 'adequada'
 }

@@ -43,6 +43,22 @@ ENV_YAML_PATH = Path("/root/GEMINI_API/env.yml")
 CACHE_TTL_SECONDS = _env_int("INTERPOLATE_CACHE_TTL_SECONDS", 3600)
 CACHE_MAX_ITEMS = _env_int("INTERPOLATE_CACHE_MAX_ITEMS", 256)
 
+# Gap máximo (em dias) que aceitamos preencher via LLM. Gaps maiores ficam como
+# buracos explícitos e são reportados em meta.skipped_gaps. Antes da auditoria
+# 2026-05-15 o endpoint preenchia qualquer gap (60 dias inventados sem ceticismo).
+MAX_GAP_DAYS = _env_int("INTERPOLATE_MAX_GAP_DAYS", 7)
+
+# Clamps fisiológicos espelhando Forecast/router.py:FORECAST_FIELD_BOUNDS.
+# Importamos via lazy import dentro de _apply_filled pra evitar ciclos.
+INTERP_FIELD_BOUNDS: dict[str, tuple[float, float]] = {
+    "sleepTotalHours": (0.0, 16.0),
+    "hrvSdnn": (0.0, 250.0),
+    "restingHeartRate": (30.0, 220.0),
+    "activeEnergyKcal": (0.0, 8000.0),
+    "exerciseMinutes": (0.0, 1440.0),
+    "valence": (-1.0, 1.0),
+}
+
 _cache: dict[str, dict[str, Any]] = {}
 
 
@@ -226,36 +242,84 @@ def _classify_valence(valence: float) -> str:
         return "Desagradável"
     return "Muito Desagradável"
 
-def _find_missing_dates(snapshots: list[dict]) -> list[str]:
+def _find_missing_dates(
+    snapshots: list[dict],
+    max_gap_days: int = MAX_GAP_DAYS,
+) -> tuple[list[str], list[dict]]:
     """
     Datas ausentes entre snapshots[0].date e snapshots[-1].date.
     Assume snapshots ordenados por date ascendente.
+
+    Retorna (datas_a_preencher, gaps_pulados). Cada gap pulado é um dict
+    {"from": ISO, "to": ISO, "length": int} listando o intervalo que excedeu
+    `max_gap_days` e portanto NÃO será passado ao LLM (lacuna fica preservada
+    como buraco no output, com meta.skipped_gaps documentando).
+
+    Gaps grandes (>7 dias) são alta especulação para o LLM — antes da auditoria
+    2026-05-15 o endpoint os preenchia sem reservas (60 dias inventados saíam
+    como confidence 0.2-0.4 e entravam nos cálculos).
     """
     from datetime import date, timedelta
 
     if not snapshots:
-        return []
+        return [], []
     have = {s.get("date") for s in snapshots if s.get("date")}
     dates_sorted = sorted(d for d in have if d)
     if len(dates_sorted) < 2:
-        return []
+        return [], []
 
     start = date.fromisoformat(dates_sorted[0])
     end = date.fromisoformat(dates_sorted[-1])
-    missing: list[str] = []
+
+    # Detectar gaps consecutivos e classificar cada um
+    missing_consecutive: list[list[str]] = []
+    current_gap: list[str] = []
     cur = start + timedelta(days=1)
     while cur < end:
         iso = cur.isoformat()
-        if iso not in have:
-            missing.append(iso)
+        if iso in have:
+            if current_gap:
+                missing_consecutive.append(current_gap)
+                current_gap = []
+        else:
+            current_gap.append(iso)
         cur += timedelta(days=1)
-    return missing
+    if current_gap:
+        missing_consecutive.append(current_gap)
+
+    accepted: list[str] = []
+    skipped: list[dict] = []
+    for gap in missing_consecutive:
+        if len(gap) <= max_gap_days:
+            accepted.extend(gap)
+        else:
+            skipped.append({"from": gap[0], "to": gap[-1], "length": len(gap)})
+
+    return accepted, skipped
+
+
+def _clamp_to_bounds(field: str, value: Any) -> Optional[float]:
+    """Clampa um valor numérico para a faixa de INTERP_FIELD_BOUNDS. None se inválido."""
+    if value is None:
+        return None
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    if field in INTERP_FIELD_BOUNDS:
+        lo, hi = INTERP_FIELD_BOUNDS[field]
+        return max(lo, min(hi, num))
+    return num
 
 
 def _apply_filled(sparse: list[dict], filled: list[dict]) -> list[dict]:
     """
     Mescla snapshots reais + dias estimados. Retorna array ordenado por date.
     Cada dia preenchido vira DailySnapshot com interpolated=true, confidence=X.
+
+    Todos os valores passam por _clamp_to_bounds antes de entrar no snapshot —
+    se o LLM retornar hrvSdnn=-5 ou valence=3.0, o clamp limita ao range
+    fisiológico declarado em INTERP_FIELD_BOUNDS.
     """
     by_date = {s.get("date"): s for s in sparse if s.get("date")}
 
@@ -265,11 +329,11 @@ def _apply_filled(sparse: list[dict], filled: list[dict]) -> list[dict]:
             continue
         values = entry.get("values") or {}
         health_fields = {
-            "sleepTotalHours": values.get("sleepTotalHours"),
-            "hrvSdnn": values.get("hrvSdnn"),
-            "restingHeartRate": values.get("restingHeartRate"),
-            "activeEnergyKcal": values.get("activeEnergyKcal"),
-            "exerciseMinutes": values.get("exerciseMinutes"),
+            "sleepTotalHours": _clamp_to_bounds("sleepTotalHours", values.get("sleepTotalHours")),
+            "hrvSdnn": _clamp_to_bounds("hrvSdnn", values.get("hrvSdnn")),
+            "restingHeartRate": _clamp_to_bounds("restingHeartRate", values.get("restingHeartRate")),
+            "activeEnergyKcal": _clamp_to_bounds("activeEnergyKcal", values.get("activeEnergyKcal")),
+            "exerciseMinutes": _clamp_to_bounds("exerciseMinutes", values.get("exerciseMinutes")),
         }
         # Só monta health se ≥1 campo veio não-null
         has_health = any(v is not None for v in health_fields.values())
@@ -292,15 +356,14 @@ def _apply_filled(sparse: list[dict], filled: list[dict]) -> list[dict]:
                 "recordCount": 0, "placeholderRestingEnergyRows": 0,
             }
 
-        mood_valence = values.get("valence")
+        mood_valence = _clamp_to_bounds("valence", values.get("valence"))
         mood_block = None
         if mood_valence is not None:
-            valence_num = float(mood_valence)
             mood_block = {
                 "date": d,
                 "interpolated": True,
-                "valence": valence_num,
-                "valenceClass": _classify_valence(valence_num),
+                "valence": mood_valence,
+                "valenceClass": _classify_valence(mood_valence),
                 "entryCount": 0,
                 "labels": [],
                 "associations": [],
@@ -328,11 +391,16 @@ async def interpolate(body: InterpolateRequest) -> JSONResponse:
             "meta": {"cached": False, "error": f"strategy '{body.strategy}' não suportada", "filled_dates": []},
         })
 
-    missing = _find_missing_dates(body.snapshots)
+    missing, skipped_gaps = _find_missing_dates(body.snapshots)
     if not missing:
         return JSONResponse(content={
             "snapshots": body.snapshots,
-            "meta": {"cached": False, "error": None, "filled_dates": []},
+            "meta": {
+                "cached": False,
+                "error": None,
+                "filled_dates": [],
+                "skipped_gaps": skipped_gaps,
+            },
         })
 
     cache_key = hashlib.md5(
@@ -355,11 +423,21 @@ async def interpolate(body: InterpolateRequest) -> JSONResponse:
         if not isinstance(filled, list):
             raise ValueError(f"Gemini retornou {type(filled).__name__}, esperado list")
         merged = _apply_filled(body.snapshots, filled)
-        meta = {"cached": False, "error": None, "filled_dates": [e.get("date") for e in filled if e.get("date")]}
+        meta = {
+            "cached": False,
+            "error": None,
+            "filled_dates": [e.get("date") for e in filled if e.get("date")],
+            "skipped_gaps": skipped_gaps,
+        }
         _cache_set(cache_key, {"snapshots": merged, "meta": meta})
         return JSONResponse(content={"snapshots": merged, "meta": meta})
     except Exception as exc:
         return JSONResponse(content={
             "snapshots": body.snapshots,
-            "meta": {"cached": False, "error": f"{type(exc).__name__}: {exc}", "filled_dates": []},
+            "meta": {
+                "cached": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "filled_dates": [],
+                "skipped_gaps": skipped_gaps,
+            },
         })

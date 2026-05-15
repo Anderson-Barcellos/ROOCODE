@@ -172,7 +172,13 @@ export function detectAnomalies(
     if (window.length < 10) continue
 
     const mean = window.reduce((a, b) => a + b, 0) / window.length
-    const variance = window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / window.length
+    // SD amostral (Bessel: divisão por n-1) para consistência com
+    // personal-baselines.ts e o resto do pipeline. Antes da auditoria
+    // 2026-05-15 esta função usava variância populacional (div por n),
+    // inflando levemente os z-scores em janelas pequenas.
+    const variance = window.length > 1
+      ? window.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (window.length - 1)
+      : 0
     const std = Math.sqrt(variance)
 
     if (std === 0) continue

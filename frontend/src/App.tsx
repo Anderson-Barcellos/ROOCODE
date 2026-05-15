@@ -14,7 +14,6 @@ import DoseCalendarView from '@/components/DoseCalendarView'
 import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
 import { ActivityBars } from '@/components/charts/activity-bars'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
-import { SleepDebtHrvCard } from '@/components/charts/sleep-debt-hrv-card'
 import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-chart'
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
@@ -977,14 +976,6 @@ export default function App() {
                     >
                       <PKVariabilityReportCard snapshots={ranged} />
                       <CorrelationHeatmap snapshots={ranged} />
-                    </LabGroup>
-
-                    <LabGroup
-                      eyebrow="Cross-domain"
-                      title="Sono, autonomia, temperatura e farmacocinética"
-                      description="Hipóteses específicas que cruzam domínios: dívida de sono × HRV e temperatura do pulso × humor (lag sweep)."
-                    >
-                      <SleepDebtHrvCard snapshots={ranged} />
                       <TempHumorCorrelation snapshots={ranged} />
                     </LabGroup>
 

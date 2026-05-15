@@ -35,12 +35,21 @@ function formatSigned(value: number | null): string {
   return `${prefix}${formatNumber(value, 2)}`
 }
 
-function describeBestLag(bestLagDays: number | null, n: number): string {
+function describeBestLag(bestLagDays: number | null, n: number, bestQ: number | null): string {
   if (bestLagDays == null) {
     return `precisa >=10 pares por lag; melhor lag ainda indisponivel. Humor pareado: ${n} dia${n === 1 ? '' : 's'}.`
   }
-  if (bestLagDays === 0) return 'melhor sinal no mesmo dia; trate como associacao exploratoria.'
-  return `melhor sinal em +${bestLagDays}d; metrica antes do humor, ainda sem causalidade clinica.`
+  const qSuffix = bestQ != null && Number.isFinite(bestQ)
+    ? ` (q=${bestQ.toFixed(3)} apos FDR sobre os 4 lags${bestQ < 0.05 ? '' : ' — nao sobreviveu correcao'})`
+    : ''
+  if (bestLagDays === 0) return `melhor sinal no mesmo dia; trate como associacao exploratoria${qSuffix}.`
+  return `melhor sinal em +${bestLagDays}d; metrica antes do humor, ainda sem causalidade clinica${qSuffix}.`
+}
+
+function formatQ(qValue: number | null | undefined): string {
+  if (qValue == null || !Number.isFinite(qValue)) return '—'
+  if (qValue < 0.001) return '<0.001'
+  return qValue.toFixed(3)
 }
 
 export function MoodLagHypothesisLab({ snapshots }: { snapshots: DailySnapshot[] }) {
@@ -95,6 +104,7 @@ export function MoodLagHypothesisLab({ snapshots }: { snapshots: DailySnapshot[]
               <tr className="border-b border-slate-900/10 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
                 <th className="py-2 pr-3">Lag</th>
                 <th className="px-3 py-2">R</th>
+                <th className="px-3 py-2" title="q-value após Benjamini-Hochberg sobre os 4 lags">q (FDR)</th>
                 <th className="px-3 py-2">n</th>
                 <th className="px-3 py-2">Qualidade</th>
                 <th className="px-3 py-2">Humor acima</th>
@@ -103,27 +113,35 @@ export function MoodLagHypothesisLab({ snapshots }: { snapshots: DailySnapshot[]
               </tr>
             </thead>
             <tbody>
-              {hypothesis.rows.map((row) => (
-                <tr key={row.lagDays} className="border-b border-slate-900/5 last:border-0">
-                  <td className="py-2 pr-3 font-semibold text-slate-700">
-                    {row.lagDays === 0 ? '0d' : `+${row.lagDays}d`}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs font-semibold text-slate-700">
-                    {row.result ? row.result.r.toFixed(3) : 'sem dado'}
-                  </td>
-                  <td className="px-3 py-2 text-slate-500">{row.n}</td>
-                  <td className="px-3 py-2">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-bold ${QUALITY_CLASS[row.quality]}`}>
-                      {QUALITY_LABEL[row.quality]}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-slate-500">{formatNumber(row.aboveMeanMood)}</td>
-                  <td className="px-3 py-2 text-slate-500">{formatNumber(row.belowMeanMood)}</td>
-                  <td className="py-2 pl-3 font-mono text-xs font-semibold text-slate-700">
-                    {formatSigned(row.moodDelta)}
-                  </td>
-                </tr>
-              ))}
+              {hypothesis.rows.map((row) => {
+                const q = row.result?.qValueFdr ?? null
+                const qSignificant = q != null && Number.isFinite(q) && q < 0.05
+                return (
+                  <tr key={row.lagDays} className="border-b border-slate-900/5 last:border-0">
+                    <td className="py-2 pr-3 font-semibold text-slate-700">
+                      {row.lagDays === 0 ? '0d' : `+${row.lagDays}d`}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs font-semibold text-slate-700">
+                      {row.result ? row.result.r.toFixed(3) : 'sem dado'}
+                      {qSignificant ? <span className="text-teal-700">*</span> : null}
+                    </td>
+                    <td className={`px-3 py-2 font-mono text-xs ${qSignificant ? 'font-semibold text-teal-700' : 'text-slate-500'}`}>
+                      {formatQ(q)}
+                    </td>
+                    <td className="px-3 py-2 text-slate-500">{row.n}</td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[0.68rem] font-bold ${QUALITY_CLASS[row.quality]}`}>
+                        {QUALITY_LABEL[row.quality]}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-slate-500">{formatNumber(row.aboveMeanMood)}</td>
+                    <td className="px-3 py-2 text-slate-500">{formatNumber(row.belowMeanMood)}</td>
+                    <td className="py-2 pl-3 font-mono text-xs font-semibold text-slate-700">
+                      {formatSigned(row.moodDelta)}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -136,7 +154,11 @@ export function MoodLagHypothesisLab({ snapshots }: { snapshots: DailySnapshot[]
             {hypothesis.label} {hypothesis.unit ? `(${hypothesis.unit})` : ''}
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            {describeBestLag(hypothesis.bestLagDays, hypothesis.realMoodDays)}
+            {describeBestLag(
+              hypothesis.bestLagDays,
+              hypothesis.realMoodDays,
+              hypothesis.bestResult?.qValueFdr ?? null,
+            )}
           </p>
           <div className="mt-3 rounded-lg bg-white/80 p-3 text-xs leading-5 text-slate-500">
             <span className="font-semibold text-slate-700">Sampling bias:</span> humor do State of Mind tende a aparecer quando a emocao chama atencao; r alto com n baixo continua so hipotese.

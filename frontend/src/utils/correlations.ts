@@ -1,6 +1,7 @@
 import type { DailySnapshot } from '../types/apple-health'
 import { laggedPairs, pearson } from './statistics'
 import type { CorrelationResult } from './statistics'
+import { benjaminiHochbergFdr } from './intraday-correlation'
 
 export const METRIC_KEYS = [
   'sleepTotalHours',
@@ -252,6 +253,18 @@ export function buildMoodLagHypothesis(
     }
   })
 
+  // FDR Benjamini-Hochberg sobre os p-values dos lags testados.
+  // Antes da auditoria 2026-05-15, os 4 lags eram exibidos sem correção de
+  // múltiplos testes — testar 4 lags em sequência aumenta a chance de falso
+  // positivo. Agora o componente exibe q-value (FDR-ajustado) em paralelo a r.
+  const pValues = rows.map((row) => row.result?.pValue ?? null)
+  const qValues = benjaminiHochbergFdr(pValues)
+  rows.forEach((row, index) => {
+    if (row.result) {
+      row.result.qValueFdr = qValues[index]
+    }
+  })
+
   const best = rows
     .filter((row): row is MoodLagHypothesisRow & { result: CorrelationResult } => row.result != null)
     .sort((a, b) => Math.abs(b.result.r) - Math.abs(a.result.r))[0]
@@ -265,4 +278,18 @@ export function buildMoodLagHypothesis(
     bestResult: best?.result ?? null,
     realMoodDays: usable.filter((snapshot) => snapshot.mood?.valence != null).length,
   }
+}
+
+/**
+ * Aplica correção FDR Benjamini-Hochberg a um conjunto de CorrelationResult.
+ * Mutates: cada result.qValueFdr é populado in-place.
+ * Útil quando um componente testa N pares simultaneamente (ex.: CorrelationHeatmap
+ * com 12 métricas × 2 lags = 24 testes).
+ */
+export function applyFdrToCorrelations(results: Array<CorrelationResult | null>): void {
+  const pValues = results.map((r) => r?.pValue ?? null)
+  const qValues = benjaminiHochbergFdr(pValues)
+  results.forEach((result, index) => {
+    if (result) result.qValueFdr = qValues[index]
+  })
 }

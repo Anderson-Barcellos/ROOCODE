@@ -28,6 +28,10 @@ export interface CorrelationResult {
   strength: 'strong' | 'moderate' | 'weak' | 'negligible'
   direction: 'positive' | 'negative'
   significant: boolean
+  /** q-value após correção Benjamini-Hochberg (FDR). Populado por quem testa
+   *  múltiplos pares simultaneamente (correlation-heatmap, mood-lag-hypothesis).
+   *  null quando não foi aplicado controle de múltiplos testes. */
+  qValueFdr?: number | null
 }
 
 export interface LinearRegressionResult {

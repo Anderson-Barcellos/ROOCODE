@@ -351,6 +351,17 @@ export function computeTrendFromSamples(
 }
 
 // ─── Presets para os medicamentos do Anders ───────────────────────────────────
+//
+// FONTE DE VERDADE: Farma/medDataBase.json (backend).
+// Estes presets DEVEM espelhar os campos farmacocinéticos do backend.
+// O teste tests/pk-presets-sync.test.ts valida sincronia automaticamente —
+// se backend e frontend divergirem, a CI quebra.
+//
+// Convenção de Vd: `volumeOfDistribution` aqui é SEMPRE em L/kg (multiplicado por
+// bodyWeight em concentrationForSingleDoseWithHalfLife). Quando o backend usa
+// vd_l (absoluto), convertemos dividindo por 91kg (peso de referência do Anders).
+// Limitação aceita: cálculo só fica exato para weight ≈ 91kg nesses casos.
+// Auditoria 2026-05-15: alinhamento Lexapro/Lamictal/Clonazepam + outros 5.
 
 export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
   escitalopram: {
@@ -358,9 +369,9 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     brandName: 'Lexapro',
     category: 'SSRI',
     halfLife: 30,
-    volumeOfDistribution: 20,
+    volumeOfDistribution: 12,        // ← era 20 (drift)
     bioavailability: 0.80,
-    absorptionRate: 1.0,
+    absorptionRate: 0.707421,        // ← era 1.0 (drift)
     therapeuticRange: { min: 15, max: 80, unit: 'ng/mL' },
   },
   lisdexamfetamine: {
@@ -368,8 +379,7 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     brandName: 'Venvanse',
     category: 'Stimulant',
     // Analito modelado: dextroanfetamina (formada após administração da pró-droga).
-    // Vd/F aparente oral; F=1.0 evita dupla correção. Parâmetros alinhados com
-    // Farma/medDataBase.json (backend). Sources: DailyMed + PMC3689918.
+    // Vd/F aparente oral; F=1.0 evita dupla correção. Sources: DailyMed + PMC3689918.
     halfLife: 11.2,
     volumeOfDistribution: 15.58,
     bioavailability: 1.0,
@@ -380,65 +390,64 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     name: 'Lamotrigina',
     brandName: 'Lamictal',
     category: 'Mood Stabilizer',
-    halfLife: 29,
-    volumeOfDistribution: 1.1,
+    halfLife: 32.8,                  // ← era 29 (drift)
+    volumeOfDistribution: 1.08,      // ← era 1.1
     bioavailability: 0.98,
-    absorptionRate: 1.2,
-    // Alinhado ao backend (Farma/medDataBase.json): 2-10 µg/mL.
+    absorptionRate: 2.114703,        // ← era 1.2 (drift; tmax 2.2h conforme bula Lamictal IR)
     therapeuticRange: { min: 2000, max: 10000, unit: 'ng/mL' },
   },
   clonazepam: {
     name: 'Clonazepam',
     brandName: 'Rivotril',
     category: 'Benzodiazepine',
-    halfLife: 35,
-    volumeOfDistribution: 3.0,
+    halfLife: 33,                    // ← era 35 (drift)
+    volumeOfDistribution: 3.2,       // ← era 3.0 (drift)
     bioavailability: 0.90,
-    absorptionRate: 2.0,
-    // Range para ansiedade/pânico (DailyMed + medDataBase.json).
-    // Epilepsia usa concentrações maiores (20-80 ng/mL).
+    absorptionRate: 2.3,             // ← era 2.0 (drift)
     therapeuticRange: { min: 5, max: 70, unit: 'ng/mL' },
   },
   bacopa: {
     name: 'Bacopa Monnieri',
     category: 'Adaptogen',
     halfLife: 4,
-    volumeOfDistribution: 2.0,
-    bioavailability: 0.85,
-    absorptionRate: 1.2,
+    volumeOfDistribution: 1.0,       // ← era 2.0 (drift; confidence=low no backend)
+    bioavailability: 0.1,            // ← era 0.85 (drift grosso)
+    absorptionRate: 1.692714,        // ← era 1.2
   },
   magnesium: {
     name: 'Magnésio L-Treonato',
     category: 'Mineral',
-    halfLife: 14,
-    volumeOfDistribution: 0.5,
-    bioavailability: 0.30,
-    absorptionRate: 0.4,
+    halfLife: 8.3,                   // ← era 14 (drift; backend confidence=low)
+    volumeOfDistribution: 0.86,      // ← era 0.5
+    bioavailability: 0.15,           // ← era 0.30 (drift)
+    absorptionRate: 1.541165,        // ← era 0.4
   },
   omega3: {
     name: 'Omega-3 (EPA/DHA)',
     category: 'Fatty Acid',
-    halfLife: 60,
-    volumeOfDistribution: 0.5,
-    bioavailability: 0.85,
-    absorptionRate: 0.3,
+    halfLife: 40,                    // ← era 60 (drift)
+    // Backend usa vd_l=82L absoluto; 82/91kg ≈ 0.9 L/kg para Anders.
+    volumeOfDistribution: 0.9,       // ← era 0.5
+    bioavailability: 0.9,            // ← era 0.85
+    absorptionRate: 0.611162,        // ← era 0.3
   },
   vitamind3: {
     name: 'Vitamina D3',
     category: 'Vitamin',
-    halfLife: 360,
-    volumeOfDistribution: 0.1,
-    bioavailability: 0.70,
-    absorptionRate: 0.2,
+    halfLife: 24,                    // ← era 360 (drift grosso)
+    // Backend usa vd_l=28L absoluto; 28/91kg ≈ 0.31 L/kg para Anders.
+    volumeOfDistribution: 0.31,      // ← era 0.1
+    bioavailability: 0.7,
+    absorptionRate: 0.220755,        // ← era 0.2
   },
   piracetam: {
     name: 'Piracetam',
     brandName: 'Nootropil',
     category: 'Nootropic',
     halfLife: 5,
-    volumeOfDistribution: 0.6,
+    volumeOfDistribution: 0.7,       // ← era 0.6
     bioavailability: 1.0,
-    absorptionRate: 2.5,
+    absorptionRate: 1.875004,        // ← era 2.5 (drift)
   },
 }
 

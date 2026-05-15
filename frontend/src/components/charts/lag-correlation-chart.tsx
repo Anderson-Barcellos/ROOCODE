@@ -106,13 +106,17 @@ export function LagCorrelationChart() {
   const selectedSub = substances.find((s) => s.id === selectedMedId)
   const med = selectedSub ? substanceToPKMedication(selectedSub) : null
 
-  const { data, bestLag, bestStats, readinessPairCount } = (() => {
+  const { data, bestLag, bestStats, readinessPairCount, yDomain, yTicks } = (() => {
+    const emptyDomain: [number, number] = [-1, 1]
+    const emptyTicks = [-1, -0.5, 0, 0.5, 1]
     if (!med || events.length === 0) {
       return {
         data: [],
         bestLag: null as number | null,
         bestStats: null as null | { r: number; n: number; pValuePermutation: number | null; ci95Lower: number | null; ci95Upper: number | null; qValueFdr: number | null },
         readinessPairCount: 0,
+        yDomain: emptyDomain,
+        yTicks: emptyTicks,
       }
     }
     const dosesForMed = allDoses.filter((d) => d.substance === med.id)
@@ -139,7 +143,18 @@ export function LagCorrelationChart() {
       : null
     const bestStats = bestLag == null ? null : causalWithSignal.find((row) => row.lagHours === bestLag) ?? null
     const readinessPairCount = causalLags.length > 0 ? Math.min(...causalLags.map((c) => c.n)) : 0
-    return { data, bestLag, bestStats, readinessPairCount }
+    // Escala Y adaptativa: zoom em max(|r|) com padding 10%, clampado em [-1,+1]
+    const rs = data.map((d) => d.r).filter((r): r is number => r != null && Number.isFinite(r))
+    const yDomain: [number, number] = (() => {
+      if (rs.length === 0) return [-1, 1]
+      const maxAbs = Math.max(...rs.map(Math.abs))
+      const padded = maxAbs * 1.1
+      return [Math.max(-1, -padded), Math.min(1, padded)]
+    })()
+    const yTicks = [yDomain[0], yDomain[0] / 2, 0, yDomain[1] / 2, yDomain[1]].map((v) =>
+      Number(v.toFixed(2))
+    )
+    return { data, bestLag, bestStats, readinessPairCount, yDomain, yTicks }
   })()
 
   const readiness = evaluateReadiness([], CHART_REQUIREMENTS.lagCorrelation, 'Análise de lag', {
@@ -280,12 +295,12 @@ export function LagCorrelationChart() {
               />
               <YAxis
                 type="number"
-                domain={[-1, 1]}
-                ticks={[-1, -0.5, 0, 0.5, 1]}
+                domain={yDomain}
+                ticks={yTicks}
                 tick={{ fill: '#475569', fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v: number) => v.toFixed(1)}
+                tickFormatter={(v: number) => v.toFixed(2)}
                 label={{ value: correlationMethod === 'pearson' ? 'Pearson r' : 'Spearman ρ', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: '#475569' }}
               />
               <Tooltip

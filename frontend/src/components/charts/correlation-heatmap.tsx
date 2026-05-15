@@ -21,10 +21,8 @@ const HEATMAP_ROWS: MetricKey[] = [
   'sleepTotalHours',
   'sleepDeepHours',
   'sleepRemHours',
-  'sleepEfficiencyPct',
   'hrvSdnn',
   'restingHeartRate',
-  'cardioRecoveryBpm',
   'spo2',
   'activeEnergyKcal',
   'exerciseMinutes',
@@ -64,9 +62,26 @@ function resultToCell(result: CorrelationResult | null) {
 }
 
 export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: CorrelationHeatmapProps) {
+  // T9 (2026-05-15): MoodDriverBoard e PKVariabilityHumorLab já filtram
+  // interpolated/forecasted antes de correlacionar. Padronizar aqui também
+  // pra não inflar r artificialmente em métricas auto-preenchidas (sono).
+  // `usableSnapshots` é a base canônica; `extraMetrics.values` é
+  // re-alinhado pela mesma máscara de índices.
+  const { usableSnapshots, usableExtraMetrics } = useMemo(() => {
+    const mask = snapshots.map((s) => !s.forecasted && !s.interpolated)
+    const filteredSnapshots = snapshots.filter((_, i) => mask[i])
+    const filteredExtras: ExtraMetrics = Object.fromEntries(
+      Object.entries(extraMetrics).map(([k, v]) => [
+        k,
+        { label: v.label, values: v.values.filter((_, i) => mask[i]) },
+      ]),
+    )
+    return { usableSnapshots: filteredSnapshots, usableExtraMetrics: filteredExtras }
+  }, [snapshots, extraMetrics])
+
   const moodValues = useMemo(
-    () => snapshots.map((s) => s.mood?.valence ?? null),
-    [snapshots],
+    () => usableSnapshots.map((s) => s.mood?.valence ?? null),
+    [usableSnapshots],
   )
   const interpolatedCount = useMemo(
     () => snapshots.filter((s) => s.interpolated === true).length,
@@ -75,20 +90,20 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
 
   const rows = useMemo<CellData[]>(() => {
     // Calcular todas as correlações primeiro (sem FDR), depois aplicar BH FDR
-    // sobre o conjunto completo (12 métricas × 2 lags + extras). Antes da
+    // sobre o conjunto completo (10 métricas × 2 lags + extras). Antes da
     // auditoria 2026-05-15, cada célula exibia '*' por p<0.05 sem corrigir
-    // para o número de testes simultâneos — testar 26 pares aumenta a chance
-    // de falso positivo de ~5% para ~70%.
+    // para o número de testes simultâneos — testar muitos pares aumenta a
+    // chance de falso positivo significativamente.
     const standardResults = HEATMAP_ROWS.flatMap((key): Array<{
       key: string
       label: string
       slot: 'lag0' | 'lag1'
       result: CorrelationResult | null
     }> => [
-      { key, label: METRIC_LABELS[key], slot: 'lag0', result: correlate(snapshots, key, MOOD_KEY, 0) },
-      { key, label: METRIC_LABELS[key], slot: 'lag1', result: correlate(snapshots, key, MOOD_KEY, 1) },
+      { key, label: METRIC_LABELS[key], slot: 'lag0', result: correlate(usableSnapshots, key, MOOD_KEY, 0) },
+      { key, label: METRIC_LABELS[key], slot: 'lag1', result: correlate(usableSnapshots, key, MOOD_KEY, 1) },
     ])
-    const extraResults = Object.entries(extraMetrics).map(([key, { label, values }]) => ({
+    const extraResults = Object.entries(usableExtraMetrics).map(([key, { label, values }]) => ({
       key,
       label,
       slot: 'lag0' as const,
@@ -109,7 +124,7 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
     }
 
     return Array.from(grouped.values())
-  }, [snapshots, extraMetrics, moodValues])
+  }, [usableSnapshots, usableExtraMetrics, moodValues])
 
   const hasAnyData = rows.some((r) => r.lag0 || r.lag1)
 

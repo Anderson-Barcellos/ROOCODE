@@ -109,25 +109,16 @@ function concentrationForSingleDoseWithHalfLife(
 
   const Vd = med.volumeOfDistribution * bodyWeight
   const F = med.bioavailability
-  const useTwoCompartment = med.volumeOfDistribution > 10
-  let concentration = 0
 
-  if (useTwoCompartment) {
-    const alpha = Math.min(Ka, 3 * Ke)
-    const beta = Ke
-    const periph = Math.min(med.volumeOfDistribution / 20, 0.7)
-    const A = (F * doseAmount * Ka) / (Vd * (Ka - alpha)) * (1 - periph)
-    const B = (F * doseAmount * Ka) / (Vd * (Ka - beta)) * periph
-    concentration =
-      A * (Math.exp(-alpha * ageHours) - Math.exp(-Ka * ageHours)) +
-      B * (Math.exp(-beta * ageHours) - Math.exp(-Ka * ageHours))
-  } else {
-    const denom = Vd * (Ka - Ke)
-    if (!Number.isFinite(denom) || denom === 0) return 0
-    concentration =
-      ((F * doseAmount * Ka) / denom) *
-      (Math.exp(-Ke * ageHours) - Math.exp(-Ka * ageHours))
-  }
+  // Modelo Bateman 1-compartimento com absorção e eliminação de primeira ordem.
+  // Espelha Farma/math.py:113 (backend). Antes existia um ramo 2-compartimentos
+  // heurístico (Vd > 10) com parâmetros ad-hoc — removido na auditoria 2026-05-15
+  // porque divergia até ~40% do backend para Lexapro/Venvanse sem base farmacológica.
+  const denom = Vd * (Ka - Ke)
+  if (!Number.isFinite(denom) || denom === 0) return 0
+  const concentration =
+    ((F * doseAmount * Ka) / denom) *
+    (Math.exp(-Ke * ageHours) - Math.exp(-Ka * ageHours))
 
   return Math.max(0, concentration) * 1000
 }
@@ -261,29 +252,66 @@ const CHRONIC_CATEGORIES = new Set([
   'Adaptogen',
 ])
 
+const HOUR_MS = 60 * 60 * 1000
+
+const MOOD_CORRELATION_WINDOW_HOURS_BY_KEY: Record<string, number> = {
+  escitalopram: 48,
+  lexapro: 48,
+  lamotrigine: 48,
+  lamictal: 48,
+  clonazepam: 72,
+  rivotril: 72,
+}
+
 export function isChronicMedication(med: PKMedication): boolean {
   return CHRONIC_CATEGORIES.has(med.category)
 }
 
+function normalizeMedicationWindowCandidates(med: PKMedication): string[] {
+  return [med.id, med.name, med.brandName]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim().toLowerCase())
+}
+
+function getMedicationSpecificMoodWindowHours(med: PKMedication): number | null {
+  for (const key of normalizeMedicationWindowCandidates(med)) {
+    const specific = MOOD_CORRELATION_WINDOW_HOURS_BY_KEY[key]
+    if (specific != null) return specific
+  }
+  return null
+}
+
 export function getTrendWindowMs(med: PKMedication): number {
+  const specificHours = getMedicationSpecificMoodWindowHours(med)
+  if (specificHours != null) return specificHours * HOUR_MS
+
   const hours = isChronicMedication(med) ? 48 : Math.max(6, 3.5 * med.halfLife)
-  return Math.round(hours * 60 * 60 * 1000)
+  return Math.round(hours * HOUR_MS)
 }
 
 /**
- * Janela 48h pré-registrada — calibrada por observação clínica externa
- * (perda de efeito começa ~48h após falha de dose), ANTERIOR aos dados
- * deste pipeline. Fixa por design pra evitar p-hacking implícito:
- * ajustar a janela com base nos resultados desta correlação tornaria
- * o resultado circular. Robustez testada por lag sweep [-3d..+3d]
- * em pk-humor-correlation.tsx, não por busca de janela ótima.
+ * Janela de correlação PK×humor pré-registrada por substância/classe.
  *
- * Versão anterior (`2 × t½`) descartada porque drogas com t½ longo
- * (lamotrigina ~24h, aripiprazol ~75h) defasavam o sinal de queda
- * além do timing clínico observado.
+ * Decisão clínica atual:
+ * - escitalopram / lamotrigina: 48h
+ * - clonazepam: 72h
+ * - fallback: 48h para crônicas; 3.5×t½ para não crônicas
+ *
+ * A regra NÃO procura “janela ótima” nos dados observados — isso evitaria
+ * circularidade/p-hacking implícito. A robustez continua sendo testada por
+ * lag sweep [-3d..+3d] nos componentes analíticos, não por tuning oportunista
+ * da própria janela.
  */
-export function getMoodCorrelationWindowMs(): number {
-  return 48 * 60 * 60 * 1000
+export function getMoodCorrelationWindowMs(med: PKMedication): number {
+  return getTrendWindowMs(med)
+}
+
+export function getMoodCorrelationWindowHours(med: PKMedication): number {
+  return Math.round(getMoodCorrelationWindowMs(med) / HOUR_MS)
+}
+
+export function formatMoodCorrelationWindowLabel(med: PKMedication): string {
+  return `EMA-${getMoodCorrelationWindowHours(med)}h`
 }
 
 export function computeTrendFromSamples(
@@ -552,7 +580,10 @@ export function calculateSteadyStateMetrics(
   const singleCmax_mgL = (F * avgDose * Ka) / (Vd * (Ka - Ke)) *
     (Math.exp(-Ke * Tmax) - Math.exp(-Ka * Tmax))
   const Cmax_ss = Math.max(0, singleCmax_mgL * R * 1000)
-  const Cmin_ss = Cmax_ss * Math.exp(-Ke * tau)
+  // Cmin SS oral: decaimento por (tau - Tmax), não por tau inteiro. Usar tau puro
+  // (como bolus IV) subestima -11% (Lexapro) a -23% (Venvanse). Auditoria 2026-05-15.
+  const tauEliminationOnly = Math.max(0, tau - Tmax)
+  const Cmin_ss = Cmax_ss * Math.exp(-Ke * tauEliminationOnly)
   const fluctuation = Cmax_ss > 0 ? ((Cmax_ss - Cmin_ss) / Css_avg) * 100 : 0
   const timeToSteadyState = 5 * halfLife
   const firstDose = Math.min(...medDoses.map((d) => d.timestamp))

@@ -138,28 +138,75 @@ interface RawCore {
   spo2: number | null
 }
 
-function buildComponents(raw: RawCore): SleepQualityComponents | null {
-  const values = [raw.sleepEffPct, raw.deepHours, raw.remHours, raw.awakeHours, raw.respDisturbances, raw.spo2]
-  if (values.some((v) => v == null || !Number.isFinite(v))) return null
-  return {
-    sleepEff: scoreSleepEff(raw.sleepEffPct!),
-    deep: scoreDeep(raw.deepHours!),
-    rem: scoreRem(raw.remHours!),
-    awake: scoreAwake(raw.awakeHours!),
-    respiratory: scoreRespiratory(raw.respDisturbances!),
-    spo2: scoreSpo2(raw.spo2!),
-  }
+const MIN_COMPONENTS_REQUIRED = 4 // de 6 — espelhando Recovery Score (3/5)
+
+interface PartialComponents {
+  components: Partial<SleepQualityComponents>
+  inputsUsed: SleepQualityComponentKey[]
 }
 
-function weightedScore(c: SleepQualityComponents): number {
-  return (
-    c.sleepEff * SLEEP_QUALITY_WEIGHTS.sleepEff +
-    c.deep * SLEEP_QUALITY_WEIGHTS.deep +
-    c.rem * SLEEP_QUALITY_WEIGHTS.rem +
-    c.awake * SLEEP_QUALITY_WEIGHTS.awake +
-    c.respiratory * SLEEP_QUALITY_WEIGHTS.respiratory +
-    c.spo2 * SLEEP_QUALITY_WEIGHTS.spo2
-  )
+/**
+ * Constrói componentes apenas para os inputs presentes. Espelha o padrão de
+ * weightedScoreFrom em recovery-score.ts (que aceita 3/5 e renormaliza pesos).
+ *
+ * Antes da auditoria 2026-05-15 esta função exigia 6/6 inputs — mas
+ * respiratoryDisturbances e spo2 raramente aparecem em todo registro Apple
+ * Health (dependem do sensor estar ativo). Noites comuns nunca recebiam score.
+ *
+ * Retorna null apenas se < MIN_COMPONENTS_REQUIRED inputs presentes.
+ */
+function buildComponents(raw: RawCore): PartialComponents | null {
+  const components: Partial<SleepQualityComponents> = {}
+  const inputsUsed: SleepQualityComponentKey[] = []
+
+  if (raw.sleepEffPct != null && Number.isFinite(raw.sleepEffPct)) {
+    components.sleepEff = scoreSleepEff(raw.sleepEffPct)
+    inputsUsed.push('sleepEff')
+  }
+  if (raw.deepHours != null && Number.isFinite(raw.deepHours)) {
+    components.deep = scoreDeep(raw.deepHours)
+    inputsUsed.push('deep')
+  }
+  if (raw.remHours != null && Number.isFinite(raw.remHours)) {
+    components.rem = scoreRem(raw.remHours)
+    inputsUsed.push('rem')
+  }
+  if (raw.awakeHours != null && Number.isFinite(raw.awakeHours)) {
+    components.awake = scoreAwake(raw.awakeHours)
+    inputsUsed.push('awake')
+  }
+  if (raw.respDisturbances != null && Number.isFinite(raw.respDisturbances)) {
+    components.respiratory = scoreRespiratory(raw.respDisturbances)
+    inputsUsed.push('respiratory')
+  }
+  if (raw.spo2 != null && Number.isFinite(raw.spo2)) {
+    components.spo2 = scoreSpo2(raw.spo2)
+    inputsUsed.push('spo2')
+  }
+
+  if (inputsUsed.length < MIN_COMPONENTS_REQUIRED) return null
+  return { components, inputsUsed }
+}
+
+/**
+ * Score ponderado usando apenas os inputs presentes. Pesos renormalizados
+ * dividindo pela soma dos pesos dos inputs efetivamente usados, mantendo
+ * o resultado na escala 0-100. Espelha weightedScoreFrom em recovery-score.ts.
+ */
+function weightedScore(
+  components: Partial<SleepQualityComponents>,
+  inputsUsed: ReadonlyArray<SleepQualityComponentKey>,
+): number {
+  let weightedSum = 0
+  let totalWeight = 0
+  for (const key of inputsUsed) {
+    const value = components[key]
+    if (value == null) continue
+    weightedSum += value * SLEEP_QUALITY_WEIGHTS[key]
+    totalWeight += SLEEP_QUALITY_WEIGHTS[key]
+  }
+  if (totalWeight === 0) return 0
+  return weightedSum / totalWeight
 }
 
 export function computeSleepQualityBaselines(
@@ -219,10 +266,10 @@ export function computeSleepQualityScoreSeries(
       spo2: snap.health?.spo2 ?? null,
     }
 
-    const components = buildComponents(raw)
+    const partial = buildComponents(raw)
     const noFlags: SleepQualityFlags = { fragmentada: false, respiratoria: false, autonomica: false }
 
-    if (!components) {
+    if (!partial) {
       return {
         date,
         score: null,
@@ -235,7 +282,7 @@ export function computeSleepQualityScoreSeries(
       }
     }
 
-    const score = clamp(weightedScore(components), 0, 100)
+    const score = clamp(weightedScore(partial.components, partial.inputsUsed), 0, 100)
     const zTemp = snap.health?.pulseTemperatureC != null
       ? zScore(snap.health.pulseTemperatureC, baselines.pulseTempC)
       : null
@@ -244,11 +291,24 @@ export function computeSleepQualityScoreSeries(
       : null
 
     const { klass, flags } = classify(score, raw, zTemp, zRr)
-    const confidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
+    // Confidence reduzido proporcionalmente se score for parcial (menos de 6 inputs).
+    // 6/6 = 1.0; 5/6 = 0.92; 4/6 = 0.83. Espelha intent de derivedFromInterpolated.
+    const partialMultiplier = partial.inputsUsed.length / 6
+    const confidence = (derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1) * partialMultiplier
+    // Garante shape: completa componentes faltantes com 0 (não afetam classify nem display).
+    // O cálculo numérico do score já usou apenas inputs presentes via renormalização.
+    const fullComponents: SleepQualityComponents = {
+      sleepEff: partial.components.sleepEff ?? 0,
+      deep: partial.components.deep ?? 0,
+      rem: partial.components.rem ?? 0,
+      awake: partial.components.awake ?? 0,
+      respiratory: partial.components.respiratory ?? 0,
+      spo2: partial.components.spo2 ?? 0,
+    }
     return {
       date,
       score,
-      components,
+      components: fullComponents,
       klass,
       confidence,
       derivedFromInterpolated,

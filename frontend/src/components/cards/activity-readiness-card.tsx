@@ -8,6 +8,7 @@ import {
   type ActivityReadinessFactor,
   type ActivityReadinessTone,
 } from '@/utils/activity-readiness'
+import { computeRecoveryScoreSeries } from '@/utils/recovery-score'
 
 interface ActivityReadinessCardProps {
   snapshots: DailySnapshot[]
@@ -46,6 +47,21 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
     .sort((a, b) => (a.score ?? 100) - (b.score ?? 100))
   const topFactors = rankedFactors.slice(0, 3)
 
+  // Cross-check com Recovery Score do mesmo dia (data desse card).
+  // Antes da auditoria 2026-05-15, era possível exibir "Recovery ruim" +
+  // "Readiness: usar energia" lado a lado sem aviso. Mostramos uma flag de
+  // contradição quando readiness sugere alta atividade mas recovery está baixo.
+  const recoveryAtSameDate = useMemo(() => {
+    if (!result.date) return null
+    const series = computeRecoveryScoreSeries(snapshots)
+    const point = series.find((p) => p.date === result.date)
+    return point?.score ?? null
+  }, [snapshots, result.date])
+
+  const showContradiction =
+    result.score != null && result.score >= 75 &&
+    recoveryAtSameDate != null && recoveryAtSameDate < 50
+
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -65,6 +81,15 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
           value={result.score != null ? result.score.toFixed(0) : '—'}
         />
       </div>
+
+      {showContradiction && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+          <span className="font-semibold">Atenção contradição:</span> readiness sugere usar energia (
+          {result.score!.toFixed(0)}/100), mas Recovery Score do mesmo dia está em{' '}
+          {recoveryAtSameDate!.toFixed(0)}/100. Sono/HRV/débito podem estar pesando contra —
+          considere reavaliar antes de carga alta.
+        </div>
+      )}
 
       {topFactors.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">

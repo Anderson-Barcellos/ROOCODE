@@ -90,13 +90,22 @@ const respDist = [fixture(0, { respDist: 25 })]
 const r4 = computeSleepQualityScoreSeries(respDist)
 assert.equal(r4[0].klass, 'respiratoria')
 
-// ─── Test 5: Input faltante → score=null + reason ─────────────────────────────
+// ─── Test 5: Inputs faltantes ─────────────────────────────────────────────────
+// Auditoria 2026-05-15: regra mudou de 6/6 obrigatórios para 4/6 mínimo com
+// renormalização de pesos (espelha Recovery Score que aceita 3/5).
+//
+// 5a: 1 input faltando ainda gera score (5/6 presentes, parcial mas válido).
+const oneMissing = [fixture(0, { sleepEff: null })]
+const r5a = computeSleepQualityScoreSeries(oneMissing)
+assert.ok(r5a[0].score != null, 'Com 5/6 inputs, score deve ser computado (parcial)')
+assert.ok(r5a[0].confidence < 1, 'Confidence deve ser < 1 quando parcial')
 
-const missing = [fixture(0, { sleepEff: null })]
-const r5 = computeSleepQualityScoreSeries(missing)
-assert.equal(r5[0].score, null)
-assert.equal(r5[0].klass, null)
-assert.equal(r5[0].reason, 'inputs_missing')
+// 5b: 3 inputs faltando (3/6 < mínimo de 4) → score=null + reason.
+const threeMissing = [fixture(0, { sleepEff: null, deep: null, rem: null })]
+const r5b = computeSleepQualityScoreSeries(threeMissing)
+assert.equal(r5b[0].score, null)
+assert.equal(r5b[0].klass, null)
+assert.equal(r5b[0].reason, 'inputs_missing')
 
 // ─── Test 6: Mediana → regular ────────────────────────────────────────────────
 

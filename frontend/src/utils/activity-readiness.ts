@@ -89,11 +89,31 @@ function scoreAgainstBaseline(value: number, baseline: number | null): number | 
   return 20
 }
 
-function scoreAsymmetry(value: number): number {
-  if (value <= 3) return 90
-  if (value <= 5) return 70
-  if (value <= 8) return 45
-  return 20
+/**
+ * Score de assimetria de marcha com baseline pessoal quando disponível.
+ *
+ * Antes da auditoria 2026-05-15 era 100% absoluto (≤3% = 90, ≤5% = 70, ...).
+ * Inconsistente com os outros fatores do mesmo card que usam baseline 30d.
+ * Para alguém com assimetria habitual de 7%, o score fixo 45 sempre aparecia
+ * como "negativo" sem contexto.
+ *
+ * Agora: se há baseline pessoal, comparamos por ratio (valor/baseline) — mais
+ * que 25% acima do habitual = piora real. Sem baseline (primeiros dias), fallback
+ * absoluto pra preservar o sinal mínimo.
+ */
+function scoreAsymmetry(value: number, baseline: number | null): number {
+  if (baseline == null || baseline <= 0) {
+    if (value <= 3) return 90
+    if (value <= 5) return 70
+    if (value <= 8) return 45
+    return 20
+  }
+  const ratio = value / baseline
+  if (ratio <= 0.85) return 95   // melhor que habitual
+  if (ratio <= 1.05) return 85   // próximo do habitual
+  if (ratio <= 1.25) return 60   // levemente pior
+  if (ratio <= 1.5) return 40    // pior
+  return 25                      // muito pior que habitual
 }
 
 function scorePhysicalEffort(value: number, baseline: number | null, steps: number | null, stepsBaseline: number | null): number | null {
@@ -170,7 +190,7 @@ export function computeActivityReadiness(snapshots: DailySnapshot[]): ActivityRe
 
     if (numeric(value)) {
       if (factor.key === 'walkingAsymmetryPct') {
-        score = scoreAsymmetry(value)
+        score = scoreAsymmetry(value, baselineValue)
       } else if (factor.key === 'physicalEffort') {
         score = scorePhysicalEffort(value, baselineValue, steps, stepsBaseline)
       } else {

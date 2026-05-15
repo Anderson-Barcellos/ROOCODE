@@ -180,6 +180,13 @@ class ConcentrationSeriesEndpointTests(unittest.TestCase):
         self.assertGreater(last["cmax_est"], last["cmin_est"])
         self.assertGreater(last["cmin_est"], 0.0)
         self.assertGreater(last["auc_est"], 0.0)
+        # Unit check: cmax_est must be in ng/mL (×1000 from mg/L source).
+        # Venvanse 200mg/day SS for weight 70kg should yield Cmax ~100-200 ng/mL,
+        # not ~0.1-0.2 mg/L. Anything < 5 here means the ng/mL conversion was lost.
+        self.assertGreater(
+            last["cmax_est"], 5.0,
+            "cmax_est should be in ng/mL (×1000 mg/L). Got value too small → conversion missing.",
+        )
 
     def test_falls_back_to_regimen_when_dose_log_empty(self) -> None:
         # No doses logged; regimen will autoload defaults including venvanse

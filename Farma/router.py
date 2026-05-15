@@ -385,6 +385,10 @@ def _compute_daily_pk_series(
     Para cada dia D no range, amostra concentração em h=0..23 (24 pontos):
       C(t) = Σ concentration_at_time(d, ka, ke, vd, t - dose_time, F) para cada dose
     Reduz: cmax = max(C), cmin = min(C), auc ≈ Σ C(t) · 1h (aproximação rectangular).
+
+    Unidade de saída: ng/mL (concentration_at_time retorna mg/L; multiplicamos
+    por 1000 antes de exportar para alinhar com therapeutic_range_unit do
+    medDataBase e com o frontend, que rotula os eixos como ng/mL).
     """
     sorted_events = sorted(dose_events, key=lambda x: x[0])
     series: list[dict] = []
@@ -409,11 +413,12 @@ def _compute_daily_pk_series(
                     bioavailability=bioavailability,
                 )
             c_values.append(concentration)
+        # mg/L → ng/mL (×1000) antes de exportar
         series.append({
             "date": cur_date.isoformat(),
-            "cmax_est": max(c_values) if c_values else 0.0,
-            "cmin_est": min(c_values) if c_values else 0.0,
-            "auc_est": sum(c_values),  # Δt = 1h, aproximação rectangular
+            "cmax_est": (max(c_values) if c_values else 0.0) * 1000.0,
+            "cmin_est": (min(c_values) if c_values else 0.0) * 1000.0,
+            "auc_est": sum(c_values) * 1000.0,  # Δt = 1h, aproximação rectangular
         })
         cur_date += timedelta(days=1)
     return series

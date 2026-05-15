@@ -20,6 +20,7 @@
 >
 > Adendo 2026-05-15: ingressados #36-#43 (Auditoria visual aba Insights pós-backend 9 commits).
 > Plano detalhado em `/root/.claude/plans/eita-era-comprida-essa-refactored-rainbow.md`.
+> ✅ Todos os 8 tickets fechados em 2026-05-15 (8 commits T6→T7).
 
 ---
 
@@ -70,16 +71,16 @@
 | 33 | PK card sem tooltip de justificativa de faixa (Lamotrigina custom) | MÉDIA | P1 | PK Coverage |
 | 34 | Copy "decisão de hoje" sem CTA correspondente no fluxo | BAIXA | P2 | Panorama UX |
 | 35 | 8x JSX duplicado de header de score — falta `CardScoreBadge` | BAIXA | P2 | Refactor |
-| 36 | Lamictal: remover therapeutic_range (TDM não é prática padrão em bipolar) | ALTA | P0 | PK Presets |
-| 37 | Remover MoodLagHypothesisLab (seção "Métrica hoje, humor depois") | BAIXA | P2 | Insights UX |
-| 38 | Reduzir HEATMAP_ROWS: remover Eficiência sono + Recuperação cardíaca | BAIXA | P2 | Insights UX |
-| 39 | CorrelationHeatmap não filtra interpolated/forecasted (inconsistência metodológica) | MÉDIA | P1 | Insights Math |
-| 40 | Remover SleepDebtHrvCard + mover TempHumorCorrelation pra Hipóteses Acionáveis | BAIXA | P2 | Insights UX |
-| 41 | Remover ScatterCorrelation (seção "Scatter interativo") | BAIXA | P2 | Insights UX |
-| 42 | LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real | BAIXA | P2 | Insights UX |
-| 43 | Refatorar PKVariabilityHumorLab pra grade 4×3 (lag×métrica) + observações textuais | MÉDIA | P1 | Insights UX |
+| 36 | Lamictal: remover therapeutic_range (TDM não é prática padrão em bipolar) ✅ `08eccf7` | ALTA | P0 | PK Presets |
+| 37 | Remover MoodLagHypothesisLab (seção "Métrica hoje, humor depois") ✅ `fabd50c` | BAIXA | P2 | Insights UX |
+| 38 | Reduzir HEATMAP_ROWS: remover Eficiência sono + Recuperação cardíaca ✅ `2b9855f` | BAIXA | P2 | Insights UX |
+| 39 | CorrelationHeatmap não filtra interpolated/forecasted ✅ `2b9855f` | MÉDIA | P1 | Insights Math |
+| 40 | Remover SleepDebtHrvCard + mover TempHumorCorrelation pra Hipóteses Acionáveis ✅ `f39aa99` | BAIXA | P2 | Insights UX |
+| 41 | Remover ScatterCorrelation (seção "Scatter interativo") ✅ `8f47d4c` | BAIXA | P2 | Insights UX |
+| 42 | LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real ✅ `67706ef` | BAIXA | P2 | Insights UX |
+| 43 | Refatorar PKVariabilityHumorLab pra grade 4×3 + observações textuais ✅ `65eed37` | MÉDIA | P1 | Insights UX |
 
-**P0 (7)** · **P1 (14)** · **P2 (22)** · Total: **43 achados**.
+**P0 (7)** · **P1 (14)** · **P2 (22)** · Total: **43 achados** · ✅ **#36-#43 fechados** em 2026-05-15.
 
 ---
 
@@ -934,9 +935,9 @@ Plano completo em `/root/.claude/plans/eita-era-comprida-essa-refactored-rainbow
 
 ---
 
-## ACHADO #36 — Lamictal: remover therapeutic_range (TDM não prática padrão em bipolar)
+## ACHADO #36 — Lamictal: remover therapeutic_range (TDM não prática padrão em bipolar) ✅
 
-**Severidade:** ALTA · **Prioridade:** P0 · **Domínio:** PK Presets · **Ticket:** T6
+**Severidade:** ALTA · **Prioridade:** P0 · **Domínio:** PK Presets · **Ticket:** T6 · **Resolvido:** `08eccf7`
 
 ### Contexto
 
@@ -962,9 +963,9 @@ mas sem badge de status terapêutico.
 
 ---
 
-## ACHADO #37 — Remover MoodLagHypothesisLab ("Métrica hoje, humor depois")
+## ACHADO #37 — Remover MoodLagHypothesisLab ("Métrica hoje, humor depois") ✅
 
-**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T1
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T1 · **Resolvido:** `fabd50c`
 
 ### Contexto
 
@@ -990,9 +991,9 @@ a interpretabilidade. Remover simplifica a Insights sem perda clínica.
 
 ---
 
-## ACHADO #38 — Reduzir HEATMAP_ROWS: remover Eficiência sono + Recuperação cardíaca
+## ACHADO #38 — Reduzir HEATMAP_ROWS: remover Eficiência sono + Recuperação cardíaca ✅
 
-**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T5
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T5 · **Resolvido:** `2b9855f`
 
 ### Contexto
 
@@ -1012,9 +1013,9 @@ Gate: `npx tsc --noEmit && npm run build`.
 
 ---
 
-## ACHADO #39 — CorrelationHeatmap não filtra interpolated/forecasted
+## ACHADO #39 — CorrelationHeatmap não filtra interpolated/forecasted ✅
 
-**Severidade:** MÉDIA · **Prioridade:** P1 · **Domínio:** Insights Math · **Ticket:** T9
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Domínio:** Insights Math · **Ticket:** T9 · **Resolvido:** `2b9855f`
 
 ### Contexto
 
@@ -1036,9 +1037,9 @@ Gate: `npx tsc --noEmit && npm run build && npm run lint`. Smoke test: comparar 
 
 ---
 
-## ACHADO #40 — Remover SleepDebtHrvCard + mover TempHumorCorrelation
+## ACHADO #40 — Remover SleepDebtHrvCard + mover TempHumorCorrelation ✅
 
-**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Tickets:** T3 + T4
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Tickets:** T3 + T4 · **Resolvido:** `f39aa99`
 
 ### Contexto
 
@@ -1064,9 +1065,9 @@ Acionáveis" junto com CorrelationHeatmap e PKVariabilityReportCard.
 
 ---
 
-## ACHADO #41 — Remover ScatterCorrelation ("Scatter interativo")
+## ACHADO #41 — Remover ScatterCorrelation ("Scatter interativo") ✅
 
-**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T2
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T2 · **Resolvido:** `8f47d4c`
 
 ### Contexto
 
@@ -1089,9 +1090,9 @@ insight incremental. O bloco "Modo laboratório" fica mais limpo sem ela.
 
 ---
 
-## ACHADO #42 — LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real
+## ACHADO #42 — LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real ✅
 
-**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T8
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T8 · **Resolvido:** `67706ef`
 
 ### Contexto
 
@@ -1116,9 +1117,9 @@ Gate: `npx tsc --noEmit && npm run build`. Smoke test visual: confirmar escala c
 
 ---
 
-## ACHADO #43 — Refatorar PKVariabilityHumorLab pra grade 4×3 + observações por lag
+## ACHADO #43 — Refatorar PKVariabilityHumorLab pra grade 4×3 + observações por lag ✅
 
-**Severidade:** MÉDIA · **Prioridade:** P1 · **Domínio:** Insights UX · **Ticket:** T7
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Domínio:** Insights UX · **Ticket:** T7 · **Resolvido:** `65eed37`
 
 ### Contexto
 

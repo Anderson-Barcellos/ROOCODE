@@ -71,7 +71,7 @@ git diff --check
 | **Sono** | NightQualityCard · SleepStagesChart · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline |
 | **Coração** | AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart |
 | **Atividade** | ActivityReadinessCard · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart |
-| **Insights** | MoodDriverBoard · MoodLagHypothesisLab · CorrelationHeatmap · SleepDebtHrvCard · ScatterCorrelation · PKMoodScatterChart · PkRemSuppression · LagCorrelationChart · ForecastAccuracyCard (colapsada) |
+| **Insights** | PKVariabilityReportCard · MoodDriverBoard · CorrelationHeatmap · TempHumorCorrelation · PKVariabilityHumorLab (grade 4×3) · PKVariabilityHeatmap · PKMoodScatterChart · LagCorrelationChart · PkRemSuppression · ForecastAccuracyCard (colapsada) |
 
 ## Baseline funcional a preservar
 
@@ -79,7 +79,9 @@ git diff --check
 - `DoseCalendarView` mantém fluxo rápido de adicionar/editar/remover dose no dia selecionado.
 - Contrato Farma sem mudança de schema público: `/farma/doses`, `/farma/doses/{id}`, `/farma/regimen`, `/farma/substances`.
 - `MoodDriverBoard` no topo de Insights via `CorrelationHeatmap`.
-- `MoodLagHypothesisLab` com lags `0d..3d`, `n`, qualidade, Pearson `r`, baseline ±, aviso de sampling bias.
+- `CorrelationHeatmap` filtra `forecasted`/`interpolated` antes de correlacionar (alinhado com MoodDriverBoard e PKVariabilityHumorLab); FDR Benjamini-Hochberg sobre todos os pares testados.
+- `PKVariabilityHumorLab` em grade 4×3 (lag × métrica) com FDR sobre as 12 células e observações textuais por lag.
+- Lamictal sem `therapeutic_range` (TDM não padrão em bipolar); `PKCoverageCard` mostra concentração corrente sem badge de status (`klass: 'sem_faixa'`).
 - Estado "dados insuficientes" explícito em correlações; sem causalidade clínica.
 
 ## Fresh start

@@ -7,7 +7,6 @@ import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { pearson, type CorrelationResult } from '@/utils/statistics'
 import { DataReadinessGate } from './shared/DataReadinessGate'
 import { MoodDriverBoard } from './mood-driver-board'
-import { MoodLagHypothesisLab } from './mood-lag-hypothesis-lab'
 
 type ExtraMetrics = Record<string, { label: string; values: Array<number | null> }>
 
@@ -134,7 +133,6 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
   return (
     <>
       <MoodDriverBoard snapshots={snapshots} />
-      <MoodLagHypothesisLab snapshots={snapshots} />
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
         Correlações

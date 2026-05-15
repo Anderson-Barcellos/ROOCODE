@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 import json
 import re
 import uuid
@@ -15,6 +16,11 @@ from Farma.math import (
     _profile_volume_of_distribution,
 )
 from Profile import DEFAULT_BODY_WEIGHT_KG
+from Profile.user_profile import USER_PROFILE
+
+# Timezone do usuário — horários "HH:mm" em regimen_config.json são locais (BRT).
+# Construir doses sintéticas como UTC desloca os picos 3h. Ver auditoria 2026-05-15.
+USER_TZ = ZoneInfo(USER_PROFILE["timezone"])
 
 router = APIRouter()
 DOSE_LOG_PATH = Path(__file__).parent / "dose_log.json"
@@ -361,8 +367,11 @@ def _expand_regimen_to_doses(
                         hh, mm = (int(part) for part in time_str.split(":"))
                     except (ValueError, AttributeError):
                         continue
+                    # Regimen "HH:mm" é hora local do usuário — construir tz-aware em
+                    # USER_TZ e deixar a comparação com range_start/end (UTC) converter
+                    # internamente. Antes ficava em UTC, deslocando picos 3h.
                     taken_dt = datetime(
-                        cur.year, cur.month, cur.day, hh, mm, tzinfo=timezone.utc
+                        cur.year, cur.month, cur.day, hh, mm, tzinfo=USER_TZ
                     )
                     if range_start <= taken_dt <= range_end:
                         events.append((taken_dt, dose_mg))

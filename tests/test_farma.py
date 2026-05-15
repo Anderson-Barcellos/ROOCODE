@@ -233,6 +233,49 @@ class ConcentrationSeriesEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_regimen_synthetic_doses_use_user_timezone(self) -> None:
+        """Regimen times são horários locais (BRT) — devem ser interpretados em
+        America/Sao_Paulo, não UTC. Antes do fix, "07:00" virava 07:00 UTC
+        (04:00 BRT), deslocando todos os picos 3h pra trás."""
+        from zoneinfo import ZoneInfo
+
+        # Seed regimen com lexapro às 07:00 (hora local)
+        regimen_data = [{
+            "id": "lex-test",
+            "substance": "lexapro",
+            "dose_mg": 40.0,
+            "times": ["07:00"],
+            "days_of_week": [0, 1, 2, 3, 4, 5, 6],
+            "active": True,
+            "start_date": None,
+            "end_date": None,
+            "color": "#0f766e",
+        }]
+        farma_router.REGIMEN_CONFIG_PATH.write_text(
+            json.dumps(regimen_data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        range_start = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)
+        range_end = datetime(2026, 4, 1, 23, 59, 59, tzinfo=timezone.utc)
+        events = farma_router._expand_regimen_to_doses(
+            regimen_data, "lexapro", range_start, range_end
+        )
+
+        self.assertEqual(len(events), 1, "Deve gerar 1 evento sintético no dia")
+        taken_dt, _ = events[0]
+
+        # Esperado: 07:00 em America/Sao_Paulo = 10:00 UTC.
+        # Bug antigo geraria 07:00 UTC = 04:00 BRT.
+        self.assertEqual(taken_dt.hour, 7, "Hora local (BRT) deve ser 07:00")
+        self.assertEqual(
+            taken_dt.astimezone(timezone.utc).hour, 10,
+            "07:00 BRT = 10:00 UTC. Se virou 07:00 UTC, o fix de TZ regrediu.",
+        )
+        self.assertEqual(
+            taken_dt.tzinfo, ZoneInfo("America/Sao_Paulo"),
+            "tzinfo deve ser America/Sao_Paulo, não UTC",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

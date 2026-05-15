@@ -119,24 +119,6 @@ export function computeAllCorrelations(snapshots: DailySnapshot[]): CorrelationP
   return results.sort((a, b) => Math.abs(b.result.r) - Math.abs(a.result.r)).slice(0, 20)
 }
 
-export interface PresetCorrelation {
-  xKey: MetricKey
-  yKey: MetricKey
-  lag: number
-  description: string
-}
-
-export const PRESET_CORRELATIONS: PresetCorrelation[] = [
-  { xKey: 'sleepTotalHours', yKey: 'valence', lag: 1, description: 'Sono → Humor amanhã' },
-  { xKey: 'hrvSdnn', yKey: 'valence', lag: 0, description: 'HRV → Humor (mesmo dia)' },
-  { xKey: 'exerciseMinutes', yKey: 'sleepTotalHours', lag: 0, description: 'Exercício → Qualidade sono' },
-  { xKey: 'daylightMinutes', yKey: 'sleepTotalHours', lag: 0, description: 'Luz do dia → Sono' },
-  { xKey: 'restingHeartRate', yKey: 'valence', lag: 0, description: 'FC repouso → Humor (inversa)' },
-  { xKey: 'pulseTemperatureC', yKey: 'sleepDeepHours', lag: 0, description: 'Temp. noturna → Sono profundo' },
-  { xKey: 'spo2', yKey: 'sleepTotalHours', lag: 0, description: 'SpO2 → Sono total' },
-  { xKey: 'activeEnergyKcal', yKey: 'hrvSdnn', lag: 1, description: 'Energia ativa → HRV amanhã' },
-]
-
 /**
  * Aplica correção FDR Benjamini-Hochberg a um conjunto de CorrelationResult.
  * Mutates: cada result.qValueFdr é populado in-place.

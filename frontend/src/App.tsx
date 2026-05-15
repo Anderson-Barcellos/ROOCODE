@@ -19,7 +19,6 @@ import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-cha
 import { MoodTimeline } from '@/components/charts/mood-timeline'
 import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
-import { ScatterCorrelation } from '@/components/charts/scatter-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
@@ -1003,7 +1002,6 @@ export default function App() {
                       title="Exploração interativa e controles de causalidade"
                       description="Ferramentas para investigar sinais promissores sem misturar esses gráficos com o cockpit diário."
                     >
-                      <ScatterCorrelation snapshots={ranged} />
                       <PKMoodScatterChart />
                       <LagCorrelationChart />
                     </LabGroup>

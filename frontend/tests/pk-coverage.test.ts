@@ -101,20 +101,37 @@ assert.ok(
   `klass inesperado em cenário borderline: ${lex3b.klass}`,
 )
 
-// ─── Test 4: Regime vazio + sem doses → vulnerabilidade ───────────────────────
+// ─── Test 4: Regime vazio + sem doses ─────────────────────────────────────────
+// Substâncias com range → vulnerabilidade (cNow=0 < min).
+// Lamotrigine sem range (T6: TDM não padrão em bipolar) → sem_faixa.
 
 const r4 = computeCoverageStatus([], [], { now: NOW })
 r4.forEach((s) => {
-  assert.equal(s.klass, 'vulnerabilidade')
-  assert.equal(s.concentrationNow, 0)
-  assert.equal(s.missedDoses, 0)
+  if (s.presetKey === 'lamotrigine') {
+    assert.equal(s.klass, 'sem_faixa')
+    assert.equal(s.missedDoses, 0)
+  } else {
+    assert.equal(s.klass, 'vulnerabilidade')
+    assert.equal(s.concentrationNow, 0)
+    assert.equal(s.missedDoses, 0)
+  }
 })
 
-// ─── Test 5: Output contém todas as 4 medicações do preset ────────────────────
+// ─── Test 5: Output contém as 3 medicações com range terapêutico ─────────────
+// T6 (2026-05-15): lamotrigine não tem mais range (TDM não padrão em bipolar),
+// então sem regime ativo nem doses logadas, ela é pulada. Aparece como
+// 'sem_faixa' quando regime/doses informam que está em uso (testado abaixo).
 
 const r5 = computeCoverageStatus([], null, { now: NOW })
 const keys = r5.map((s) => s.presetKey).sort()
-assert.deepEqual(keys, ['clonazepam', 'escitalopram', 'lamotrigine', 'lisdexamfetamine'].sort())
+assert.deepEqual(keys, ['clonazepam', 'escitalopram', 'lisdexamfetamine'].sort())
+
+// Lamotrigine aparece quando há regime ativo:
+const regimen5b = [regimenEntry('Lamotrigina', 200, ['08:00'])]
+const r5b = computeCoverageStatus([], regimen5b, { now: NOW })
+const lam5b = r5b.find((s) => s.presetKey === 'lamotrigine')
+assert.ok(lam5b, 'lamotrigine deve aparecer quando está no regime ativo')
+assert.equal(lam5b!.klass, 'sem_faixa')
 
 // ─── Test 6: Classes válidas ──────────────────────────────────────────────────
 
@@ -124,6 +141,7 @@ const validClasses: CoverageClass[] = [
   'vulnerabilidade',
   'acima_faixa',
   'cobertura_incompleta',
+  'sem_faixa',
 ]
 r5.forEach((s) => {
   assert.ok(validClasses.includes(s.klass), `klass inválida: ${s.klass}`)

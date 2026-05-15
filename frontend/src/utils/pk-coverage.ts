@@ -35,6 +35,7 @@ export type CoverageClass =
   | 'vulnerabilidade'
   | 'acima_faixa'
   | 'cobertura_incompleta'
+  | 'sem_faixa'
 
 export interface PKStatusInput {
   concentration: number
@@ -170,17 +171,44 @@ export function computeCoverageStatus(
 
   const out: CoverageStatus[] = []
   for (const [presetKey, preset] of Object.entries(PK_PRESETS)) {
-    if (!preset.therapeuticRange) continue
-
     const med = presetToPKMedication(presetKey, preset)
     const substanceDoses = dosesForSubstance(doses, presetKey)
     const dosesInWindow = substanceDoses.filter((d) => d.timestamp >= windowStart && d.timestamp <= windowEnd)
-    const expectedDoses = regimen ? countExpectedDosesInWindow(regimen, presetKey, windowStart, windowEnd) : 0
-    const missed = Math.max(0, expectedDoses - dosesInWindow.length)
 
     const cNow = calculateConcentration(med, substanceDoses, now, bodyWeight)
     const c24h = calculateConcentration(med, substanceDoses, now - MS_PER_DAY, bodyWeight)
     const trendPctPerDay = c24h > 0 ? ((cNow - c24h) / c24h) * 100 : null
+
+    if (!preset.therapeuticRange) {
+      // Substância sem range terapêutico (ex: lamotrigina pós T6 — TDM não
+      // padrão em bipolar). Só inclui se estiver no regime ativo OU houver
+      // dose logada; senão pula (mantém o card limpo de nootrópicos que não
+      // estão em uso).
+      const inActiveRegimen = (regimen ?? []).some(
+        (r) => r.active && findPresetKey(r.substance) === presetKey,
+      )
+      if (!inActiveRegimen && substanceDoses.length === 0) continue
+      out.push({
+        presetKey,
+        displayName: preset.name,
+        brandName: preset.brandName,
+        klass: 'sem_faixa',
+        concentrationNow: cNow,
+        concentration24hAgo: c24h,
+        therapeuticMin: 0,
+        therapeuticMax: 0,
+        unit: 'ng/mL',
+        trendPctPerDay,
+        expectedDosesLast48h: 0,
+        loggedDosesLast48h: dosesInWindow.length,
+        missedDoses: 0,
+        hoursUntilBelowMin: null,
+      })
+      continue
+    }
+
+    const expectedDoses = regimen ? countExpectedDosesInWindow(regimen, presetKey, windowStart, windowEnd) : 0
+    const missed = Math.max(0, expectedDoses - dosesInWindow.length)
 
     const min = preset.therapeuticRange.min
     const max = preset.therapeuticRange.max

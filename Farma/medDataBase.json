@@ -81,9 +81,6 @@
       "ka_per_hour": 2.114703,
       "vd_l_per_kg": 1.08,
       "vd_basis": "derived_from_vd_over_f",
-      "therapeutic_range_min": 2000,
-      "therapeutic_range_max": 10000,
-      "therapeutic_range_unit": "ng/mL",
       "notes": [
         "A bula descreve biodisponibilidade de cerca de 98% e Vd/F entre 0.9 e 1.3 L/kg; foi usado o ponto medio ajustado por F.",
         "Esses parametros sao mais aderentes ao uso sem valproato ou indutores enzimaticos."

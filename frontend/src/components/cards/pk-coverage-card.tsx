@@ -61,6 +61,13 @@ const CLASS_META: Record<CoverageClass, ClassMeta> = {
     badgeText: 'text-fuchsia-700',
     bar: 'bg-fuchsia-500',
   },
+  sem_faixa: {
+    headline: 'Concentração monitorada',
+    short: 'Sem faixa',
+    badgeBg: 'bg-slate-50 border-slate-200',
+    badgeText: 'text-slate-500',
+    bar: 'bg-slate-300',
+  },
 }
 
 const CLASS_PRIORITY: CoverageClass[] = [
@@ -69,6 +76,7 @@ const CLASS_PRIORITY: CoverageClass[] = [
   'cobertura_incompleta',
   'queda',
   'adequada',
+  'sem_faixa',
 ]
 
 function worstClass(statuses: CoverageStatus[]): CoverageClass | null {
@@ -222,23 +230,27 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
                     <span className="text-[0.7rem] text-slate-400">{s.brandName}</span>
                   )}
                 </div>
-                <span
-                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold ${meta.badgeBg} ${meta.badgeText}`}
-                >
-                  {meta.short}
-                </span>
+                {s.klass !== 'sem_faixa' && (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.7rem] font-semibold ${meta.badgeBg} ${meta.badgeText}`}
+                  >
+                    {meta.short}
+                  </span>
+                )}
               </div>
 
               <div className="mt-2 flex items-center gap-3 text-xs text-slate-600">
                 <span className="font-mono text-slate-800">
                   {fmt(s.concentrationNow)} {s.unit}
                 </span>
-                <span
-                  className={`text-slate-400 ${rangeTooltip ? 'cursor-help underline decoration-dotted underline-offset-2' : ''}`}
-                  title={rangeTooltip || undefined}
-                >
-                  faixa {fmt(min)}–{fmt(max)} {s.unit}
-                </span>
+                {s.klass !== 'sem_faixa' && (
+                  <span
+                    className={`text-slate-400 ${rangeTooltip ? 'cursor-help underline decoration-dotted underline-offset-2' : ''}`}
+                    title={rangeTooltip || undefined}
+                  >
+                    faixa {fmt(min)}–{fmt(max)} {s.unit}
+                  </span>
+                )}
                 {s.trendPctPerDay != null && (
                   <span
                     className={
@@ -259,12 +271,14 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
 
               {!isSummary && (
                 <>
+                  {s.klass !== 'sem_faixa' && (
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
                       className={`h-full ${meta.bar}`}
                       style={{ width: `${pctOfRange.toFixed(0)}%` }}
                     />
                   </div>
+                  )}
 
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.7rem] text-slate-500">
                     <span>

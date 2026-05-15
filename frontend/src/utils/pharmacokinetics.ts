@@ -394,7 +394,6 @@ export const PK_PRESETS: Record<string, Omit<PKMedication, 'id'>> = {
     volumeOfDistribution: 1.08,      // ← era 1.1
     bioavailability: 0.98,
     absorptionRate: 2.114703,        // ← era 1.2 (drift; tmax 2.2h conforme bula Lamictal IR)
-    therapeuticRange: { min: 2000, max: 10000, unit: 'ng/mL' },
   },
   clonazepam: {
     name: 'Clonazepam',

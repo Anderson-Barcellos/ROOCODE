@@ -244,6 +244,10 @@ export interface FieldAccuracy {
   mae: number
   rmse: number
   n: number
+  /** Pares (predicted, actual) excluídos do cálculo de MAPE porque |actual| ≈ 0
+   *  (divisão indefinida). Reportado a partir da auditoria 2026-05-15 para que
+   *  o card possa qualificar campos com muitos zeros (ex.: valence). */
+  mape_excluded_zero_actual?: number
 }
 
 export interface ForecastAccuracyResponse {

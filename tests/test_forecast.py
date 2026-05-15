@@ -144,16 +144,19 @@ class ForecastEndpointTests(unittest.TestCase):
         self.assertEqual([snapshot["date"] for snapshot in snapshots], ["2026-04-08", "2026-04-09"])
         self.assertEqual(snapshots[0]["health"]["sleepTotalHours"], 6.5)
 
-    def test_invalid_horizon_returns_400(self) -> None:
+    def test_extra_horizon_field_is_ignored(self) -> None:
+        """Auditoria 2026-05-15: campo `horizon` foi removido do ForecastRequest
+        (era inerte — backend sempre usa FORECAST_HORIZON=5). Pydantic v2 ignora
+        campos extras silenciosamente; cliente enviando horizon=3 não recebe
+        mais 400. Esse teste documenta o novo contrato."""
         payload = _build_payload()
-        payload["horizon"] = 3
+        payload["horizon"] = 3  # ignorado
 
         response = self.client.post("/forecast", json=payload)
 
-        self.assertEqual(response.status_code, 400)
-        data = response.json()
-        self.assertIsNotNone(data["meta"]["error"])
-        self.assertEqual(data["forecasted_snapshots"], [])
+        # Não retorna mais 400 — horizon é silenciosamente desconsiderado.
+        # Resposta de sucesso usa FORECAST_HORIZON (5) independentemente.
+        self.assertNotEqual(response.status_code, 400)
 
     @patch("Forecast.router._call_model")
     def test_provider_failure_returns_502(self, mock_call_model: Any) -> None:

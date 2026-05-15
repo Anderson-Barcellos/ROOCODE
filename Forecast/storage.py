@@ -186,12 +186,20 @@ def compute_accuracy(
         ae_values: list[float] = []
         sq_values: list[float] = []
         mape_values: list[float] = []
+        excluded_zero_actual = 0
         for predicted, actual in pairs:
             error = abs(predicted - actual)
             ae_values.append(error)
             sq_values.append(error * error)
             if abs(actual) > 1e-6:
                 mape_values.append(error / abs(actual) * 100.0)
+            else:
+                # MAPE não definido quando actual ≈ 0 (divisão indefinida).
+                # Antes da auditoria 2026-05-15 a exclusão era silenciosa, o que
+                # podia inflar a percepção de acurácia em campos como `valence`
+                # (frequentemente próximo de zero). Agora expomos o número de
+                # pares excluídos pra que o frontend possa qualificar a métrica.
+                excluded_zero_actual += 1
         n = len(pairs)
         accuracy_by_field[field] = {
             "mape": round(sum(mape_values) / len(mape_values), 2)
@@ -200,6 +208,7 @@ def compute_accuracy(
             "mae": round(sum(ae_values) / n, 4),
             "rmse": round((sum(sq_values) / n) ** 0.5, 4),
             "n": n,
+            "mape_excluded_zero_actual": excluded_zero_actual,
         }
 
     history_size = len(history)

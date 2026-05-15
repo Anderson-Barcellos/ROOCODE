@@ -54,8 +54,9 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 AI_PROVIDER = os.environ.get("FORECAST_AI_PROVIDER", "openai").strip().lower() or "openai"
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.1").strip() or "gpt-5.1"
-OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "medium").strip().lower() or "medium"
+OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "high").strip().lower() or "high"
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
+OPENAI_TIMEOUT_SECONDS = _env_int("OPENAI_TIMEOUT_SECONDS", 180)
 ENV_YAML_PATHS = (Path("/root/RooCode/.env.yml"), Path("/root/RooCode/env.yml"))
 FORECAST_HORIZON = 5
 FORECAST_CONTEXT_MAX_DAYS = 45
@@ -137,7 +138,7 @@ def _call_openai(prompt: str, verbosity: Optional[str] = None) -> str:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
+        with urllib.request.urlopen(req, timeout=OPENAI_TIMEOUT_SECONDS) as resp:
             raw = resp.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="ignore")
@@ -218,9 +219,12 @@ def _cache_set(key: str, payload: dict[str, Any]) -> None:
 
 class ForecastRequest(BaseModel):
     snapshots: list[dict]
-    horizon: int = Field(default=5, ge=1, le=14)
     valid_real_days: int = Field(default=0)
     rolling_summary: Optional[dict[str, Any]] = None
+    # Antes existia um campo `horizon` aqui, mas ele era inerte: o backend
+    # sempre usa FORECAST_HORIZON (5) e _validate_horizon rejeitava qualquer
+    # outro valor. Removido na auditoria 2026-05-15. Frontends continuam
+    # podendo enviar `horizon`; o Pydantic ignora silenciosamente.
 
 
 class ForecastSignal(BaseModel):
@@ -696,11 +700,6 @@ def _apply_forecasted(entries: list[dict], cap: float, expected_dates: list[str]
     return result
 
 
-def _validate_horizon(horizon: int) -> None:
-    if horizon != FORECAST_HORIZON:
-        raise ForecastBadRequest(f"horizon deve ser {FORECAST_HORIZON} dias")
-
-
 def _validate_valid_real_days(valid_real_days: int) -> None:
     if valid_real_days < 0:
         raise ForecastBadRequest("valid_real_days não pode ser negativo")
@@ -750,7 +749,6 @@ def _error_response(message: str, status_code: int, cap: float) -> JSONResponse:
 @router.post("")
 async def forecast(body: ForecastRequest) -> JSONResponse:
     try:
-        _validate_horizon(body.horizon)
         _validate_valid_real_days(body.valid_real_days)
         validated_snapshots = _validate_snapshots_payload(body.snapshots)
     except ForecastBadRequest as exc:
@@ -904,9 +902,9 @@ async def forecast_accuracy(body: ForecastAccuracyRequest) -> JSONResponse:
 
 class ForecastReportRequest(BaseModel):
     snapshots: list[dict]
-    horizon: int = Field(default=5, ge=1, le=14)
     valid_real_days: int = Field(default=0)
     rolling_summary: Optional[dict[str, Any]] = None
+    # `horizon` removido — ver nota em ForecastRequest acima.
 
 
 def _build_report_prompt(
@@ -971,7 +969,6 @@ async def forecast_report(body: ForecastReportRequest) -> JSONResponse:
     - Persiste cada chamada com report_id pra histórico comparável.
     """
     try:
-        _validate_horizon(body.horizon)
         _validate_valid_real_days(body.valid_real_days)
         validated_snapshots = _validate_snapshots_payload(body.snapshots)
     except ForecastBadRequest as exc:

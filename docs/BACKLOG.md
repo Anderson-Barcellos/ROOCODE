@@ -17,6 +17,9 @@
 >
 > Adendo 2026-05-14: ingressados #28-#35 (Auditoria UX da aba Panorama).
 > Plano detalhado em `/root/.claude/plans/oi-claude-meu-velho-rosy-salamander.md`.
+>
+> Adendo 2026-05-15: ingressados #36-#43 (Auditoria visual aba Insights pós-backend 9 commits).
+> Plano detalhado em `/root/.claude/plans/eita-era-comprida-essa-refactored-rainbow.md`.
 
 ---
 
@@ -67,8 +70,16 @@
 | 33 | PK card sem tooltip de justificativa de faixa (Lamotrigina custom) | MÉDIA | P1 | PK Coverage |
 | 34 | Copy "decisão de hoje" sem CTA correspondente no fluxo | BAIXA | P2 | Panorama UX |
 | 35 | 8x JSX duplicado de header de score — falta `CardScoreBadge` | BAIXA | P2 | Refactor |
+| 36 | Lamictal: remover therapeutic_range (TDM não é prática padrão em bipolar) | ALTA | P0 | PK Presets |
+| 37 | Remover MoodLagHypothesisLab (seção "Métrica hoje, humor depois") | BAIXA | P2 | Insights UX |
+| 38 | Reduzir HEATMAP_ROWS: remover Eficiência sono + Recuperação cardíaca | BAIXA | P2 | Insights UX |
+| 39 | CorrelationHeatmap não filtra interpolated/forecasted (inconsistência metodológica) | MÉDIA | P1 | Insights Math |
+| 40 | Remover SleepDebtHrvCard + mover TempHumorCorrelation pra Hipóteses Acionáveis | BAIXA | P2 | Insights UX |
+| 41 | Remover ScatterCorrelation (seção "Scatter interativo") | BAIXA | P2 | Insights UX |
+| 42 | LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real | BAIXA | P2 | Insights UX |
+| 43 | Refatorar PKVariabilityHumorLab pra grade 4×3 (lag×métrica) + observações textuais | MÉDIA | P1 | Insights UX |
 
-**P0 (6)** · **P1 (12)** · **P2 (17)** · Total: **35 achados**.
+**P0 (7)** · **P1 (14)** · **P2 (22)** · Total: **43 achados**.
 
 ---
 
@@ -911,6 +922,228 @@ Detalhe completo: ticket #35 no plano.
 - Aplicar fixes triviais em batch (todos os #14-#23)
 
 **Estimativa:** Fase 1 = 1 sessão (3-4h), Fase 2 = 1 sessão, Fase 3 = 0.5 sessão.
+
+---
+
+# Auditoria Visual Insights — 2026-05-15
+
+Correlação das 6 screenshots de `/root/RooCode/*.png` com componentes frontend
+após auditoria matemática backend (9 commits, 2026-05-15). 8 tickets derivados.
+Plano completo em `/root/.claude/plans/eita-era-comprida-essa-refactored-rainbow.md`.
+**Ordem de execução:** T6 → T1 → T5 → T9 → T3+T4 → T2 → T8 → T7.
+
+---
+
+## ACHADO #36 — Lamictal: remover therapeutic_range (TDM não prática padrão em bipolar)
+
+**Severidade:** ALTA · **Prioridade:** P0 · **Domínio:** PK Presets · **Ticket:** T6
+
+### Contexto
+
+O range terapêutico atual da lamotrigina (2000–10000 ng/mL) deriva de estudos em
+epilepsia — há consenso na literatura de que TDM rotineiro não é prática padrão em
+transtorno bipolar. Exibir o range gera badge de "queda"/"adequada" sem base clínica
+para o contexto de uso do Anders. A Lamictal deve aparecer com concentração atual
+mas sem badge de status terapêutico.
+
+### Evidência
+
+- `Farma/medDataBase.json` — campos `therapeutic_range_min: 2000`, `therapeutic_range_max: 10000`, `therapeutic_range_unit: "ng/mL"` no bloco `"lamictal"`
+- `frontend/src/utils/pharmacokinetics.ts` — `therapeuticRange: { min: 2000, max: 10000, unit: 'ng/mL' }` no preset `lamotrigine`
+- `frontend/src/utils/pk-coverage.ts:173` — comportamento atual: `if (!preset.therapeuticRange) continue` pula a substância completamente
+
+### Fix proposto
+
+1. Remover `therapeutic_range_min/max/unit` de `Farma/medDataBase.json` (bloco `lamictal`).
+2. Remover `therapeuticRange` do preset `lamotrigine` em `pharmacokinetics.ts`.
+3. Modificar `pk-coverage.ts` pra incluir Lamictal com concentração corrente mas sem cálculo de status (badge null).
+4. Verificar `PKCoverageCard` renderiza sem badge sem quebrar.
+5. Gate: `python -m unittest tests.test_farma` + `npx tsc --noEmit && npm run build && npm run test:unit`.
+
+---
+
+## ACHADO #37 — Remover MoodLagHypothesisLab ("Métrica hoje, humor depois")
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T1
+
+### Contexto
+
+A seção viola o CLAUDE.md baseline ("MoodLagHypothesisLab com lags 0d..3d, n, qualidade,
+Pearson r, baseline ±, aviso de sampling bias"). No entanto, após revisão visual, a seção
+foi considerada de baixo valor informativo para o fluxo atual — o CorrelationHeatmap já
+cobre lag 0 e lag+1, e os dados de State of Mind têm viés de sampling severo que limita
+a interpretabilidade. Remover simplifica a Insights sem perda clínica.
+
+### Evidência
+
+- `frontend/src/components/charts/correlation-heatmap.tsx:10` — import MoodLagHypothesisLab
+- `frontend/src/components/charts/correlation-heatmap.tsx:137` — render `<MoodLagHypothesisLab />`
+- `frontend/src/components/charts/mood-lag-hypothesis-lab.tsx` — arquivo a deletar
+- `frontend/src/utils/correlations.ts` — símbolos exclusivos: `MOOD_LAG_METRICS`, `MoodLagMetricOption`, `MoodLagQuality`, `MoodLagHypothesisRow`, `MoodLagHypothesis`, `buildMoodLagHypothesis`
+
+### Fix proposto
+
+1. Remover import e render de `MoodLagHypothesisLab` em `correlation-heatmap.tsx`.
+2. Deletar `mood-lag-hypothesis-lab.tsx`.
+3. Remover os 6 símbolos exclusivos de `correlations.ts`.
+4. Gate: `npx tsc --noEmit && npm run build && npm run lint`.
+
+---
+
+## ACHADO #38 — Reduzir HEATMAP_ROWS: remover Eficiência sono + Recuperação cardíaca
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T5
+
+### Contexto
+
+`CorrelationHeatmap` testa 12 métricas × 2 lags = 24 pares simultâneos no FDR BH.
+"Eficiência sono" e "Recuperação cardíaca" têm n baixo e correlação fraca com humor
+na série do Anders — removê-las reduz o número de testes (24→20) e melhora o poder
+do FDR BH sobre os pares realmente informativos.
+
+### Evidência
+
+- `frontend/src/components/charts/correlation-heatmap.tsx:21-34` — array `HEATMAP_ROWS` com `'sleepEfficiencyPct'` e `'cardioRecoveryBpm'`
+
+### Fix proposto
+
+Remover `'sleepEfficiencyPct'` e `'cardioRecoveryBpm'` do array `HEATMAP_ROWS`.
+Gate: `npx tsc --noEmit && npm run build`.
+
+---
+
+## ACHADO #39 — CorrelationHeatmap não filtra interpolated/forecasted
+
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Domínio:** Insights Math · **Ticket:** T9
+
+### Contexto
+
+`MoodDriverBoard` e `PKVariabilityHumorLab` já filtram `!s.forecasted && !s.interpolated`
+antes de calcular correlações. `CorrelationHeatmap` passa os snapshots brutos (inclusive
+dias estimados) pra `correlate()`, inflando artificialmente r em métricas auto-preenchidas
+como sono. Inconsistência metodológica entre componentes da mesma aba.
+
+### Evidência
+
+- `frontend/src/components/charts/correlation-heatmap.tsx:68-71` — `moodValues` calculado direto de `snapshots` sem filtro
+- `frontend/src/components/charts/correlation-heatmap.tsx:83-91` — `correlate(snapshots, ...)` sem filtro
+
+### Fix proposto
+
+Filtrar `snapshots.filter(s => !s.forecasted && !s.interpolated)` antes de passar pra
+`correlate()` no componente (preserva `correlate` como utilitário neutro).
+Gate: `npx tsc --noEmit && npm run build && npm run lint`. Smoke test: comparar r antes/depois.
+
+---
+
+## ACHADO #40 — Remover SleepDebtHrvCard + mover TempHumorCorrelation
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Tickets:** T3 + T4
+
+### Contexto
+
+O LabGroup "Cross-domain" tem `SleepDebtHrvCard` (seção "Sono, autonomia, temperatura e
+farmacocinética") e `TempHumorCorrelation`. O SleepDebtHrvCard foi considerado de baixo
+valor informativo no contexto atual. `TempHumorCorrelation` (wrist temp × valência, lag 0–3d,
+r=-0.56 não-causal) é o componente mais útil do bloco e deve ser relocado para "Hipóteses
+Acionáveis" junto com CorrelationHeatmap e PKVariabilityReportCard.
+
+### Evidência
+
+- `frontend/src/App.tsx` — LabGroup "Cross-domain" com `SleepDebtHrvCard` + `TempHumorCorrelation`
+- `frontend/src/components/charts/sleep-debt-hrv-card.tsx` — arquivo a deletar
+- **NÃO** deletar `frontend/src/utils/sleep-debt.ts` — `computeSleepDebt` ainda consumido por `sleep-debt-chart.tsx` (aba Sono)
+
+### Fix proposto
+
+1. Remover LabGroup "Cross-domain" inteiro de `App.tsx`.
+2. Adicionar `<TempHumorCorrelation snapshots={ranged} />` no LabGroup "Hipóteses acionáveis" após `<CorrelationHeatmap />`.
+3. Remover import `SleepDebtHrvCard` de `App.tsx`.
+4. Deletar `sleep-debt-hrv-card.tsx`.
+5. Gate: `npx tsc --noEmit && npm run build`. Confirmar que `sleep-debt-chart.tsx` (aba Sono) continua ok.
+
+---
+
+## ACHADO #41 — Remover ScatterCorrelation ("Scatter interativo")
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T2
+
+### Contexto
+
+A seção exibe scatter plots de pares predefinidos de métricas vs humor. Após revisão visual,
+foi considerada redundante com o CorrelationHeatmap — adiciona complexidade de UI sem
+insight incremental. O bloco "Modo laboratório" fica mais limpo sem ela.
+
+### Evidência
+
+- `frontend/src/App.tsx:1006` — `<ScatterCorrelation snapshots={ranged} />`
+- `frontend/src/components/charts/scatter-correlation.tsx` — arquivo a deletar
+- `frontend/src/utils/correlations.ts` — símbolos exclusivos: `PRESET_CORRELATIONS`, `PresetCorrelation`
+
+### Fix proposto
+
+1. Remover `<ScatterCorrelation />` e import de `App.tsx`.
+2. Deletar `scatter-correlation.tsx`.
+3. Remover `PRESET_CORRELATIONS` e `PresetCorrelation` de `correlations.ts`.
+4. Gate: `npx tsc --noEmit && npm run build`.
+
+---
+
+## ACHADO #42 — LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real
+
+**Severidade:** BAIXA · **Prioridade:** P2 · **Domínio:** Insights UX · **Ticket:** T8
+
+### Contexto
+
+O gráfico de correlação por lag horário usa `domain={[-1, 1]}` fixo no eixo Y. Quando todos
+os r ficam em ±0.2-0.3 (amplitude real dos dados do Anders), metade da escala fica vazia,
+dificultando a leitura das diferenças entre lags. Escala adaptativa com clamp em [-1,+1]
+comunica melhor a estrutura temporal das correlações.
+
+### Evidência
+
+- `frontend/src/components/charts/lag-correlation-chart.tsx:282-289` — `<YAxis type="number" domain={[-1, 1]} ticks={[-1, -0.5, 0, 0.5, 1]} />`
+
+### Fix proposto
+
+```tsx
+const observedRs = data.map(d => d.r).filter((r): r is number => r != null && Number.isFinite(r))
+const maxAbs = observedRs.length > 0 ? Math.max(...observedRs.map(Math.abs)) : 1
+const yDomain: [number, number] = [Math.max(-1, -(maxAbs * 1.1)), Math.min(1, maxAbs * 1.1)]
+// <YAxis ... domain={yDomain} /> com ticks adaptativos baseados em yDomain
+```
+Gate: `npx tsc --noEmit && npm run build`. Smoke test visual: confirmar escala comprime pra amplitude real.
+
+---
+
+## ACHADO #43 — Refatorar PKVariabilityHumorLab pra grade 4×3 + observações por lag
+
+**Severidade:** MÉDIA · **Prioridade:** P1 · **Domínio:** Insights UX · **Ticket:** T7
+
+### Contexto
+
+O componente atual exibe uma tabela com tabs de CV%/Swing/TIR separadas, mostrando
+só uma métrica por vez. A estrutura dificulta a comparação simultânea de lag × métrica.
+O `PKVariabilityHeatmap` (logo abaixo) já usa uma grade mais legível com `HeatmapCell`.
+O objetivo é alinhar `PKVariabilityHumorLab` visualmente com o heatmap, preservando
+toda a matemática (`analyzePkVariabilityVsMood` inalterado).
+
+### Evidência
+
+- `frontend/src/components/charts/pk-variability-humor-lab.tsx:181-340` — seção de exibição a re-escrever
+- `frontend/src/components/charts/shared/heatmap-cell.tsx` — `HeatmapCell` disponível pra reutilização
+- `frontend/src/utils/pk-variability.ts` — `analyzePkVariabilityVsMood` (matemática a preservar)
+
+### Fix proposto
+
+- **Grade 4×3**: linhas = lag (0d, +1d, +2d, +3d), colunas = métrica (CV%, Swing, TIR).
+- Uma grade por substância selecionada (manter `<select>` de substância; remover seletor de métrica).
+- Células via `HeatmapCell`. Cor: verde (r>0) / vermelho (r<0) / cinza (n.s.). ★ pra `q_fdr < 0.05`.
+- FDR BH sobre as 12 células (4 lags × 3 métricas) — atualmente sem FDR no componente.
+- Observações textuais abaixo da grade, 1 linha por lag não-trivial.
+- Coluna TIR vazia (cinza neutro) pra Lamictal após T6.
+- Gate: `npx tsc --noEmit && npm run build && npm run lint && npm run test:unit`.
+  Smoke test: selecionar Lexapro → grade preenchida; Lamictal → TIR vazia; comparar r com tabela antiga.
 
 ---
 

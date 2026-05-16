@@ -15,6 +15,7 @@ import {
 interface NightQualityCardProps {
   snapshots: DailySnapshot[]
   variant?: 'full' | 'summary'
+  windowLabel?: string
 }
 
 interface ClassMeta {
@@ -138,7 +139,7 @@ function findLatest(
   return { point: series[lastIdx], snapshot: snapshots[lastIdx], raw, missingKeys }
 }
 
-export function NightQualityCard({ snapshots, variant = 'full' }: NightQualityCardProps) {
+export function NightQualityCard({ snapshots, variant = 'full', windowLabel }: NightQualityCardProps) {
   const { point, snapshot, raw, missingKeys } = useMemo(() => {
     const series = computeSleepQualityScoreSeries(snapshots)
     return findLatest(snapshots, series)
@@ -153,6 +154,7 @@ export function NightQualityCard({ snapshots, variant = 'full' }: NightQualityCa
       <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
         <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
           Qualidade da noite · {dayLabel(snapshot.date)}
+          {windowLabel ? ` · janela ${windowLabel}` : ''}
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-xl tracking-[-0.04em] text-slate-900">
           Score parcial em construção
@@ -190,6 +192,11 @@ export function NightQualityCard({ snapshots, variant = 'full' }: NightQualityCa
         <div>
           <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
             Qualidade da noite · {dateLabel}
+            {windowLabel ? (
+              <span className="ml-1.5 text-[0.6rem] font-normal opacity-70">
+                · janela {windowLabel}
+              </span>
+            ) : null}
             {!isLatest && (
               <span className="ml-1.5 text-[0.6rem] font-normal opacity-70">
                 · última noite completa

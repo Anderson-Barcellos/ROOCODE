@@ -79,6 +79,8 @@ const CLASS_PRIORITY: CoverageClass[] = [
   'sem_faixa',
 ]
 
+const COVERAGE_WINDOW_LABEL = 'últimas 48h'
+
 function worstClass(statuses: CoverageStatus[]): CoverageClass | null {
   if (statuses.length === 0) return null
   for (const cls of CLASS_PRIORITY) {
@@ -196,7 +198,7 @@ export function PKCoverageCard({ variant = 'full' }: PKCoverageCardProps) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
-            Cobertura PK · últimas 48h
+            Cobertura PK · {COVERAGE_WINDOW_LABEL}
           </span>
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
             {overallMeta.headline}

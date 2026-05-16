@@ -263,7 +263,7 @@ export function RecoveryScoreChart({ snapshots, baselineSnapshots }: RecoverySco
       </div>
 
       <div className="h-[320px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
             <XAxis

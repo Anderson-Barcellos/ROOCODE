@@ -43,6 +43,7 @@ import {
 } from '@/utils/pk-variability'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 import { HeatmapCell, type HeatmapCellEstimate } from './shared/heatmap-cell'
+import { formatCi, formatP, formatR } from './shared/heatmap-helpers'
 
 // Substâncias com farmacocinética relevante pra análise de variabilidade.
 // Clonazepam fora: dose ansiolítica baixa não gera swing detectável (ACHADO #1+#2 BACKLOG).
@@ -123,10 +124,21 @@ interface Props {
   weightKg?: number
 }
 
+interface SelectedHeatmapCell {
+  key: string
+  label: string
+  detail: string
+}
+
+function describeEstimate(estimate: HeatmapCellEstimate): string {
+  return `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)} · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr)} · n ${estimate.n}`
+}
+
 export function PKVariabilityHumorLab({
   snapshots,
   weightKg = DEFAULT_PK_BODY_WEIGHT_KG,
 }: Props) {
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
   const { data: substances = [] } = useSubstances()
   const analysisWindow = useMemo(() => getPkVariabilityAnalysisWindow(snapshots), [snapshots])
   const { data: doses = [] } = useDoses(analysisWindow.doseHours)
@@ -302,42 +314,60 @@ export function PKVariabilityHumorLab({
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div>
+        <div className="min-w-0">
           {hypotheses ? (
             <>
-              <div className="grid grid-cols-[60px_repeat(3,minmax(0,1fr))] gap-1.5">
-                <span />
-                {PK_VARIABILITY_METRICS.map((metric) => (
-                  <span
-                    key={metric}
-                    className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-500"
-                    title={PK_VARIABILITY_METRIC_DESCRIPTIONS[metric]}
-                  >
-                    {PK_VARIABILITY_METRIC_LABELS[metric]}
-                    <span className="ml-1 text-slate-400">({PK_VARIABILITY_METRIC_UNITS[metric]})</span>
-                  </span>
-                ))}
-                {LAGS.map((lag) => (
-                  <Fragment key={`row-${lag}`}>
-                    <span className="flex items-center justify-end pr-2 text-xs font-semibold text-slate-600">
-                      {lag === 0 ? '0d' : `+${lag}d`}
+              <div className="overflow-x-auto pb-1">
+                <div className="grid min-w-[520px] grid-cols-[60px_repeat(3,minmax(0,1fr))] gap-1.5">
+                  <span />
+                  {PK_VARIABILITY_METRICS.map((metric) => (
+                    <span
+                      key={metric}
+                      className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-500"
+                      title={PK_VARIABILITY_METRIC_DESCRIPTIONS[metric]}
+                    >
+                      {PK_VARIABILITY_METRIC_LABELS[metric]}
+                      <span className="ml-1 text-slate-400">({PK_VARIABILITY_METRIC_UNITS[metric]})</span>
                     </span>
-                    {PK_VARIABILITY_METRICS.map((metric) => {
-                      const row = hypotheses[metric].rows.find((r) => r.lagDays === lag)
-                      const estimate = rowToEstimate(row)
-                      const key = `${metric}-${lag}`
-                      return (
-                        <HeatmapCell
-                          key={key}
-                          estimate={estimate}
-                          isPeak={peakKey === key}
-                          significanceThreshold={0.05}
-                        />
-                      )
-                    })}
-                  </Fragment>
-                ))}
+                  ))}
+                  {LAGS.map((lag) => (
+                    <Fragment key={`row-${lag}`}>
+                      <span className="flex items-center justify-end pr-2 text-xs font-semibold text-slate-600">
+                        {lag === 0 ? '0d' : `+${lag}d`}
+                      </span>
+                      {PK_VARIABILITY_METRICS.map((metric) => {
+                        const row = hypotheses[metric].rows.find((r) => r.lagDays === lag)
+                        const estimate = rowToEstimate(row)
+                        const key = `${metric}-${lag}`
+                        const label = `${substanceName} · ${PK_VARIABILITY_METRIC_LABELS[metric]} · ${lag === 0 ? '0d' : `+${lag}d`}`
+                        return (
+                          <HeatmapCell
+                            key={key}
+                            label={label}
+                            estimate={estimate}
+                            isPeak={peakKey === key}
+                            significanceThreshold={0.05}
+                            selected={selectedHeatmapCell?.key === key}
+                            onSelect={estimate ? () => setSelectedHeatmapCell({
+                              key,
+                              label,
+                              detail: describeEstimate(estimate),
+                            }) : undefined}
+                          />
+                        )
+                      })}
+                    </Fragment>
+                  ))}
+                </div>
               </div>
+
+              {selectedHeatmapCell && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2 text-xs leading-5 text-slate-600">
+                  <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Detalhe selecionado</p>
+                  <p className="mt-1 font-semibold text-slate-800">{selectedHeatmapCell.label}</p>
+                  <p>{selectedHeatmapCell.detail}</p>
+                </div>
+              )}
 
               <div className="mt-4 space-y-1.5 text-xs leading-5 text-slate-600">
                 {lagObservations.map(({ lag, text }) => (

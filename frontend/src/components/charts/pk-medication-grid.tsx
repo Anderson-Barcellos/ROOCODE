@@ -29,6 +29,7 @@ import { SUBSTANCE_COLORS } from '../../lib/substance-colors'
 
 type Props = {
   hoursWindow?: number
+  windowLabel?: string
   weightKg?: number
 }
 
@@ -372,7 +373,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
   )
 }
 
-export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
+export function PKMedicationGrid({ hoursWindow = 168, windowLabel, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const { data: allDoses = [], isLoading: loadingDoses } = useDoses(FULL_HISTORY_DOSE_HOURS)
   const { data: substances = [], isLoading: loadingSubs } = useSubstances()
   const [nowTimestamp] = useState(() => Date.now())
@@ -471,6 +472,19 @@ export function PKMedicationGrid({ hoursWindow = 168, weightKg = DEFAULT_PK_BODY
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 8,
+        flexWrap: 'wrap',
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 10,
+        color: 'var(--muted)',
+        letterSpacing: '0.04em',
+      }}>
+        <span>Janela PK: {windowLabel ?? `${Math.round(hoursWindow / 24)}d`} + 12h projetadas</span>
+        <span>concentração atual sempre marcada pela linha pontilhada</span>
+      </div>
       <div
         style={{
           display: 'grid',

@@ -163,7 +163,10 @@ const CLASS_TEXT: Record<ActivityReadinessClass, { headline: string; summary: st
   },
 }
 
-export function computeActivityReadiness(snapshots: DailySnapshot[]): ActivityReadinessResult {
+export function computeActivityReadiness(
+  snapshots: DailySnapshot[],
+  baselineSnapshots: DailySnapshot[] = snapshots,
+): ActivityReadinessResult {
   const latest = latestHealthSnapshot(snapshots)
   if (!latest?.health) {
     return {
@@ -178,7 +181,7 @@ export function computeActivityReadiness(snapshots: DailySnapshot[]): ActivityRe
     }
   }
 
-  const baseline = buildBaseline(snapshots, latest.date)
+  const baseline = buildBaseline(baselineSnapshots, latest.date)
   const health = latest.health
   const steps = health.steps
   const stepsBaseline = baseline.steps ?? null

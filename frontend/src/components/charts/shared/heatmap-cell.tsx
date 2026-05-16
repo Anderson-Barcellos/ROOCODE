@@ -31,16 +31,22 @@ export interface HeatmapCellEstimate {
 
 export interface HeatmapCellProps {
   estimate: HeatmapCellEstimate | null
+  label?: string
   isPeak?: boolean
   isControl?: boolean
+  selected?: boolean
+  onSelect?: () => void
   significanceThreshold?: number
   muteNonSignificant?: boolean
 }
 
 export function HeatmapCell({
   estimate,
+  label,
   isPeak = false,
   isControl = false,
+  selected = false,
+  onSelect,
   significanceThreshold = 0.05,
   muteNonSignificant = false,
 }: HeatmapCellProps) {
@@ -62,14 +68,13 @@ export function HeatmapCell({
   const tooltip =
     `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)}` +
     ` · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr)} · n ${estimate.n}`
-  return (
-    <div
-      title={tooltip}
-      className={`relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
-        isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
-      } ${isControl ? 'opacity-70' : ''}`}
-      style={{ background: backgroundColor }}
-    >
+  const className = `relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
+    isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
+  } ${isControl ? 'opacity-70' : ''} ${
+    selected ? 'ring-2 ring-slate-900/35 ring-offset-1' : ''
+  }`
+  const content = (
+    <>
       {estimate.r > 0.05 && (
         <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-teal-700">↑</span>
       )}
@@ -78,6 +83,32 @@ export function HeatmapCell({
       )}
       <span className="text-slate-900 mix-blend-luminosity">{formatR(estimate.r)}</span>
       {significant && <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>}
+    </>
+  )
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        title={tooltip}
+        aria-label={label ? `${label}: ${tooltip}` : tooltip}
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={`${className} cursor-pointer transition hover:ring-2 hover:ring-slate-900/20 hover:ring-offset-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-1`}
+        style={{ background: backgroundColor }}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      title={tooltip}
+      className={className}
+      style={{ background: backgroundColor }}
+    >
+      {content}
     </div>
   )
 }

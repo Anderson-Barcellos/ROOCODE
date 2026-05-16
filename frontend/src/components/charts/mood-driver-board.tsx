@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Activity, HeartPulse, Moon, Pill, SunMedium } from 'lucide-react'
 
 import type { DailySnapshot } from '@/types/apple-health'
@@ -10,6 +10,8 @@ interface DriverDefinition {
   title: string
   label: string
   unit: string
+  sourcePath: string
+  chartHint: string
   icon: typeof Moon
   polarity: 'higher-is-better' | 'lower-is-better' | 'context'
   getter: (snapshot: DailySnapshot) => number | null
@@ -21,6 +23,8 @@ interface DriverCard {
   title: string
   label: string
   unit: string
+  sourcePath: string
+  chartHint: string
   icon: typeof Moon
   current: number | null
   baseline: number | null
@@ -29,6 +33,7 @@ interface DriverCard {
   tone: DriverTone
   message: string
   precision: number
+  recentEvidence: Array<{ date: string; value: number; mood: number | null }>
 }
 
 const MIN_MOOD_PAIRS = 3
@@ -40,6 +45,8 @@ const DRIVERS: DriverDefinition[] = [
     title: 'Sono',
     label: 'sono total',
     unit: 'h',
+    sourcePath: 'DailySnapshot.health.sleepTotalHours',
+    chartHint: 'Sono · SleepStages/SleepDebt',
     icon: Moon,
     polarity: 'higher-is-better',
     getter: (snapshot) => snapshot.health?.sleepTotalHours ?? null,
@@ -50,6 +57,8 @@ const DRIVERS: DriverDefinition[] = [
     title: 'Autonômico',
     label: 'HRV',
     unit: 'ms',
+    sourcePath: 'DailySnapshot.health.hrvSdnn',
+    chartHint: 'Coração · AutonomicBalance/HRV',
     icon: HeartPulse,
     polarity: 'higher-is-better',
     getter: (snapshot) => snapshot.health?.hrvSdnn ?? null,
@@ -60,6 +69,8 @@ const DRIVERS: DriverDefinition[] = [
     title: 'Ativação',
     label: 'passos',
     unit: '',
+    sourcePath: 'DailySnapshot.health.steps',
+    chartHint: 'Atividade · Steps/ActivityBars',
     icon: Activity,
     polarity: 'higher-is-better',
     getter: (snapshot) => snapshot.health?.steps ?? null,
@@ -70,6 +81,8 @@ const DRIVERS: DriverDefinition[] = [
     title: 'Circadiano',
     label: 'luz do dia',
     unit: 'min',
+    sourcePath: 'DailySnapshot.health.daylightMinutes',
+    chartHint: 'Atividade/Insights · ciclo circadiano',
     icon: SunMedium,
     polarity: 'higher-is-better',
     getter: (snapshot) => snapshot.health?.daylightMinutes ?? null,
@@ -80,6 +93,8 @@ const DRIVERS: DriverDefinition[] = [
     title: 'Medicação',
     label: 'doses logadas',
     unit: '',
+    sourcePath: 'DailySnapshot.medications.count',
+    chartHint: 'Farmaco · DoseLogger/PKCoverage',
     icon: Pill,
     polarity: 'context',
     getter: (snapshot) => snapshot.medications?.count ?? null,
@@ -99,6 +114,12 @@ const formatValue = (value: number | null, unit: string, precision: number): str
     minimumFractionDigits: precision,
   })
   return unit ? `${rounded} ${unit}` : rounded
+}
+
+const formatDelta = (delta: number | null, unit: string, precision: number): string => {
+  if (delta == null) return 'sem delta'
+  const sign = delta > 0 ? '+' : ''
+  return `${sign}${formatValue(delta, unit, precision)}`
 }
 
 const toneForDelta = (
@@ -132,6 +153,14 @@ const buildMessage = (card: Omit<DriverCard, 'message'>): string => {
 
 function buildDriverCard(snapshots: DailySnapshot[], driver: DriverDefinition): DriverCard {
   const usable = snapshots.filter((snapshot) => !snapshot.forecasted && !snapshot.interpolated)
+  const usableWithValues = usable
+    .map((snapshot) => {
+      const value = driver.getter(snapshot)
+      return value != null && Number.isFinite(value)
+        ? { date: snapshot.date, value, mood: snapshot.mood?.valence ?? null }
+        : null
+    })
+    .filter((item): item is { date: string; value: number; mood: number | null } => item != null)
   const values = usable
     .map((snapshot) => driver.getter(snapshot))
     .filter((value): value is number => value != null && Number.isFinite(value))
@@ -149,6 +178,8 @@ function buildDriverCard(snapshots: DailySnapshot[], driver: DriverDefinition): 
     title: driver.title,
     label: driver.label,
     unit: driver.unit,
+    sourcePath: driver.sourcePath,
+    chartHint: driver.chartHint,
     icon: driver.icon,
     current,
     baseline,
@@ -156,6 +187,7 @@ function buildDriverCard(snapshots: DailySnapshot[], driver: DriverDefinition): 
     pairCount,
     tone: toneForDelta(delta, baseline, driver.polarity),
     precision: driver.precision ?? 1,
+    recentEvidence: usableWithValues.slice(-RECENT_WINDOW),
   }
   return {
     ...base,
@@ -170,6 +202,7 @@ const toneClass: Record<DriverTone, string> = {
 }
 
 export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
+  const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null)
   const cards = useMemo(
     () => DRIVERS.map((driver) => buildDriverCard(snapshots, driver)),
     [snapshots],
@@ -235,6 +268,39 @@ export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
               </div>
 
               <p className="mt-3 text-xs leading-5 text-slate-600">{card.message}</p>
+
+              <button
+                type="button"
+                onClick={() => setExpandedDriverId((current) => current === card.id ? null : card.id)}
+                aria-expanded={expandedDriverId === card.id}
+                className="mt-3 inline-flex items-center rounded-md border border-slate-900/10 bg-white/70 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-slate-600 transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30"
+              >
+                Evidência
+              </button>
+
+              {expandedDriverId === card.id && (
+                <div className="mt-3 rounded-xl border border-slate-900/10 bg-white/75 px-3 py-2 text-xs leading-5 text-slate-600">
+                  <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Evidência do driver</p>
+                  <p className="mt-1">
+                    Fonte: <span className="font-mono text-[0.72rem] text-slate-700">{card.sourcePath}</span>
+                  </p>
+                  <p>
+                    Janela recente: {formatValue(card.current, card.unit, card.precision)} · baseline {formatValue(card.baseline, card.unit, card.precision)} · delta {formatDelta(card.delta, card.unit, card.precision)} · n pareado {card.pairCount}
+                  </p>
+                  <p>Destino natural: {card.chartHint}</p>
+                  {card.recentEvidence.length > 0 && (
+                    <div className="mt-2 grid gap-1">
+                      {card.recentEvidence.map((item) => (
+                        <div key={item.date} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50/80 px-2 py-1">
+                          <span className="font-mono text-[0.72rem] text-slate-500">{item.date}</span>
+                          <span className="font-semibold text-slate-700">{formatValue(item.value, card.unit, card.precision)}</span>
+                          <span className="text-slate-500">humor {item.mood == null ? 'n/d' : item.mood.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </article>
           )
         })}

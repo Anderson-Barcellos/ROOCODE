@@ -12,7 +12,7 @@
  * substância da linha — nunca cruzando.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import {
@@ -39,6 +39,7 @@ import {
   type PKVariabilityMetric,
 } from '@/utils/pk-variability'
 import { HeatmapCell, type HeatmapCellEstimate } from '@/components/charts/shared/heatmap-cell'
+import { formatCi, formatP, formatR } from '@/components/charts/shared/heatmap-helpers'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
 const SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse'] as const
@@ -55,7 +56,18 @@ interface Props {
   weightKg?: number
 }
 
+interface SelectedHeatmapCell {
+  key: string
+  label: string
+  detail: string
+}
+
+function describeEstimate(estimate: HeatmapCellEstimate): string {
+  return `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)} · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr)} · n ${estimate.n}`
+}
+
 export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
   const { data: substances = [] } = useSubstances()
   const analysisWindow = useMemo(() => getPkVariabilityAnalysisWindow(snapshots), [snapshots])
   const { data: doses = [] } = useDoses(analysisWindow.doseHours)
@@ -200,16 +212,36 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
                 />
                 {row.substanceName}
               </div>
-              {PK_VARIABILITY_METRICS.map((m) => (
-                <HeatmapCell
-                  key={m}
-                  estimate={row.estimates[m]}
-                  isPeak={row.bestMetric === m && row.estimates[m] != null}
-                />
-              ))}
+              {PK_VARIABILITY_METRICS.map((m) => {
+                const estimate = row.estimates[m]
+                const label = `${row.substanceName} · ${PK_VARIABILITY_METRIC_LABELS[m]}`
+                const key = `${row.substanceId}-${m}`
+                return (
+                  <HeatmapCell
+                    key={m}
+                    label={label}
+                    estimate={estimate}
+                    isPeak={row.bestMetric === m && estimate != null}
+                    selected={selectedHeatmapCell?.key === key}
+                    onSelect={estimate ? () => setSelectedHeatmapCell({
+                      key,
+                      label,
+                      detail: describeEstimate(estimate),
+                    }) : undefined}
+                  />
+                )
+              })}
             </div>
           ))}
         </div>
+
+        {selectedHeatmapCell && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2 text-xs leading-5 text-slate-600">
+            <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Detalhe selecionado</p>
+            <p className="mt-1 font-semibold text-slate-800">{selectedHeatmapCell.label}</p>
+            <p>{selectedHeatmapCell.detail}</p>
+          </div>
+        )}
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
           <li>

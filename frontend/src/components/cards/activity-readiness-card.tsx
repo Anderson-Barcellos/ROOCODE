@@ -12,6 +12,8 @@ import { computeRecoveryScoreSeries } from '@/utils/recovery-score'
 
 interface ActivityReadinessCardProps {
   snapshots: DailySnapshot[]
+  baselineSnapshots?: DailySnapshot[]
+  windowLabel?: string
 }
 
 const TONE_COLORS: Record<ActivityReadinessTone, string> = {
@@ -40,8 +42,11 @@ function FactorChip({ factor }: { factor: ActivityReadinessFactor }) {
   )
 }
 
-export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps) {
-  const result = useMemo(() => computeActivityReadiness(snapshots), [snapshots])
+export function ActivityReadinessCard({ snapshots, baselineSnapshots = snapshots, windowLabel }: ActivityReadinessCardProps) {
+  const result = useMemo(
+    () => computeActivityReadiness(snapshots, baselineSnapshots),
+    [snapshots, baselineSnapshots],
+  )
   const rankedFactors = result.factors
     .filter((factor) => factor.score != null)
     .sort((a, b) => (a.score ?? 100) - (b.score ?? 100))
@@ -53,10 +58,10 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
   // contradição quando readiness sugere alta atividade mas recovery está baixo.
   const recoveryAtSameDate = useMemo(() => {
     if (!result.date) return null
-    const series = computeRecoveryScoreSeries(snapshots)
+    const series = computeRecoveryScoreSeries(baselineSnapshots)
     const point = series.find((p) => p.date === result.date)
     return point?.score ?? null
-  }, [snapshots, result.date])
+  }, [baselineSnapshots, result.date])
 
   const showContradiction =
     result.score != null && result.score >= 75 &&
@@ -68,6 +73,7 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
         <div>
           <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
             Prontidão de movimento{result.date ? ` · ${dayLabel(result.date)}` : ''}
+            {windowLabel ? ` · janela ${windowLabel}` : ''}
           </span>
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
             {result.headline}
@@ -104,6 +110,9 @@ export function ActivityReadinessCard({ snapshots }: ActivityReadinessCardProps)
           Como o card decidiu
         </summary>
         <div className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600">
+          <p className="text-[0.7rem] text-slate-400">
+            Baseline: ultimos 30 dias reais antes do dia avaliado; janela visivel: {windowLabel ?? 'dados recebidos'}.
+          </p>
           {result.factors.map((factor) => (
             <div key={factor.key} className="grid gap-2 sm:grid-cols-[1fr_130px_130px_1.3fr]">
               <span className="font-medium text-slate-700">{factor.label}</span>

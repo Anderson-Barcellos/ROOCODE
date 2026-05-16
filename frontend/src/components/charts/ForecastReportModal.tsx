@@ -275,8 +275,8 @@ function ForecastTable({ snapshots }: { snapshots: DailySnapshot[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <table className="min-w-[720px] w-full text-sm">
         <thead className="bg-slate-50 text-[0.7rem] uppercase tracking-wider text-slate-500">
           <tr>
             <th className="px-3 py-2 text-left font-semibold">Data</th>

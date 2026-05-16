@@ -21,6 +21,10 @@
 > Adendo 2026-05-15: ingressados #36-#43 (Auditoria visual aba Insights pós-backend 9 commits).
 > Plano detalhado em `/root/.claude/plans/eita-era-comprida-essa-refactored-rainbow.md`.
 > ✅ Todos os 8 tickets fechados em 2026-05-15 (8 commits T6→T7).
+>
+> Adendo 2026-05-16: ingressados #44-#48 (auditoria frontend pós-cálculos estatísticos).
+> ✅ Fechados em pacote único: viewport sem corte, heatmaps touch-friendly, janela analítica consistente,
+> consolidação da Insights e QA visual desktop/mobile em `/health/`.
 
 ---
 
@@ -79,8 +83,30 @@
 | 41 | Remover ScatterCorrelation (seção "Scatter interativo") ✅ `8f47d4c` | BAIXA | P2 | Insights UX |
 | 42 | LagCorrelationChart: escala Y fixo [-1,+1] não acompanha amplitude real ✅ `67706ef` | BAIXA | P2 | Insights UX |
 | 43 | Refatorar PKVariabilityHumorLab pra grade 4×3 + observações textuais ✅ `65eed37` | MÉDIA | P1 | Insights UX |
+| 44 | Visualizações largas cortavam/comprimiam conteúdo em viewport estreita ✅ 2026-05-16 | MÉDIA | P1 | Frontend UX |
+| 45 | Peso PK hardcoded em labs intraday divergente do perfil canônico ✅ 2026-05-16 | MÉDIA | P1 | PK Frontend |
+| 46 | Heatmaps dependiam de hover/title e perdiam detalhe em touch/mobile ✅ 2026-05-16 | MÉDIA | P1 | Insights UX |
+| 47 | Cards misturavam janela selecionada, baseline histórico e leitura atual sem declarar ✅ 2026-05-16 | MÉDIA | P1 | Frontend Math UX |
+| 48 | Insights duplicava variabilidade PK e não explicava melhora "menos negativa" ✅ 2026-05-16 | BAIXA | P2 | Insights UX |
 
-**P0 (7)** · **P1 (14)** · **P2 (22)** · Total: **43 achados** · ✅ **#36-#43 fechados** em 2026-05-15.
+**P0 (7)** · **P1 (18)** · **P2 (23)** · Total: **48 achados** · ✅ **#44-#48 fechados** em 2026-05-16.
+
+---
+
+## Auditoria frontend pós-cálculos — 2026-05-16
+
+### ACHADOS #44-#48 — Fechados em pacote único
+
+**Contexto:** auditoria do frontend para garantir que dados estatísticos/PK/backend apareçam com leitura fiel, interativa e sem restrição de viewport.
+
+**Fechamentos:**
+- #44: `ForecastReportModal` e `PKVariabilityHumorLab` ganharam scroll horizontal local para não cortar tabela/matriz em viewport estreita.
+- #45: labs intraday (`PKMoodScatterChart`, `LagCorrelationChart`) passaram a usar `DEFAULT_PK_BODY_WEIGHT_KG`, alinhado ao perfil canônico.
+- #46: heatmaps relevantes agora têm seleção clicável/touch-friendly, `aria-label` e painel persistente "Detalhe selecionado".
+- #47: política de janela explicitada: Sono usa `ranged`, Atividade separa `ranged` de `baselineSnapshots`, PK grid deriva janela de `range`, PK coverage declara leitura fixa 48h.
+- #48: Insights consolidou `PKVariabilityReportCard` dentro do bloco PK × Humor, removeu o heatmap panorâmico duplicado da tela principal, adicionou leitura "menos negativa" no lag e guia "Leitura clínica rápida" em Humor vs fisiologia.
+
+**Validação:** `npm run test:unit`, `npm run build`, `npm run lint`, `git diff --check` e QA visual Playwright em `https://ultrassom.ai/health/` com desktop 1440×1000 + mobile 390×844. QA confirmou zero duplicidade do título "Substância × métrica de variabilidade", presença de "Leitura clínica rápida", presença de "Melhoras de valência detectadas", sem overlay, sem tela em branco e sem warnings/errors de console.
 
 ---
 

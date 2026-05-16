@@ -11,7 +11,7 @@
  * Lógica em utils/temp-humor-correlation.ts (testável separadamente).
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import {
@@ -26,7 +26,14 @@ interface Props {
   snapshots: DailySnapshot[]
 }
 
+interface SelectedHeatmapCell {
+  key: string
+  label: string
+  detail: string
+}
+
 export function TempHumorCorrelation({ snapshots }: Props) {
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
   const { samples, lags, peakLagDays } = useMemo(
     () => analyzeTempHumor(snapshots),
     [snapshots],
@@ -147,17 +154,33 @@ export function TempHumorCorrelation({ snapshots }: Props) {
           </div>
           {LAG_DAYS_SWEEP.map((lag) => {
             const est = lags.find((l) => l.lagDays === lag) ?? null
+            const label = `Δ temp × humor · ${lag === 0 ? 'lag 0' : lag > 0 ? `+${lag}d` : `${lag}d`}`
             return (
               <HeatmapCell
                 key={lag}
+                label={label}
                 estimate={est}
                 isPeak={peakLagDays === lag}
                 isControl={lag < 0}
                 isPreregistered={lag === PREREGISTERED_LAG_DAYS}
+                selected={selectedHeatmapCell?.key === `temp-${lag}`}
+                onSelect={est ? (detail) => setSelectedHeatmapCell({
+                  key: `temp-${lag}`,
+                  label,
+                  detail,
+                }) : undefined}
               />
             )
           })}
         </div>
+
+        {selectedHeatmapCell && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2 text-xs leading-5 text-slate-600">
+            <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Detalhe selecionado</p>
+            <p className="mt-1 font-semibold text-slate-800">{selectedHeatmapCell.label}</p>
+            <p>{selectedHeatmapCell.detail}</p>
+          </div>
+        )}
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
           <li>
@@ -216,15 +239,21 @@ function colorForR(r: number): string {
 }
 
 function HeatmapCell({
+  label,
   estimate,
   isPeak,
   isControl,
   isPreregistered,
+  selected,
+  onSelect,
 }: {
+  label: string
   estimate: LagEstimate | null
   isPeak: boolean
   isControl: boolean
   isPreregistered: boolean
+  selected: boolean
+  onSelect?: (detail: string) => void
 }) {
   if (!estimate) {
     return (
@@ -241,16 +270,13 @@ function HeatmapCell({
     `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)} ·` +
     ` p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr ?? Number.NaN)} · n ${estimate.n}` +
     (isPreregistered ? ' · pré-registrado (+1d)' : '')
-  return (
-    <div
-      title={tooltip}
-      className={`relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
-        isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
-      } ${isControl ? 'opacity-70' : ''} ${
-        isPreregistered && !isPeak ? 'ring-2 ring-amber-300' : ''
-      }`}
-      style={{ background: colorForR(estimate.r) }}
-    >
+  const className = `relative flex h-12 items-center justify-center rounded-md border text-xs font-mono ${
+    isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
+  } ${isControl ? 'opacity-70' : ''} ${
+    isPreregistered && !isPeak ? 'ring-2 ring-amber-300' : ''
+  } ${selected ? 'ring-2 ring-slate-900/35 ring-offset-1' : ''}`
+  const content = (
+    <>
       {isPreregistered && (
         <span className="absolute left-0.5 top-0.5 rounded bg-amber-100 px-1 text-[0.55rem] font-semibold text-amber-700">
           pré
@@ -266,6 +292,30 @@ function HeatmapCell({
       {significant && (
         <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>
       )}
+    </>
+  )
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        title={tooltip}
+        aria-label={`${label}: ${tooltip}`}
+        aria-pressed={selected}
+        onClick={() => onSelect(tooltip)}
+        className={`${className} cursor-pointer transition hover:ring-2 hover:ring-slate-900/20 hover:ring-offset-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-1`}
+        style={{ background: colorForR(estimate.r) }}
+      >
+        {content}
+      </button>
+    )
+  }
+  return (
+    <div
+      title={tooltip}
+      className={className}
+      style={{ background: colorForR(estimate.r) }}
+    >
+      {content}
     </div>
   )
 }

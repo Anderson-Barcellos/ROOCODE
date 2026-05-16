@@ -71,7 +71,7 @@ git diff --check
 | **Sono** | NightQualityCard · SleepStagesChart · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline |
 | **Coração** | AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart |
 | **Atividade** | ActivityReadinessCard · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart |
-| **Insights** | PKVariabilityReportCard · MoodDriverBoard · CorrelationHeatmap · TempHumorCorrelation · PKVariabilityHumorLab (grade 4×3) · PKVariabilityHeatmap · PKMoodScatterChart · LagCorrelationChart · PkRemSuppression · ForecastAccuracyCard (colapsada) |
+| **Insights** | MoodDriverBoard · CorrelationHeatmap · TempHumorCorrelation · PKVariabilityReportCard · PKVariabilityHumorLab (grade 4×3) · PKMoodScatterChart · LagCorrelationChart · PkRemSuppression · ForecastAccuracyCard (colapsada) |
 
 ## Baseline funcional a preservar
 
@@ -79,8 +79,17 @@ git diff --check
 - `DoseCalendarView` mantém fluxo rápido de adicionar/editar/remover dose no dia selecionado.
 - Contrato Farma sem mudança de schema público: `/farma/doses`, `/farma/doses/{id}`, `/farma/regimen`, `/farma/substances`.
 - `MoodDriverBoard` no topo de Insights via `CorrelationHeatmap`.
+- `MoodDriverBoard` deve permanecer investigável: cada driver tem botão "Evidência" com sourcePath, janela recente, baseline, delta, n pareado, últimos valores usados e destino natural de gráfico.
 - `CorrelationHeatmap` filtra `forecasted`/`interpolated` antes de correlacionar (alinhado com MoodDriverBoard e PKVariabilityHumorLab); FDR Benjamini-Hochberg sobre todos os pares testados.
 - `PKVariabilityHumorLab` em grade 4×3 (lag × métrica) com FDR sobre as 12 células e observações textuais por lag.
+- Visualizações largas devem preservar leitura em viewport estreita: tabela do `ForecastReportModal` e matriz do `PKVariabilityHumorLab` usam scroll horizontal local em vez de comprimir/cortar conteúdo.
+- Heatmaps compartilhados com `HeatmapCell` devem ser touch-friendly: quando a célula representa um resultado real, renderizar como botão acessível e mostrar "Detalhe selecionado" persistente no consumidor.
+- `CorrelationHeatmap` e `TempHumorCorrelation` seguem o mesmo padrão touch-friendly: células reais são botões com `aria-label`, estado selecionado e painel "Detalhe selecionado".
+- Insights deve evitar duplicar a família `PKVariability*`: o resumo forte (`PKVariabilityReportCard`) fica dentro do bloco "PK × Humor (variabilidade)" e o heatmap panorâmico separado fica fora da renderização principal enquanto `PKVariabilityHumorLab` já mostra substância × métrica × lag. `LagCorrelationChart` deve explicar que melhora de valência inclui sair de negativa para menos negativa.
+- `CorrelationHeatmap` deve manter uma seção "Leitura clínica rápida" antes da matriz, destacando a maior associação positiva e negativa para ajudar a interpretar Humor vs fisiologia sem tratar correlação como causalidade.
+- Labs PK intraday (`PKMoodScatterChart`, `LagCorrelationChart`) usam `DEFAULT_PK_BODY_WEIGHT_KG`; não reintroduzir peso literal `91` em cálculos novos.
+- Gráficos Recharts que aparecem no primeiro render auditado (`RecoveryScoreChart`, `PKMoodScatterChart`, `LagCorrelationChart`) usam `initialDimension={{ width: 1, height: 1 }}` para evitar warning de dimensão `-1` na montagem.
+- Política de janela no `App`: `ranged` para leitura histórica filtrada, `rangedWithForecast` para gráficos com projeção futura, `data.snapshots` para baseline/dia atual. Na aba Sono, `NightQualityCard` recebe `ranged`; em Atividade, `ActivityReadinessCard` recebe `ranged` + `baselineSnapshots={data.snapshots}`; no Farma, `PKMedicationGrid` deriva `hoursWindow` de `PK_HOURS_BY_RANGE`.
 - Lamictal sem `therapeutic_range` (TDM não padrão em bipolar); `PKCoverageCard` mostra concentração corrente sem badge de status (`klass: 'sem_faixa'`).
 - Estado "dados insuficientes" explícito em correlações; sem causalidade clínica.
 
@@ -95,5 +104,7 @@ git status --short
 Depois: abrir `BACKLOG.md`, escolher ticket, resolver em 1 commit focado.
 
 ## Histórico
+
+- 2026-05-16: auditoria frontend consolidou viewport/heatmaps/janelas/Insights. QA visual em `https://ultrassom.ai/health/` validou desktop 1440×1000 e mobile 390×844 sem overlay, sem tela em branco, sem warning/erro de console, com `Leitura clínica rápida`, `PK × Humor (variabilidade)` consolidado e zero duplicidade de "Substância × métrica de variabilidade" na tela principal.
 
 10 sprints concluídas até 2026-05-11: REG-0..5, Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology, M1-M7, R, D, D-patch1. Detalhes em `docs/HISTORY/ROADMAP_maturation.md`, `docs/HISTORY/ROADMAP.md`, `docs/HISTORY/AGENTS.md` ou `git log --oneline`.

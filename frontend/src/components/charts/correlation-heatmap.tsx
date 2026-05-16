@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { interpolateRgbBasis } from 'd3'
 
 import type { DailySnapshot } from '@/types/apple-health'
@@ -47,8 +47,22 @@ function textColorForR(r: number | null): string {
 interface CellData {
   key: string
   label: string
-  lag0: { r: number; qSignificant: boolean; n: number } | null
-  lag1: { r: number; qSignificant: boolean; n: number } | null
+  lag0: RCellData | null
+  lag1: RCellData | null
+}
+
+interface RCellData {
+  r: number
+  pValue: number
+  qValueFdr: number | null | undefined
+  qSignificant: boolean
+  n: number
+}
+
+interface SelectedHeatmapCell {
+  key: string
+  label: string
+  detail: string
 }
 
 function resultToCell(result: CorrelationResult | null) {
@@ -56,12 +70,22 @@ function resultToCell(result: CorrelationResult | null) {
   const q = result.qValueFdr
   return {
     r: result.r,
+    pValue: result.pValue,
+    qValueFdr: q,
     n: result.n,
     qSignificant: q != null && Number.isFinite(q) && q < 0.05,
   }
 }
 
+function formatP(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  if (value < 0.001) return '<0.001'
+  if (value < 0.01) return value.toFixed(3)
+  return value.toFixed(2)
+}
+
 export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: CorrelationHeatmapProps) {
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
   // T9 (2026-05-15): MoodDriverBoard e PKVariabilityHumorLab já filtram
   // interpolated/forecasted antes de correlacionar. Padronizar aqui também
   // pra não inflar r artificialmente em métricas auto-preenchidas (sono).
@@ -127,6 +151,20 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
   }, [usableSnapshots, usableExtraMetrics, moodValues])
 
   const hasAnyData = rows.some((r) => r.lag0 || r.lag1)
+  const { strongestPositive, strongestNegative } = useMemo(() => {
+    const cells = rows.flatMap((row) => [
+      row.lag0 ? { label: row.label, lag: 'lag 0', data: row.lag0 } : null,
+      row.lag1 ? { label: row.label, lag: 'lag +1', data: row.lag1 } : null,
+    ]).filter((item): item is { label: string; lag: string; data: RCellData } => item != null)
+    return {
+      strongestPositive: cells
+        .filter((cell) => cell.data.r > 0)
+        .sort((a, b) => b.data.r - a.data.r)[0] ?? null,
+      strongestNegative: cells
+        .filter((cell) => cell.data.r < 0)
+        .sort((a, b) => a.data.r - b.data.r)[0] ?? null,
+    }
+  }, [rows])
 
   // pairCount representativo = mínimo entre todas as rows × lags.
   // Conservador: se QUALQUER métrica tem poucos pares, heatmap sinaliza.
@@ -169,6 +207,35 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
       <DataReadinessGate readiness={readiness}>
         {hasAnyData ? (
           <div className="mt-4">
+            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+              <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Leitura clínica rápida</p>
+              <p className="mt-1">
+                Verde significa que valores maiores daquela métrica acompanharam valência mais alta; vermelho
+                significa valência mais baixa. Isso descreve associação, não causa.
+              </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg bg-white/80 px-3 py-2">
+                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-teal-700">
+                    Maior associação positiva
+                  </span>
+                  <span className="mt-1 block font-medium text-slate-800">
+                    {strongestPositive
+                      ? `${strongestPositive.label} · ${strongestPositive.lag} · r ${strongestPositive.data.r.toFixed(2)}`
+                      : 'Sem associação positiva calculável'}
+                  </span>
+                </div>
+                <div className="rounded-lg bg-white/80 px-3 py-2">
+                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-red-600">
+                    Maior associação negativa
+                  </span>
+                  <span className="mt-1 block font-medium text-slate-800">
+                    {strongestNegative
+                      ? `${strongestNegative.label} · ${strongestNegative.lag} · r ${strongestNegative.data.r.toFixed(2)}`
+                      : 'Sem associação negativa calculável'}
+                  </span>
+                </div>
+              </div>
+            </div>
             <div className="mb-2 grid grid-cols-[1fr_80px_80px] gap-2 px-1">
               <span className="text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Métrica</span>
               <span className="text-center text-[0.68rem] font-semibold uppercase tracking-wider text-slate-400">Lag 0</span>
@@ -179,11 +246,37 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
               {rows.map((row) => (
                 <div key={row.key} className="grid grid-cols-[1fr_80px_80px] items-center gap-2">
                   <span className="truncate text-sm font-medium text-slate-700">{row.label}</span>
-                  <RCell data={row.lag0} />
-                  <RCell data={row.lag1} />
+                  <RCell
+                    data={row.lag0}
+                    label={`${row.label} · lag 0`}
+                    selected={selectedHeatmapCell?.key === `${row.key}-lag0`}
+                    onSelect={(detail) => setSelectedHeatmapCell({
+                      key: `${row.key}-lag0`,
+                      label: `${row.label} · lag 0`,
+                      detail,
+                    })}
+                  />
+                  <RCell
+                    data={row.lag1}
+                    label={`${row.label} · lag +1`}
+                    selected={selectedHeatmapCell?.key === `${row.key}-lag1`}
+                    onSelect={(detail) => setSelectedHeatmapCell({
+                      key: `${row.key}-lag1`,
+                      label: `${row.label} · lag +1`,
+                      detail,
+                    })}
+                  />
                 </div>
               ))}
             </div>
+
+            {selectedHeatmapCell && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2 text-xs leading-5 text-slate-600">
+                <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Detalhe selecionado</p>
+                <p className="mt-1 font-semibold text-slate-800">{selectedHeatmapCell.label}</p>
+                <p>{selectedHeatmapCell.detail}</p>
+              </div>
+            )}
 
             <div className="mt-5 flex items-center gap-3">
               <span className="text-xs text-slate-400">Negativo</span>
@@ -200,24 +293,46 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
   )
 }
 
-function RCell({ data }: { data: { r: number; qSignificant: boolean; n: number } | null }) {
+function RCell({
+  data,
+  label,
+  selected,
+  onSelect,
+}: {
+  data: RCellData | null
+  label: string
+  selected: boolean
+  onSelect: (detail: string) => void
+}) {
+  const detail = data
+    ? `r ${data.r.toFixed(3)} · p ${formatP(data.pValue)} · q ${formatP(data.qValueFdr)} · n ${data.n}`
+    : 'Dados insuficientes'
+  if (!data) {
+    return (
+      <div
+        className="flex h-9 items-center justify-center rounded-xl text-xs font-bold text-slate-300"
+        style={{ backgroundColor: colorForR(null) }}
+      >
+        —
+      </div>
+    )
+  }
   return (
-    <div
-      className="flex h-9 items-center justify-center rounded-xl text-xs font-bold transition-transform hover:scale-105"
+    <button
+      type="button"
+      className={`flex h-9 items-center justify-center rounded-xl text-xs font-bold transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30 ${
+        selected ? 'ring-2 ring-slate-900/35 ring-offset-1' : ''
+      }`}
       style={{
-        backgroundColor: colorForR(data?.r ?? null),
-        color: textColorForR(data?.r ?? null),
+        backgroundColor: colorForR(data.r),
+        color: textColorForR(data.r),
       }}
-      title={data ? `R = ${data.r.toFixed(3)}, N = ${data.n}` : 'Dados insuficientes'}
+      aria-label={`${label}: ${detail}`}
+      aria-pressed={selected}
+      onClick={() => onSelect(detail)}
     >
-      {data ? (
-        <>
-          {data.r.toFixed(2)}
-          {data.qSignificant ? '*' : ''}
-        </>
-      ) : (
-        <span className="text-slate-300">—</span>
-      )}
-    </div>
+      {data.r.toFixed(2)}
+      {data.qSignificant ? '*' : ''}
+    </button>
   )
 }

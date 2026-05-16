@@ -14,6 +14,7 @@ import { FULL_HISTORY_DOSE_HOURS, useDoses, useMood, useSubstances } from '@/lib
 import type { MoodRecord } from '@/lib/api'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { DEFAULT_PK_BODY_WEIGHT_KG } from '@/utils/pharmacokinetics'
 import {
   buildMoodEvents,
   computeLagCorrelation,
@@ -121,7 +122,7 @@ export function LagCorrelationChart() {
     }
     const dosesForMed = allDoses.filter((d) => d.substance === med.id)
     const pkDoses = toPKDoses(dosesForMed)
-    const correlations = computeLagCorrelation(events, med, pkDoses, LAGS, 91, {
+    const correlations = computeLagCorrelation(events, med, pkDoses, LAGS, DEFAULT_PK_BODY_WEIGHT_KG, {
       method: correlationMethod,
       permutationIterations: 600,
       bootstrapIterations: 600,
@@ -189,6 +190,17 @@ export function LagCorrelationChart() {
       .sort((a, b) => a.lag - b.lag)
   })()
 
+  const futureImprovements = data
+    .filter((row) => row.lag > 0 && row.r != null && row.r > 0 && row.n >= 3)
+    .sort((a, b) => {
+      const aq = typeof a.qValueFdr === 'number' && a.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD ? 0 : 1
+      const bq = typeof b.qValueFdr === 'number' && b.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD ? 0 : 1
+      if (aq !== bq) return aq - bq
+      return Math.abs((b.r as number)) - Math.abs((a.r as number))
+    })
+    .slice(0, 3)
+    .sort((a, b) => a.lag - b.lag)
+
   const availableMeds = substances
     .map((s) => substanceToPKMedication(s))
     .filter((m): m is NonNullable<ReturnType<typeof substanceToPKMedication>> => m !== null)
@@ -221,7 +233,35 @@ export function LagCorrelationChart() {
       </p>
       <p className="mt-1 text-xs text-slate-500">
         Cor do ponto: <span className="font-semibold text-teal-700">verde</span> = associação positiva, <span className="font-semibold text-red-500">vermelho</span> = negativa (intensidade proporcional a |r|).
+        Associação positiva significa valência subindo; isso inclui melhora de negativa para menos negativa.
       </p>
+      {futureImprovements.length > 0 && (
+        <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-950">
+          <span className="font-semibold">Melhoras de valência detectadas:</span>{' '}
+          <span className="text-emerald-800/90">
+            aqui melhora quer dizer valência mais alta, inclusive quando ela segue negativa mas fica menos negativa.
+          </span>
+          <div className="mt-1 space-y-1">
+            {futureImprovements.map((item) => (
+              <div key={item.lag} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="text-emerald-700">melhora em +{item.lag}h</span>
+                <span className="text-slate-600">(r={item.r?.toFixed(2) ?? '—'}, n={item.n})</span>
+                <span
+                  className={
+                    typeof item.qValueFdr === 'number' && item.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
+                      ? 'text-amber-700'
+                      : 'text-slate-500'
+                  }
+                >
+                  {typeof item.qValueFdr === 'number' && item.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
+                    ? 'q<0.05'
+                    : 'exploratório'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {futureImpact.length > 0 && (
         <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
           <span className="font-semibold">Impacto para frente (+1h…+12h):</span>
@@ -281,7 +321,7 @@ export function LagCorrelationChart() {
 
       <DataReadinessGate readiness={readiness}>
         <div className="mt-4 h-[260px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
             <ComposedChart data={data} margin={{ top: 10, right: 16, bottom: 4, left: 0 }}>
               <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
               <XAxis

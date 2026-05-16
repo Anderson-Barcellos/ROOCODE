@@ -17,6 +17,7 @@ import { FULL_HISTORY_DOSE_HOURS, useDoses, useMood, useSubstances } from '@/lib
 import type { MoodRecord } from '@/lib/api'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { DEFAULT_PK_BODY_WEIGHT_KG } from '@/utils/pharmacokinetics'
 import {
   buildMoodEvents,
   buildPKMoodPairs,
@@ -91,7 +92,7 @@ export function PKMoodScatterChart() {
     }
     const dosesForMed = allDoses.filter((d) => d.substance === med.id)
     const pkDoses = toPKDoses(dosesForMed)
-    const pairs = buildPKMoodPairs(events, med, pkDoses, 91, lagHours)
+    const pairs = buildPKMoodPairs(events, med, pkDoses, DEFAULT_PK_BODY_WEIGHT_KG, lagHours)
     if (pairs.length < 3) return { pairs, inference: null, regression: null, xMax: 0 }
     const xs = pairs.map((p) => p.concentration)
     const ys = pairs.map((p) => p.valence)
@@ -209,7 +210,7 @@ export function PKMoodScatterChart() {
 
       <DataReadinessGate readiness={readiness}>
         <div className="mt-4 h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
             <ComposedChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
               <CartesianGrid stroke="rgba(100,116,139,0.1)" />
               <XAxis

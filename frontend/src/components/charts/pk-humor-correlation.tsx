@@ -33,7 +33,8 @@ import {
   toPKDoses,
 } from '@/utils/intraday-correlation'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
-import { HeatmapCell } from '@/components/charts/shared/heatmap-cell'
+import { HeatmapCell, type HeatmapCellEstimate } from '@/components/charts/shared/heatmap-cell'
+import { formatCi, formatP, formatR } from '@/components/charts/shared/heatmap-helpers'
 
 interface DailyEmaSample {
   date: string
@@ -159,8 +160,19 @@ interface Props {
   weightKg?: number
 }
 
+interface SelectedHeatmapCell {
+  key: string
+  label: string
+  detail: string
+}
+
+function describeEstimate(estimate: HeatmapCellEstimate): string {
+  return `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)} · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr)} · n ${estimate.n}`
+}
+
 export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGHT_KG }: Props) {
   const [showRaw, setShowRaw] = useState(true)
+  const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
   const { data: doses = [] } = useDoses(FULL_HISTORY_DOSE_HOURS)
   const { data: substances = [] } = useSubstances()
 
@@ -447,30 +459,46 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
               </div>
               {LAG_DAYS_SWEEP.map((lag) => {
                 const est = row.lags.find((l) => l.lagDays === lag) ?? null
+                const label = `${row.subName} · ${lag === 0 ? 'lag 0' : lag > 0 ? `+${lag}d` : `${lag}d`}`
+                const estimate = est
+                  ? {
+                      r: est.r,
+                      n: est.n,
+                      p: est.p,
+                      qFdr: est.qFdr,
+                      ciLower: est.ciLower,
+                      ciUpper: est.ciUpper,
+                    }
+                  : null
+                const key = `${row.subId}-${lag}`
                 return (
                   <HeatmapCell
                     key={lag}
-                    estimate={
-                      est
-                        ? {
-                            r: est.r,
-                            n: est.n,
-                            p: est.p,
-                            qFdr: est.qFdr,
-                            ciLower: est.ciLower,
-                            ciUpper: est.ciUpper,
-                          }
-                        : null
-                    }
+                    label={label}
+                    estimate={estimate}
                     isPeak={row.peakLagDays === lag}
                     isControl={lag < 0}
+                    selected={selectedHeatmapCell?.key === key}
                     muteNonSignificant={!showRaw}
+                    onSelect={estimate ? () => setSelectedHeatmapCell({
+                      key,
+                      label,
+                      detail: describeEstimate(estimate),
+                    }) : undefined}
                   />
                 )
               })}
             </Fragment>
           ))}
         </div>
+
+        {selectedHeatmapCell && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2 text-xs leading-5 text-slate-600">
+            <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Detalhe selecionado</p>
+            <p className="mt-1 font-semibold text-slate-800">{selectedHeatmapCell.label}</p>
+            <p>{selectedHeatmapCell.detail}</p>
+          </div>
+        )}
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
           <li>

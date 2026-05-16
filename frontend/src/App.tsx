@@ -24,7 +24,6 @@ import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
 import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
 import { PKVariabilityHumorLab } from '@/components/charts/pk-variability-humor-lab'
-import { PKVariabilityHeatmap } from '@/components/charts/pk-variability-heatmap'
 import { PKVariabilityReportCard } from '@/components/cards/pk-variability-report-card'
 import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
 import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
@@ -55,6 +54,14 @@ import { computeRecoveryScoreSeries } from '@/utils/recovery-score'
 import { rankLimitingFactors, type RecoveryComponentKey } from '@/utils/recovery-score-ranking'
 
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
+
+const PK_HOURS_BY_RANGE: Record<RangeOption, number> = {
+  '7d': 24 * 7,
+  '30d': 24 * 30,
+  '90d': 24 * 90,
+  '1y': 24 * 365,
+  all: FULL_HISTORY_DOSE_HOURS,
+}
 
 function toneFor(value: number | null, positive: number, watch: number, lowerIsBetter = false): AnalyticsTone {
   if (value == null) return 'neutral'
@@ -499,7 +506,10 @@ export default function App() {
   const data = useRooCodeData(interpolation, 'on')
   const dosesQuery = useDoses(FULL_HISTORY_DOSE_HOURS)
   const regimenQuery = useRegimen(true)
+  // Política de janela: `ranged` = leitura histórica filtrada; `rangedWithForecast`
+  // = gráficos que devem mostrar projeção futura; `data.snapshots` = baseline/dia atual.
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
+  const pkHoursWindow = PK_HOURS_BY_RANGE[range]
   const todayIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const rangedWithForecast = useMemo(
     () =>
@@ -838,11 +848,11 @@ export default function App() {
                 </div>
                 <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
-                <MoodTimeline snapshots={ranged} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                 <PKCoverageCard />
 
-                <PKMedicationGrid hoursWindow={168} />
+                <PKMedicationGrid hoursWindow={pkHoursWindow} windowLabel={range} />
 
                 <PKHumorCorrelation snapshots={ranged} />
 
@@ -875,7 +885,7 @@ export default function App() {
                     <span className="font-semibold">Leitura rápida:</span> {sleepSummaryLine}
                   </p>
 
-                  <NightQualityCard snapshots={data.snapshots} />
+                  <NightQualityCard snapshots={ranged} windowLabel={range} />
 
                   <SleepStagesChart snapshots={ranged} />
 
@@ -934,7 +944,7 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-4">
-                  <ActivityReadinessCard snapshots={ranged} />
+                  <ActivityReadinessCard snapshots={ranged} baselineSnapshots={data.snapshots} windowLabel={range} />
 
                   <ActivityBars snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
@@ -974,7 +984,6 @@ export default function App() {
                       title="Quais drivers parecem mais ligados ao humor?"
                       description="Começa pelos cards mais interpretáveis e deixa o heatmap como suporte visual, não como decisão isolada."
                     >
-                      <PKVariabilityReportCard snapshots={ranged} />
                       <CorrelationHeatmap snapshots={ranged} />
                       <TempHumorCorrelation snapshots={ranged} />
                     </LabGroup>
@@ -984,8 +993,8 @@ export default function App() {
                       title="Concentrações irregulares ou muito estáveis afetam humor?"
                       description="Testa se a VARIABILIDADE da concentração (CV% inter-dia, swing intra-dia, tempo no range) correlaciona com humor. Análise quartil Q1×Q4 capta sweet spot em U que Pearson sozinho perde."
                     >
+                      <PKVariabilityReportCard snapshots={ranged} />
                       <PKVariabilityHumorLab snapshots={ranged} />
-                      <PKVariabilityHeatmap snapshots={ranged} />
                     </LabGroup>
 
                     <LabGroup

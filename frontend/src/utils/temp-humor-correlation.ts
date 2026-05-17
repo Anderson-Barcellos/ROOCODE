@@ -51,6 +51,14 @@ export interface TempHumorAnalysis {
   samples: DailyTempSample[]
   lags: LagEstimate[]
   peakLagDays: number | null
+  preregistered: {
+    expectedLagDays: number
+    expectedDirection: 'negative'
+    observedR: number | null
+    observedDirection: 'negative' | 'positive' | 'neutral' | 'missing'
+    contradicted: boolean
+    note: string
+  }
 }
 
 function isExcluded(snap: DailySnapshot): boolean {
@@ -153,8 +161,17 @@ export function pValueFromR(r: number, n: number): number {
 export function analyzeTempHumor(snapshots: DailySnapshot[]): TempHumorAnalysis {
   const samples = buildTempHumorSamples(snapshots)
 
+  const emptyPreregistered = {
+    expectedLagDays: PREREGISTERED_LAG_DAYS,
+    expectedDirection: 'negative' as const,
+    observedR: null,
+    observedDirection: 'missing' as const,
+    contradicted: false,
+    note: 'Sem pares suficientes para avaliar a hipótese pré-registrada (+1d, direção negativa).',
+  }
+
   if (samples.length < MIN_TOTAL_SAMPLES) {
-    return { samples, lags: [], peakLagDays: null }
+    return { samples, lags: [], peakLagDays: null, preregistered: emptyPreregistered }
   }
 
   const base = LAG_DAYS_SWEEP.map((lagDays): Omit<LagEstimate, 'qFdr'> | null => {
@@ -188,5 +205,37 @@ export function analyzeTempHumor(snapshots: DailySnapshot[]): TempHumorAnalysis 
     ? significant.reduce((peak, l) => (Math.abs(l.r) > Math.abs(peak.r) ? l : peak)).lagDays
     : null
 
-  return { samples, lags, peakLagDays }
+  const prereg = lags.find((lag) => lag.lagDays === PREREGISTERED_LAG_DAYS)
+  const observedR = prereg?.r ?? null
+  const observedDirection =
+    prereg == null
+      ? 'missing'
+      : prereg.r > 0.02
+        ? 'positive'
+        : prereg.r < -0.02
+          ? 'negative'
+          : 'neutral'
+  const contradicted = observedDirection === 'positive'
+  const note =
+    prereg == null
+      ? emptyPreregistered.note
+      : observedDirection === 'negative'
+        ? 'Direção pré-registrada confirmada em +1d (temperatura ↑ associada a valência ↓).'
+        : observedDirection === 'neutral'
+          ? 'Direção em +1d ficou neutra/inconclusiva no período atual.'
+          : 'Hipótese pré-registrada contradita: em +1d a direção observada foi positiva.'
+
+  return {
+    samples,
+    lags,
+    peakLagDays,
+    preregistered: {
+      expectedLagDays: PREREGISTERED_LAG_DAYS,
+      expectedDirection: 'negative',
+      observedR,
+      observedDirection,
+      contradicted,
+      note,
+    },
+  }
 }

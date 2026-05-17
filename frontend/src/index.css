@@ -156,6 +156,19 @@ code {
   max-width: 62ch;
 }
 
+.hero-panel--compact {
+  padding: 1.45rem 1.6rem;
+}
+
+.hero-panel--compact h1 {
+  max-width: 24ch;
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+}
+
+.hero-panel--compact p {
+  max-width: 72ch;
+}
+
 .panel h2 {
   margin: 0.9rem 0 0.65rem;
   font-family: 'Fraunces', serif;

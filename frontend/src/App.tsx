@@ -44,12 +44,11 @@ import { HrvVariabilityChart } from '@/components/charts/hrv-variability-chart'
 import { HeartRateReserveChart } from '@/components/charts/heart-rate-reserve-chart'
 import { ChronotropicResponseChart } from '@/components/charts/chronotropic-response-chart'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
-import { useCardioAnalysis } from '@/hooks/useCardioAnalysis'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
-import type { DailySnapshot, OverviewMetrics } from '@/types/apple-health'
+import type { OverviewMetrics } from '@/types/apple-health'
 import { selectSnapshotRange } from '@/utils/aggregation'
-import { FULL_HISTORY_DOSE_HOURS, useDoses, useRegimen } from '@/lib/api'
-import { computeCoverageStatus } from '@/utils/pk-coverage'
+import { FULL_HISTORY_DOSE_HOURS } from '@/lib/api'
+import { computePanoramaConfidence, computePanoramaCoverage } from '@/utils/panorama-top'
 import { computeRecoveryScoreSeries } from '@/utils/recovery-score'
 import { rankLimitingFactors, type RecoveryComponentKey } from '@/utils/recovery-score-ranking'
 
@@ -83,8 +82,7 @@ type MetricCluster = {
 function buildExecutiveMetrics(
   ov: OverviewMetrics,
   days: { validRealDays: number; validMoodDays: number },
-  activity: { steps7d: number | null; vo2Max7d: number | null; walkingSpeed7d: number | null },
-  physiology: { respiratoryRate7d: number | null; pulseTemperatureC7d: number | null },
+  activity: { steps7d: number | null },
   cardio: { recoveryScore: number | null },
 ): MetricCluster[] {
   // Fase 5d: KPIs de média-7d só fazem sentido com 7+ dias reais.
@@ -111,60 +109,23 @@ function buildExecutiveMetrics(
         : mood >= -0.1
           ? 'estável'
           : 'em baixa'
-  const kcal = enoughReal ? ov.activeEnergy7dKcal : null
   const exMin = enoughReal ? ov.exercise7dMinutes : null
+  const daylight = enoughReal ? ov.daylight7dMinutes : null
   // Fase 8A — novos KPIs Activity/Physiology
   const steps = enoughReal ? activity.steps7d : null
-  const vo2 = enoughReal ? activity.vo2Max7d : null
-  const walkingSpeed = enoughReal ? activity.walkingSpeed7d : null
-  // Fase 9D — vitals sem viz dedicada, exibidos como KPIs clínicos
-  const rpm = enoughReal ? physiology.respiratoryRate7d : null
-  const wristTemp = enoughReal ? physiology.pulseTemperatureC7d : null
+  const recoveryDisplay = recovery != null ? Math.round(recovery) : null
   return [
     {
-      title: 'Sono e Recuperação',
+      title: 'Sinais principais',
       metrics: [
-        { label: 'Recuperação 7d', value: recovery, unit: '', tone: toneFor(recovery, 70, 40) },
+        { label: 'Recovery atual', value: recoveryDisplay, unit: '', tone: toneFor(recovery, 70, 40) },
         { label: 'Sono 7d', value: sleep, unit: 'h', tone: toneFor(sleep, 7, 6) },
         { label: 'HRV 7d', value: hrv, unit: 'ms', tone: toneFor(hrv, 40, 25) },
         { label: 'FC Repouso 7d', value: rhr, unit: 'bpm', tone: toneFor(rhr, 60, 70, true) },
-        {
-          // Freq. respiratória em repouso adulto: 12-20 rpm normal; acima = taquipneia.
-          // Bradipneia <12 raro neste perfil farmacológico, mas tratado como 'watch'.
-          label: 'Freq. resp. 7d',
-          value: rpm,
-          unit: 'rpm',
-          tone: rpm == null
-            ? 'neutral'
-            : rpm > 20
-            ? 'negative'
-            : rpm >= 16
-            ? 'watch'
-            : rpm >= 12
-            ? 'positive'
-            : 'watch',
-        },
-        {
-          // Temperatura de pulso noturna (wrist temp absoluto °C) — faixa estável
-          // 35.5-36.8 em repouso. >37.0 sinaliza possível febre incipiente; <35.5
-          // merece atenção ('watch') mas pode ser variação normal de periferia.
-          label: 'Temp. pulso 7d',
-          value: wristTemp,
-          unit: '°C',
-          tone: wristTemp == null
-            ? 'neutral'
-            : wristTemp >= 37.0
-            ? 'negative'
-            : wristTemp >= 36.8
-            ? 'watch'
-            : wristTemp >= 35.5
-            ? 'positive'
-            : 'watch',
-        },
       ],
     },
     {
-      title: 'Atividade e Energia',
+      title: 'Rotina e humor',
       metrics: [
         {
           label: 'Passos 7d',
@@ -178,14 +139,7 @@ function buildExecutiveMetrics(
           unit: 'min',
           tone: exMin == null ? 'neutral' : exMin >= 30 ? 'positive' : 'watch',
         },
-        { label: 'Energia ativa 7d', value: kcal, unit: 'kcal', tone: toneFor(kcal, 400, 200) },
-        { label: 'VO2 Máx 7d', value: vo2, unit: '', tone: toneFor(vo2, 45, 37) },
-        { label: 'Vel. marcha 7d', value: walkingSpeed, unit: 'km/h', tone: toneFor(walkingSpeed, 5.5, 4.5) },
-      ],
-    },
-    {
-      title: 'Humor',
-      metrics: [
+        { label: 'Luz do dia 7d', value: daylight, unit: 'min', tone: toneFor(daylight, 60, 30) },
         {
           label: 'Humor médio 7d',
           value: moodText,
@@ -269,74 +223,12 @@ function computeSleepSummaryLine(snapshots: Parameters<typeof computeRecoverySco
   return `${summaryLead}${efficiencyText}${patternText}`
 }
 
-type PanoramaConfidenceTier = 'robusta' | 'parcial' | 'baixa'
-
-interface PanoramaConfidence {
-  tier: PanoramaConfidenceTier
-  label: string
-  detail: string
-  className: string
-}
-
-function computePanoramaConfidence({
-  snapshotsInRange,
-  score,
-  completeness,
-  confidence,
-  derivedFromInterpolated,
-}: {
-  snapshotsInRange: DailySnapshot[]
-  score: number | null
-  completeness: number
-  confidence: number
-  derivedFromInterpolated: boolean
-}): PanoramaConfidence {
-  const realDays = snapshotsInRange.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted).length
-  const interpolatedDays = snapshotsInRange.filter((snapshot) => snapshot.interpolated).length
-  const completenessPct = Math.round(completeness * 100)
-  const confidencePct = Math.round(confidence * 100)
-
-  if (score == null || realDays < 3) {
-    return {
-      tier: 'baixa',
-      label: 'Confiança baixa',
-      detail: `${realDays} dias reais na janela · score ${score == null ? 'indisponível' : 'parcial'}`,
-      className: 'border-rose-200 bg-rose-50 text-rose-800',
-    }
-  }
-
-  if (realDays < 7 || completeness < 0.8 || confidence < 0.9 || derivedFromInterpolated || interpolatedDays > 0) {
-    const caveats = [
-      realDays < 7 ? `${realDays} dias reais` : null,
-      completeness < 0.8 ? `${completenessPct}% dos inputs` : null,
-      confidence < 0.9 ? `${confidencePct}% confiança` : null,
-      derivedFromInterpolated || interpolatedDays > 0 ? `${interpolatedDays} dia(s) interpolado(s)` : null,
-    ].filter(Boolean)
-
-    return {
-      tier: 'parcial',
-      label: 'Confiança parcial',
-      detail: caveats.join(' · '),
-      className: 'border-amber-200 bg-amber-50 text-amber-800',
-    }
-  }
-
-  return {
-    tier: 'robusta',
-    label: 'Confiança robusta',
-    detail: `${realDays} dias reais · ${completenessPct}% dos inputs · sem interpolação relevante`,
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  }
-}
-
 function buildPanoramaActions({
   status,
   limiter,
-  pkConcern,
 }: {
   status: 'green' | 'yellow' | 'red' | 'neutral'
   limiter: RecoveryComponentKey | null
-  pkConcern: string | null
 }): string[] {
   const actions: string[] = []
 
@@ -358,16 +250,6 @@ function buildPanoramaActions({
     mood: 'Humor em baixa: priorizar rotina simples, luz/manhã e reduzir decisões pesadas.',
   }
   if (limiter) actions.push(limiterAction[limiter] ?? `Fator limitante: ${LIMITING_LABEL[limiter]}.`)
-
-  if (pkConcern === 'vulnerabilidade') {
-    actions.push('PK subterapêutico: conferir log/regime antes de interpretar queda de humor como primária.')
-  } else if (pkConcern === 'queda') {
-    actions.push('PK em queda: monitorar próxima janela de dose e sintomas de vale.')
-  } else if (pkConcern === 'acima_faixa') {
-    actions.push('PK acima da faixa: considerar concentração como confundidor de sono/humor hoje.')
-  } else if (pkConcern === 'cobertura_incompleta') {
-    actions.push('Cobertura incompleta: revisar registros de dose antes de concluir falha farmacológica.')
-  }
 
   return actions.slice(0, 3)
 }
@@ -451,7 +333,7 @@ function InterpolationBanner({ mode, loading, error, filledCount }: Interpolatio
     ? ' — Erro na chamada IA, usando linear como fallback.'
     : filledCount > 0
     ? ` — ${filledCount} ${filledCount === 1 ? 'dia preenchido' : 'dias preenchidos'}. Pontos estimados aparecem tracejados nos charts.`
-    : ' — sem lacunas no intervalo atual.'
+    : ' — janela atual sem lacunas reais (nenhum ponto interpolado adicionado).'
 
   return (
     <div className={`mb-4 flex items-center gap-2 rounded-xl border ${palette.border} ${palette.bg} px-4 py-2.5 text-sm ${palette.strong}`}>
@@ -504,8 +386,6 @@ export default function App() {
   }
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const data = useRooCodeData(interpolation, 'on')
-  const dosesQuery = useDoses(FULL_HISTORY_DOSE_HOURS)
-  const regimenQuery = useRegimen(true)
   // Política de janela: `ranged` = leitura histórica filtrada; `rangedWithForecast`
   // = gráficos que devem mostrar projeção futura; `data.snapshots` = baseline/dia atual.
   const ranged = useMemo(() => selectSnapshotRange(data.snapshots, range), [data.snapshots, range])
@@ -525,48 +405,27 @@ export default function App() {
         : data.snapshots,
     [data.snapshots, data.forecastedSnapshots],
   )
-  const cardio = useCardioAnalysis(data.snapshots)
-  // Fase 8A — agregações 7d pros novos KPIs Activity/Physiology
-  // Fase 9D — adicionada physiology (vitals sem chart dedicado)
-  const { activitySummary, physiologySummary } = useMemo(() => {
+  const insightsCoverage = useMemo(() => {
+    const realDays = ranged.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted)
+    const pairedMoodDays = realDays.filter((snapshot) => snapshot.mood?.valence != null).length
+    const coveragePct = realDays.length > 0 ? Math.round((pairedMoodDays / realDays.length) * 100) : 0
+    return {
+      realDays: realDays.length,
+      pairedMoodDays,
+      coveragePct,
+    }
+  }, [ranged])
+  // Fase 8A — agregações 7d pros KPIs executivos do Panorama.
+  const activitySummary = useMemo(() => {
     const last7 = selectSnapshotRange(data.snapshots, '7d').filter((s) => !s.interpolated)
     const avg = (values: Array<number | null | undefined>): number | null => {
       const numeric = values.filter((v): v is number => typeof v === 'number')
       return numeric.length ? numeric.reduce((a, b) => a + b, 0) / numeric.length : null
     }
     return {
-      activitySummary: {
-        steps7d: avg(last7.map((s) => s.health?.steps)),
-        vo2Max7d: avg(last7.map((s) => s.health?.vo2Max)),
-        walkingSpeed7d: avg(last7.map((s) => s.health?.walkingSpeedKmh)),
-      },
-      physiologySummary: {
-        respiratoryRate7d: avg(last7.map((s) => s.health?.respiratoryRate)),
-        pulseTemperatureC7d: avg(last7.map((s) => s.health?.pulseTemperatureC)),
-      },
+      steps7d: avg(last7.map((s) => s.health?.steps)),
     }
   }, [data.snapshots])
-  const executiveMetrics = useMemo(
-    () =>
-      buildExecutiveMetrics(
-        data.overview,
-        {
-          validRealDays: data.validRealDays,
-          validMoodDays: data.validMoodDays,
-        },
-        activitySummary,
-        physiologySummary,
-        { recoveryScore: cardio.recoveryScore?.score ?? null },
-      ),
-    [
-      data.overview,
-      data.validRealDays,
-      data.validMoodDays,
-      activitySummary,
-      physiologySummary,
-      cardio.recoveryScore,
-    ],
-  )
   const dailyVerdict = useMemo(() => {
     // Usa apenas snapshots reais para evitar drift com forecast no resumo diário.
     const series = computeRecoveryScoreSeries(data.snapshots)
@@ -598,13 +457,7 @@ export default function App() {
 
     const limiterText = topFactor ? LIMITING_LABEL[topFactor] : null
 
-    const coverageStatuses = computeCoverageStatus(dosesQuery.data ?? [], regimenQuery.data ?? [])
-    const adequateCount = coverageStatuses.filter((status) => status.klass === 'adequada').length
-    const totalCoverage = coverageStatuses.length
-    const pkConcern = ['vulnerabilidade', 'acima_faixa', 'cobertura_incompleta', 'queda']
-      .find((klass) => coverageStatuses.some((status) => status.klass === klass)) ?? null
-    const pkText = totalCoverage > 0 ? `${adequateCount}/${totalCoverage} substâncias na faixa` : 'Sem dados PK'
-    const actions = buildPanoramaActions({ status, limiter: topFactor, pkConcern })
+    const actions = buildPanoramaActions({ status, limiter: topFactor })
 
     return {
       status,
@@ -612,15 +465,32 @@ export default function App() {
       score,
       limiter: topFactor,
       limiterText,
-      pkText,
-      pkConcern,
       latestDate,
       actions,
       completeness: latest?.completeness ?? 0,
       confidence: latest?.confidence ?? 0,
       derivedFromInterpolated: latest?.derivedFromInterpolated ?? false,
     }
-  }, [data.snapshots, dosesQuery.data, regimenQuery.data])
+  }, [data.snapshots])
+  const executiveMetrics = useMemo(
+    () =>
+      buildExecutiveMetrics(
+        data.overview,
+        {
+          validRealDays: data.validRealDays,
+          validMoodDays: data.validMoodDays,
+        },
+        activitySummary,
+        { recoveryScore: dailyVerdict.score },
+      ),
+    [
+      data.overview,
+      data.validRealDays,
+      data.validMoodDays,
+      activitySummary,
+      dailyVerdict.score,
+    ],
+  )
   const panoramaConfidence = useMemo(
     () => computePanoramaConfidence({
       snapshotsInRange: ranged,
@@ -631,6 +501,7 @@ export default function App() {
     }),
     [ranged, dailyVerdict.score, dailyVerdict.completeness, dailyVerdict.confidence, dailyVerdict.derivedFromInterpolated],
   )
+  const panoramaCoverage = useMemo(() => computePanoramaCoverage(ranged), [ranged])
   const sleepSummaryLine = useMemo(() => computeSleepSummaryLine(data.snapshots), [data.snapshots])
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
@@ -657,14 +528,20 @@ export default function App() {
 
       <main className="app-shell">
         {/* Hero panel */}
-        <section className="hero-panel">
+        <section className={`hero-panel ${activeTab === 'panorama' ? 'hero-panel--compact' : ''}`}>
           <span className="eyebrow">
-            RooCode · Dashboard de Saúde Pessoal
+            {activeTab === 'panorama' ? 'RooCode · Panorama' : 'RooCode · Dashboard de Saúde Pessoal'}
           </span>
-          <h1>Neuropsiquiatria, farmacocinética e dados de Apple Watch — sob o mesmo teto.</h1>
+          <h1>
+            {activeTab === 'panorama'
+              ? 'Estado geral para decidir o dia.'
+              : 'Neuropsiquiatria, farmacocinética e dados de Apple Watch — sob o mesmo teto.'}
+          </h1>
           <p>
-            Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.
-            Janela atual: <strong>{range}</strong> · {today}.
+            {activeTab === 'panorama'
+              ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
+              : 'Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.'}
+            {' '}Janela atual: <strong>{range}</strong> · {today}.
           </p>
         </section>
 
@@ -688,38 +565,108 @@ export default function App() {
             <SurfaceFrame
               icon={<Compass className="h-4 w-4" />}
               kicker="Panorama"
-              title="Como estou no geral?"
-              description="Visão consolidada de sono, atividade, humor e medicação nos últimos dias."
-              window={{ label: range, coveredDays: ranged.length }}
-              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
+              title="Resumo executivo"
+              description="Veredito do dia, sinais pequenos e direção recente em uma leitura só."
+              metaPanel={
+                <div className="grid min-w-[220px] gap-2">
+                  <div className="rounded-[1.35rem] border border-slate-900/10 bg-white/65 p-4 shadow-[0_16px_34px_rgba(17,35,30,0.06)] backdrop-blur">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Dados usados
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-slate-800">{data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias totais`}</div>
+                    <div className="mt-1 text-xs text-slate-500">Recorte atual: {range}</div>
+                  </div>
+                </div>
+              }
             >
               {ranged.length === 0 ? (
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-6">
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-400">Agora</p>
-                      <p className="mt-1 font-semibold text-slate-900">Decisão diária</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        {dailyVerdict.latestDate
-                          ? `Último score válido: ${format(parseISO(dailyVerdict.latestDate), 'd MMM', { locale: ptBR })}`
-                          : 'Aguardando score válido'}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-400">Janela</p>
-                      <p className="mt-1 font-semibold text-slate-900">{range}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Tendência e padrão semanal usam {ranged.length} dia(s) selecionado(s).
-                      </p>
-                    </div>
-                    <div className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${panoramaConfidence.className}`}>
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] opacity-70">Confiança</p>
-                      <p className="mt-1 font-semibold">{panoramaConfidence.label}</p>
-                      <p className="mt-1 text-xs leading-5 opacity-80">{panoramaConfidence.detail}</p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const { status, title, score, limiterText, latestDate, actions } = dailyVerdict
+                    const palette = {
+                      green: {
+                        shell: 'border-emerald-900/10 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,252,246,0.78))] text-emerald-950',
+                        dot: 'bg-emerald-500',
+                        chip: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                      },
+                      yellow: {
+                        shell: 'border-amber-900/10 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,252,246,0.78))] text-amber-950',
+                        dot: 'bg-amber-500',
+                        chip: 'border-amber-200 bg-amber-50 text-amber-800',
+                      },
+                      red: {
+                        shell: 'border-rose-900/10 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,252,246,0.78))] text-rose-950',
+                        dot: 'bg-rose-500',
+                        chip: 'border-rose-200 bg-rose-50 text-rose-800',
+                      },
+                      neutral: {
+                        shell: 'border-slate-900/10 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,252,246,0.78))] text-slate-950',
+                        dot: 'bg-slate-400',
+                        chip: 'border-slate-200 bg-slate-50 text-slate-700',
+                      },
+                    }[status]
+
+                    return (
+                      <section className={`rounded-[1.65rem] border p-5 shadow-[0_22px_55px_rgba(17,35,30,0.09)] ${palette.shell}`}>
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-stretch">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`h-2.5 w-2.5 rounded-full ${palette.dot}`} />
+                              <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] opacity-[0.65]">
+                                Estado de hoje
+                              </span>
+                              {latestDate && (
+                                <span className="rounded-full border border-current/10 bg-white/45 px-2.5 py-1 text-[0.72rem] font-semibold opacity-75">
+                                  {format(parseISO(latestDate), 'd MMM', { locale: ptBR })}
+                                  {latestDate !== todayIso && ' · último dia completo'}
+                                </span>
+                              )}
+                            </div>
+
+                            <h3 className="mt-3 max-w-2xl font-['Fraunces'] text-3xl leading-[1.02] tracking-[-0.055em] sm:text-4xl">
+                              {title}
+                            </h3>
+
+                            <p className="mt-3 max-w-3xl text-sm leading-6 opacity-[0.78]">
+                              {limiterText
+                                ? `Principal gargalo atual: ${limiterText}. A home fica nos sinais gerais; farmacologia fica no detalhe da aba Farmaco.`
+                                : 'Resumo dos sinais disponíveis, sem puxar análises avançadas para a página inicial.'}
+                            </p>
+
+                            {actions.length > 0 && (
+                              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                                {actions.slice(0, 2).map((action) => (
+                                  <div key={action} className="rounded-2xl border border-current/10 bg-white/50 px-3 py-2 text-xs leading-5 shadow-sm">
+                                    {action}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <aside className="grid gap-3 rounded-[1.35rem] border border-current/10 bg-white/55 p-4 shadow-inner shadow-white/40">
+                            <div>
+                              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] opacity-[0.55]">Recovery</p>
+                              <p className="mt-1 font-['Fraunces'] text-5xl leading-none tracking-[-0.07em]">
+                                {score != null ? score.toFixed(0) : '--'}
+                              </p>
+                              <p className="mt-1 text-xs font-semibold opacity-[0.60]">{score != null ? '/100' : 'sem score'}</p>
+                            </div>
+                            <div className={`rounded-2xl border px-3 py-2 text-xs ${palette.chip}`}>
+                              <p className="font-semibold">{panoramaConfidence.label}</p>
+                              <p className="mt-1 opacity-75">{panoramaConfidence.detail}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-900/10 bg-white/60 px-3 py-2 text-xs text-slate-600">
+                              <p className="font-semibold text-slate-800">{panoramaCoverage.label}</p>
+                              <p className="mt-1">{panoramaCoverage.detail}</p>
+                            </div>
+                          </aside>
+                        </div>
+                      </section>
+                    )
+                  })()}
 
                   {executiveMetrics.map((cluster) => (
                     <div key={cluster.title} className="space-y-2">
@@ -730,91 +677,26 @@ export default function App() {
                     </div>
                   ))}
 
-                  {(() => {
-                    const { status, title, score, limiterText, pkText, latestDate, actions } = dailyVerdict
-                    const palette = {
-                      green: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-                      yellow: 'border-amber-200 bg-amber-50 text-amber-900',
-                      red: 'border-rose-200 bg-rose-50 text-rose-900',
-                      neutral: 'border-slate-200 bg-slate-50 text-slate-900',
-                    }[status]
-
-                    const icon = {
-                      green: '🟢',
-                      yellow: '🟡',
-                      red: '🔴',
-                      neutral: '⚪',
-                    }[status]
-
-                    return (
-                      <div className={`rounded-2xl border px-4 py-3 ${palette}`}>
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex items-start gap-3">
-                            <span className="text-xl">{icon}</span>
-                            <div>
-                              <p className="font-semibold text-base tracking-tight">{title}</p>
-                              {latestDate && (
-                                <p className="text-[0.75rem] opacity-75">
-                                  Dados de {format(parseISO(latestDate), 'd MMM', { locale: ptBR })}
-                                  {latestDate !== todayIso && ' · último dia completo'}
-                                </p>
-                              )}
-                              {status !== 'neutral' && limiterText && (
-                                <p className="text-sm opacity-90">
-                                  Fator limitante: <span className="font-bold">{limiterText}</span>
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          {score != null && (
-                            <div className="flex gap-4 text-sm font-medium opacity-80 sm:text-right">
-                              <div className="flex flex-col">
-                                <span>Recovery</span>
-                                <span>{score.toFixed(0)}/100</span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span>Farmaco</span>
-                                <span>{pkText}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {actions.length > 0 && (
-                          <div className="mt-3 rounded-xl border border-current/10 bg-white/45 px-3 py-2">
-                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] opacity-65">Próximas 24h</p>
-                            <ul className="mt-1 space-y-1 text-xs leading-5 opacity-90">
-                              {actions.map((action) => (
-                                <li key={action}>• {action}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
-
-                  <WeekdayWeekendCard snapshots={ranged} />
-
                   <DecisionSection
-                    eyebrow="Decisão diária"
-                    title="O que mais merece atenção hoje?"
-                    description="Cards priorizados por ação: primeiro o gargalo fisiológico do dia, depois noite e cobertura medicamentosa."
+                    eyebrow="Explicação"
+                    title="Por que esse veredito?"
+                    description="O gargalo fisiológico e a noite mais recente explicam o estado do dia sem duplicar a aba Farmaco."
                   >
-                    <LimitingFactorCard snapshots={data.snapshots} variant="summary" />
-
                     <div className="grid gap-4 xl:grid-cols-2">
+                      <LimitingFactorCard snapshots={data.snapshots} variant="summary" />
                       <NightQualityCard snapshots={data.snapshots} variant="summary" />
-                      <PKCoverageCard variant="summary" />
                     </div>
                   </DecisionSection>
 
                   <DecisionSection
-                    eyebrow="Tendência"
-                    title="A direção geral está melhorando ou piorando?"
-                    description="Trajetória e padrões semanais — complementam a foto do dia mostrada acima."
+                    eyebrow="Direção"
+                    title="O padrão está mudando?"
+                    description="Tendência e ritmo semanal ficam como contexto, não como primeira decisão."
                   >
-                    <RecoveryScoreChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
+                    <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
+                      <WeekdayWeekendCard snapshots={ranged} />
+                      <RecoveryScoreChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
+                    </div>
                   </DecisionSection>
 
                 </div>
@@ -967,6 +849,18 @@ export default function App() {
               description="Correlações Pearson entre métricas + análises intraday concentração × humor. Observações, não diagnósticos."
               window={{ label: range, coveredDays: ranged.length }}
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
+              metaPanel={(
+                <div className="grid min-w-[260px] gap-2">
+                  <div className="rounded-[1.35rem] border border-slate-900/10 bg-white/65 p-4 shadow-[0_16px_34px_rgba(17,35,30,0.06)] backdrop-blur">
+                    <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Dados usados</div>
+                    <div className="mt-2 text-sm font-semibold text-slate-800">Janela {range} · {ranged.length} dias no recorte</div>
+                    <div className="mt-1 text-xs text-slate-500">Histórico total: {data.snapshots.length} dias</div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      Cobertura pareada humor×métrica: {insightsCoverage.pairedMoodDays}/{insightsCoverage.realDays} dias reais ({insightsCoverage.coveragePct}%)
+                    </div>
+                  </div>
+                </div>
+              )}
             >
               <div className="space-y-4">
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">

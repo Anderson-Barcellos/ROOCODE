@@ -34,6 +34,7 @@ export interface HeatmapCellProps {
   label?: string
   isPeak?: boolean
   isControl?: boolean
+  tone?: 'default' | 'watch' | 'noise'
   selected?: boolean
   onSelect?: () => void
   significanceThreshold?: number
@@ -45,6 +46,7 @@ export function HeatmapCell({
   label,
   isPeak = false,
   isControl = false,
+  tone = 'default',
   selected = false,
   onSelect,
   significanceThreshold = 0.05,
@@ -61,8 +63,9 @@ export function HeatmapCell({
   }
   const significant =
     estimate.qFdr != null && Number.isFinite(estimate.qFdr) && estimate.qFdr < significanceThreshold
+  const effectiveMute = muteNonSignificant || tone === 'noise'
   const backgroundColor =
-    muteNonSignificant && !significant
+    effectiveMute && !significant
       ? 'rgba(226, 232, 240, 0.75)'
       : heatmapColorForR(estimate.r)
   const tooltip =
@@ -72,6 +75,8 @@ export function HeatmapCell({
     isPeak ? 'border-2 border-amber-500' : 'border-slate-200'
   } ${isControl ? 'opacity-70' : ''} ${
     selected ? 'ring-2 ring-slate-900/35 ring-offset-1' : ''
+  } ${
+    tone === 'watch' ? 'opacity-90' : tone === 'noise' ? 'opacity-70' : ''
   }`
   const content = (
     <>

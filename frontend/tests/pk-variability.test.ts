@@ -6,6 +6,8 @@ import type { DailyHealthMetrics, DailySnapshot } from '../src/types/apple-healt
 import {
   analyzePkVariabilityVsMood,
   buildPkVariabilitySeries,
+  buildSwingTirCrossTab,
+  computeDailyRangeExposureSeries,
   computeQuartileMoodDelta,
   computeRollingCv,
   computeSwingSeries,
@@ -13,6 +15,8 @@ import {
   getPkVariabilityAnalysisWindow,
   hasStrongVariabilitySignal,
   PK_VARIABILITY_LAG_DAYS,
+  PK_VARIABILITY_METRICS,
+  summarizePkCensorship,
   PK_VARIABILITY_WINDOW_DAYS,
 } from '../src/utils/pk-variability'
 
@@ -205,6 +209,20 @@ const STUB_MED: PKMedication = {
   assert.ok((tir[0] as number) > 0, 'dose recente + range largo → TIR > 0')
 }
 
+// Exposição diária classifica vale_breve / plateau_baixo
+{
+  const medWithRange: PKMedication = {
+    ...STUB_MED,
+    therapeuticRange: { min: 1000, max: 10000, unit: 'ng/mL' },
+  }
+  const dates = [isoDate(0), isoDate(1)]
+  const exposure = computeDailyRangeExposureSeries(medWithRange, [], dates, 91)
+  assert.equal(exposure.length, 2)
+  assert.equal(exposure[0].lowExitClass, 'plateau_baixo', 'sem dose e piso alto → plateau baixo')
+  const censorship = summarizePkCensorship(exposure)
+  assert.ok(censorship.censoredForPlateau, 'n_plateau_baixo baixo deve censurar análise transgressora')
+}
+
 // ─── computeQuartileMoodDelta ─────────────────────────────────────────────────
 
 // Pares insuficientes → null
@@ -381,6 +399,26 @@ const STUB_MED: PKMedication = {
   assert.equal(cvs.length, 30)
   // cmax constante (100) → CV ≈ 0 nas janelas cheias
   assert.ok(Math.abs((cvs[20] as number) - 0) < 1e-6)
+
+  const swingInRange = buildPkVariabilitySeries(
+    'swing_in_range',
+    { ...STUB_MED, therapeuticRange: { min: 1, max: 10000, unit: 'ng/mL' } },
+    [{ medicationId: STUB_MED.id, timestamp: new Date(isoDate(0) + 'T00:00:00Z').getTime(), doseAmount: 40 }],
+    series,
+    91,
+  )
+  assert.equal(swingInRange.length, 30)
+}
+
+// Cross-tab swing×TIR retorna células e teste da hipótese
+{
+  const swing = [10, 20, 30, 40, 50, 60, 70, 80, 90]
+  const tir = [24, 24, 20, 18, 16, 12, 10, 8, 6]
+  const mood = [0.6, 0.7, 0.5, 0.4, 0.45, 0.2, 0.1, -0.1, -0.2]
+  const cross = buildSwingTirCrossTab(swing, tir, mood, 3)
+  assert.equal(cross.bins, 3)
+  assert.equal(cross.cells.length, 9)
+  assert.ok(cross.hypothesisCheck.supportsRefinedHypothesis !== undefined)
 }
 
 // ─── hasStrongVariabilitySignal ───────────────────────────────────────────────
@@ -397,6 +435,17 @@ const STUB_MED: PKMedication = {
     q1q4Delta: 0.5,
     q1n: 6,
     q4n: 6,
+    windowEstimates: [],
+    replication: {
+      replicates: true,
+      direction: 'positive' as const,
+      magnitudeSpread: 0.04,
+      signInversion: false,
+      replicatedWindows: [30, 60, 90],
+      fragileReason: 'none' as const,
+    },
+    censored: false,
+    censorReason: null,
   }
   assert.ok(hasStrongVariabilitySignal(strong), 'r=0.4, n=25, p=0.02 → sinal forte')
 
@@ -422,5 +471,6 @@ const STUB_MED: PKMedication = {
 
 assert.equal(PK_VARIABILITY_WINDOW_DAYS, 14)
 assert.deepEqual([...PK_VARIABILITY_LAG_DAYS], [0, 1, 2, 3])
+assert.deepEqual(PK_VARIABILITY_METRICS, ['cv', 'swing', 'tir', 'swing_in_range', 'swing_transgressor'])
 
 console.log('✓ pk-variability.test passed')

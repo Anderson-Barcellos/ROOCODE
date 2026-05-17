@@ -107,8 +107,11 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
     () => usableSnapshots.map((s) => s.mood?.valence ?? null),
     [usableSnapshots],
   )
-  const interpolatedCount = useMemo(
-    () => snapshots.filter((s) => s.interpolated === true).length,
+  const { interpolatedCount, forecastedCount } = useMemo(
+    () => ({
+      interpolatedCount: snapshots.filter((s) => s.interpolated === true).length,
+      forecastedCount: snapshots.filter((s) => s.forecasted === true).length,
+    }),
     [snapshots],
   )
 
@@ -197,10 +200,13 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
         Pearson R. * = q &lt; 0,05 (Benjamini-Hochberg FDR sobre todos os pares testados).
         Lag 0 = mesmo dia, Lag +1 = métrica hoje / humor amanhã.
       </p>
-      {interpolatedCount > 0 && (
+      {(interpolatedCount > 0 || forecastedCount > 0) && (
         <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
           <span>⚠</span>
-          <span>inclui {interpolatedCount} {interpolatedCount === 1 ? 'dia estimado' : 'dias estimados'} na amostra</span>
+          <span>
+            excluiu {interpolatedCount} {interpolatedCount === 1 ? 'dia interpolado' : 'dias interpolados'} e {forecastedCount}{' '}
+            {forecastedCount === 1 ? 'dia projetado' : 'dias projetados'} da amostra
+          </span>
         </p>
       )}
 

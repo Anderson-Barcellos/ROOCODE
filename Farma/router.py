@@ -28,6 +28,7 @@ REGIMEN_CONFIG_PATH = Path(__file__).parent / "regimen_config.json"
 SUBSTANCES_CUSTOM_PATH = Path(__file__).parent / "substances_custom.json"
 MAX_DOSE_QUERY_HOURS = 24 * 365 * 5
 MAX_CONCENTRATION_SERIES_DAYS = 365 * 5
+LOW_PLATEAU_THRESHOLD_HOURS = 4
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 SUBSTANCE_KEY_RE = re.compile(r"^[a-z0-9_]{2,40}$")
 
@@ -433,6 +434,96 @@ def _compute_daily_pk_series(
     return series
 
 
+def _compute_daily_range_exposure(
+    dose_events: list[tuple[datetime, float]],
+    from_date,
+    to_date,
+    *,
+    ka: float,
+    ke: float,
+    vd: float,
+    bioavailability: float,
+    therapeutic_min: float,
+    therapeutic_max: float,
+) -> list[dict]:
+    """Computa exposição diária em relação ao range terapêutico.
+
+    Para cada dia do range, amostra concentração horária (h=0..23, UTC),
+    classifica cada hora como abaixo/no/acima da faixa, e retorna contagens.
+    """
+    sorted_events = sorted(dose_events, key=lambda x: x[0])
+    series: list[dict] = []
+    cur_date = from_date
+    while cur_date <= to_date:
+        in_range_hours = 0
+        below_range_hours = 0
+        above_range_hours = 0
+        for hour in range(24):
+            query_dt = datetime(
+                cur_date.year, cur_date.month, cur_date.day, hour, 0, tzinfo=timezone.utc
+            )
+            concentration = 0.0
+            for taken_dt, dose_mg in sorted_events:
+                t_hours = (query_dt - taken_dt).total_seconds() / 3600.0
+                if t_hours <= 0:
+                    continue
+                concentration += concentration_at_time(
+                    dose=dose_mg,
+                    ka=ka,
+                    ke=ke,
+                    vd=vd,
+                    t=t_hours,
+                    bioavailability=bioavailability,
+                )
+
+            conc_ng_ml = concentration * 1000.0
+            if conc_ng_ml < therapeutic_min:
+                below_range_hours += 1
+            elif conc_ng_ml > therapeutic_max:
+                above_range_hours += 1
+            else:
+                in_range_hours += 1
+
+        if below_range_hours == 0:
+            low_exit_class = "in_range"
+        elif below_range_hours < LOW_PLATEAU_THRESHOLD_HOURS:
+            low_exit_class = "vale_breve"
+        else:
+            low_exit_class = "plateau_baixo"
+
+        series.append({
+            "date": cur_date.isoformat(),
+            "in_range_hours": in_range_hours,
+            "out_of_range_hours": below_range_hours + above_range_hours,
+            "below_range_hours": below_range_hours,
+            "above_range_hours": above_range_hours,
+            "low_exit_class": low_exit_class,
+        })
+
+        cur_date += timedelta(days=1)
+    return series
+
+
+def _resolve_pk_dose_events(
+    canonical_key: str,
+    range_start: datetime,
+    range_end: datetime,
+) -> tuple[list[tuple[datetime, float]], bool]:
+    """Resolve eventos de dose para uma substância no range.
+
+    Retorna `(dose_events, used_fallback)`:
+    - `dose_events`: eventos reais e/ou sintéticos (warm-up)
+    - `used_fallback`: true quando não havia dose real e foi usado regime
+    """
+    dose_events, used_fallback = _resolve_pk_dose_events(
+        canonical_key,
+        range_start,
+        range_end,
+    )
+
+    return dose_events, used_fallback
+
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.get("/substances")
@@ -799,5 +890,137 @@ async def concentrationSeries(
         "weight_kg": weight_kg,
         "source": "regimen_fallback" if used_fallback else "dose_log",
         "events_count": len(dose_events),
+        "series": series,
+    })
+
+
+@router.get("/range-exposure-series")
+async def rangeExposureSeries(
+    substance: str = Query(...),
+    from_: str = Query(..., alias="from"),
+    to: str = Query(...),
+    weight_kg: float = Query(default=DEFAULT_BODY_WEIGHT_KG, gt=0, le=300),
+):
+    """Retorna exposição diária ao range terapêutico (h dentro/fora/abaixo/acima).
+
+    Usa o mesmo pipeline de eventos de dose da concentração diária, incluindo
+    fallback de regime quando necessário, para manter coerência front↔back.
+    """
+    try:
+        from_date = datetime.strptime(from_, "%Y-%m-%d").date()
+        to_date = datetime.strptime(to, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="from/to devem ser YYYY-MM-DD"
+        ) from exc
+
+    if to_date < from_date:
+        raise HTTPException(status_code=422, detail="to deve ser >= from")
+
+    span_days = (to_date - from_date).days + 1
+    if span_days > MAX_CONCENTRATION_SERIES_DAYS:
+        raise HTTPException(
+            status_code=400, detail="range não pode exceder 5 anos"
+        )
+
+    try:
+        canonical_key, profile = _resolve_substance_any(substance)
+    except KeyError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Substância '{substance}' não encontrada no catálogo",
+        )
+
+    try:
+        therapeutic_min = float(profile["therapeutic_range_min"])
+        therapeutic_max = float(profile["therapeutic_range_max"])
+    except (KeyError, TypeError, ValueError):
+        # Sem range terapêutico definido: retorna série com nulls explícitos.
+        series = [
+            {
+                "date": (from_date + timedelta(days=i)).isoformat(),
+                "in_range_hours": None,
+                "out_of_range_hours": None,
+                "below_range_hours": None,
+                "above_range_hours": None,
+                "low_exit_class": None,
+            }
+            for i in range(span_days)
+        ]
+        return JSONResponse(content={
+            "substance": canonical_key,
+            "from": from_date.isoformat(),
+            "to": to_date.isoformat(),
+            "weight_kg": weight_kg,
+            "source": "dose_log",
+            "events_count": 0,
+            "range_available": False,
+            "series": series,
+        })
+
+    if therapeutic_min >= therapeutic_max:
+        raise HTTPException(
+            status_code=422,
+            detail=f"range terapêutico inválido para '{canonical_key}'",
+        )
+
+    profile_with_id = {**profile, "id": canonical_key}
+    try:
+        vd = _profile_volume_of_distribution(profile_with_id, weight_kg)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        ka = float(profile["ka_per_hour"])
+        ke = float(profile["ke_per_hour"])
+        bioavailability = float(profile["bioavailability"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"perfil PK incompleto para '{canonical_key}'",
+        ) from exc
+
+    if ka <= 0 or ke <= 0 or bioavailability <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail=f"parâmetros PK inválidos para '{canonical_key}'",
+        )
+
+    warm_up_days = 7
+    range_start = datetime.combine(
+        from_date - timedelta(days=warm_up_days),
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
+    range_end = datetime.combine(
+        to_date, datetime.max.time(), tzinfo=timezone.utc
+    )
+
+    dose_events, used_fallback = _resolve_pk_dose_events(
+        canonical_key,
+        range_start,
+        range_end,
+    )
+
+    series = _compute_daily_range_exposure(
+        dose_events,
+        from_date,
+        to_date,
+        ka=ka,
+        ke=ke,
+        vd=vd,
+        bioavailability=bioavailability,
+        therapeutic_min=therapeutic_min,
+        therapeutic_max=therapeutic_max,
+    )
+
+    return JSONResponse(content={
+        "substance": canonical_key,
+        "from": from_date.isoformat(),
+        "to": to_date.isoformat(),
+        "weight_kg": weight_kg,
+        "source": "regimen_fallback" if used_fallback else "dose_log",
+        "events_count": len(dose_events),
+        "range_available": True,
         "series": series,
     })

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Activity, HeartPulse, Moon, Pill, SunMedium } from 'lucide-react'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { pearson, type CorrelationResult } from '@/utils/statistics'
 
 type DriverTone = 'positive' | 'watch' | 'neutral'
 
@@ -34,6 +35,8 @@ interface DriverCard {
   message: string
   precision: number
   recentEvidence: Array<{ date: string; value: number; mood: number | null }>
+  lag0Correlation: CorrelationResult | null
+  polarity: DriverDefinition['polarity']
 }
 
 const MIN_MOOD_PAIRS = 3
@@ -151,6 +154,39 @@ const buildMessage = (card: Omit<DriverCard, 'message'>): string => {
   return `${card.label} recente perto do baseline; sinal estável nesta janela.`
 }
 
+type CorrelationCueTone = 'neutral' | 'aligned' | 'weak' | 'opposite'
+
+function describeCorrelationCue(card: DriverCard): { tone: CorrelationCueTone; text: string } {
+  const corr = card.lag0Correlation
+  if (!corr) {
+    return { tone: 'neutral', text: 'Pearson lag0: n<10 (insuficiente).' }
+  }
+
+  const absR = Math.abs(corr.r)
+  if (absR < 0.1) {
+    return { tone: 'weak', text: `Pearson lag0 fraco (r=${corr.r.toFixed(2)}, n=${corr.n}).` }
+  }
+
+  const expectedDirection =
+    card.polarity === 'higher-is-better'
+      ? 'positive'
+      : card.polarity === 'lower-is-better'
+        ? 'negative'
+        : null
+
+  if (expectedDirection && corr.direction !== expectedDirection) {
+    return {
+      tone: 'opposite',
+      text: `Direção oposta no Pearson lag0 (r=${corr.r.toFixed(2)}, n=${corr.n}).`,
+    }
+  }
+
+  return {
+    tone: expectedDirection == null ? 'neutral' : 'aligned',
+    text: `Pearson lag0 ${corr.direction === 'positive' ? 'positivo' : 'negativo'} (r=${corr.r.toFixed(2)}, n=${corr.n}).`,
+  }
+}
+
 function buildDriverCard(snapshots: DailySnapshot[], driver: DriverDefinition): DriverCard {
   const usable = snapshots.filter((snapshot) => !snapshot.forecasted && !snapshot.interpolated)
   const usableWithValues = usable
@@ -173,6 +209,10 @@ function buildDriverCard(snapshots: DailySnapshot[], driver: DriverDefinition): 
     const value = driver.getter(snapshot)
     return value != null && Number.isFinite(value) && snapshot.mood?.valence != null
   }).length
+  const lag0Correlation = pearson(
+    usableWithValues.map((item) => item.value),
+    usableWithValues.map((item) => item.mood),
+  )
   const base = {
     id: driver.id,
     title: driver.title,
@@ -188,6 +228,8 @@ function buildDriverCard(snapshots: DailySnapshot[], driver: DriverDefinition): 
     tone: toneForDelta(delta, baseline, driver.polarity),
     precision: driver.precision ?? 1,
     recentEvidence: usableWithValues.slice(-RECENT_WINDOW),
+    lag0Correlation,
+    polarity: driver.polarity,
   }
   return {
     ...base,
@@ -199,6 +241,13 @@ const toneClass: Record<DriverTone, string> = {
   positive: 'border-teal-200 bg-teal-50/80 text-teal-900',
   watch: 'border-amber-200 bg-amber-50/80 text-amber-900',
   neutral: 'border-slate-200 bg-white/85 text-slate-800',
+}
+
+const correlationCueClass: Record<CorrelationCueTone, string> = {
+  neutral: 'border-slate-200 bg-slate-50 text-slate-600',
+  aligned: 'border-teal-200 bg-teal-50 text-teal-800',
+  weak: 'border-slate-200 bg-slate-50 text-slate-600',
+  opposite: 'border-amber-200 bg-amber-50 text-amber-800',
 }
 
 export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
@@ -224,7 +273,8 @@ export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
           </h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
             Resumo operacional por janela recente. Cada card compara os últimos dias com o baseline disponível e
-            só interpreta quando há overlap mínimo com humor.
+            só interpreta quando há overlap mínimo com humor. Este board não substitui o heatmap de correlação;
+            o badge de Pearson lag0 abaixo serve apenas como cheque de coerência.
           </p>
         </div>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">
@@ -236,6 +286,7 @@ export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
         {cards.map((card) => {
           const Icon = card.icon
           const gated = card.pairCount < MIN_MOOD_PAIRS
+          const correlationCue = describeCorrelationCue(card)
           return (
             <article
               key={card.id}
@@ -268,6 +319,9 @@ export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
               </div>
 
               <p className="mt-3 text-xs leading-5 text-slate-600">{card.message}</p>
+              <p className={`mt-2 rounded-md border px-2 py-1 text-[0.68rem] font-medium ${correlationCueClass[correlationCue.tone]}`}>
+                {correlationCue.text}
+              </p>
 
               <button
                 type="button"
@@ -286,6 +340,12 @@ export function MoodDriverBoard({ snapshots }: { snapshots: DailySnapshot[] }) {
                   </p>
                   <p>
                     Janela recente: {formatValue(card.current, card.unit, card.precision)} · baseline {formatValue(card.baseline, card.unit, card.precision)} · delta {formatDelta(card.delta, card.unit, card.precision)} · n pareado {card.pairCount}
+                  </p>
+                  <p>
+                    Pearson lag0:{' '}
+                    {card.lag0Correlation
+                      ? `r=${card.lag0Correlation.r.toFixed(2)} · p=${card.lag0Correlation.pValue.toFixed(3)} · n=${card.lag0Correlation.n}`
+                      : 'n<10 (não calculado)'}
                   </p>
                   <p>Destino natural: {card.chartHint}</p>
                   {card.recentEvidence.length > 0 && (

@@ -48,6 +48,7 @@ function AccuracyTile({ field, acc }: AccuracyTileProps) {
   const label = FIELD_LABELS[field] ?? field
   const excluded = acc.mape_excluded_zero_actual ?? 0
   const excludedRatio = acc.n > 0 ? excluded / acc.n : 0
+  const nonPredictive = acc.mape != null && Number.isFinite(acc.mape) && acc.mape > 100
   return (
     <div className="rounded-2xl border border-slate-900/10 bg-white/85 p-4 shadow-[0_10px_28px_rgba(17,35,30,0.05)] backdrop-blur">
       <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
@@ -62,6 +63,11 @@ function AccuracyTile({ field, acc }: AccuracyTileProps) {
         <p className={`mt-1 text-[0.65rem] ${excludedRatio >= 0.3 ? 'text-amber-700 font-semibold' : 'text-slate-400'}`}>
           {excluded}/{acc.n} par(es) excluído(s) do MAPE (actual ≈ 0)
           {excludedRatio >= 0.3 ? ' — MAPE pouco confiável' : ''}
+        </p>
+      )}
+      {nonPredictive && (
+        <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[0.65rem] font-semibold text-amber-900">
+          ⚠ Modelo não preditivo neste período (MAPE &gt; 100%).
         </p>
       )}
     </div>

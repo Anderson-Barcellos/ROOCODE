@@ -34,7 +34,7 @@ interface SelectedHeatmapCell {
 
 export function TempHumorCorrelation({ snapshots }: Props) {
   const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
-  const { samples, lags, peakLagDays } = useMemo(
+  const { samples, lags, peakLagDays, preregistered } = useMemo(
     () => analyzeTempHumor(snapshots),
     [snapshots],
   )
@@ -104,6 +104,18 @@ export function TempHumorCorrelation({ snapshots }: Props) {
           <span>Sinais significativos (q &lt; 0.05):</span>
           <span>{significantCount}</span>
         </p>
+        {preregistered.observedDirection !== 'missing' && (
+          <div className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${preregistered.contradicted
+            ? 'border-amber-300 bg-amber-50 text-amber-900'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          }`}>
+            <span className="font-semibold">Hipótese pré-registrada (+1d):</span>{' '}
+            <span>{preregistered.note}</span>
+            {preregistered.observedR != null && (
+              <span className="ml-1 text-slate-600">(r={preregistered.observedR.toFixed(2)})</span>
+            )}
+          </div>
+        )}
         {futureImpact.length > 0 && (
           <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
             <span className="font-semibold">Impacto para frente (+1d…+3d):</span>

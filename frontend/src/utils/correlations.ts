@@ -1,7 +1,29 @@
+/**
+ * Correlations util — matriz de correlações diárias para Insights.
+ *
+ * ENTRADA
+ * - `DailySnapshot[]` já agregado por dia.
+ *
+ * TRANSFORMAÇÃO
+ * - Extrai séries por métrica (`health`, `mood`, `medicationCount`)
+ * - Faz pareamento índice-a-índice para lag 0
+ * - Para lags > 0, usa `laggedPairs(xs, ys, lag)`
+ *
+ * SAÍDA
+ * - `CorrelationResult` por par de métricas (com r, p, n)
+ * - `applyFdrToCorrelations` para corrigir múltiplos testes (BH FDR)
+ *
+ * SUPOSIÇÕES
+ * - Mínimo de pares válidos por correlação: 10
+ * - Não imputa valores ausentes
+ */
+
 import type { DailySnapshot } from '../types/apple-health'
 import { laggedPairs, pearson } from './statistics'
 import type { CorrelationResult } from './statistics'
 import { benjaminiHochbergFdr } from './intraday-correlation'
+
+export const MIN_CORRELATION_PAIRS = 10
 
 export const METRIC_KEYS = [
   'sleepTotalHours',
@@ -65,7 +87,7 @@ export function correlate(
   }
 
   const pairs = laggedPairs(xs, ys, lag)
-  if (pairs.length < 10) return null
+  if (pairs.length < MIN_CORRELATION_PAIRS) return null
   return pearson(
     pairs.map((p) => p[0]),
     pairs.map((p) => p[1]),

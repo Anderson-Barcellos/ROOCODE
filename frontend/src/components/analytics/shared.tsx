@@ -75,6 +75,7 @@ export function SurfaceFrame({
   description,
   window,
   status,
+  metaPanel,
   children,
 }: {
   icon: ReactNode
@@ -83,6 +84,7 @@ export function SurfaceFrame({
   description: string
   window?: AnalyticsWindow | null
   status?: string | null
+  metaPanel?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -99,26 +101,28 @@ export function SurfaceFrame({
           <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
         </div>
 
-        <div className="grid min-w-[220px] gap-2">
-          <div className={`${CARD_CLASS} bg-white/65`}>
-            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Janela analítica
+        {metaPanel ?? (
+          <div className="grid min-w-[220px] gap-2">
+            <div className={`${CARD_CLASS} bg-white/65`}>
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Janela analítica
+              </div>
+              <div className="mt-2 text-sm font-semibold text-slate-800">
+                {window?.label ?? ([window?.from, window?.to].filter(Boolean).join(' → ') || 'Sem recorte informado')}
+              </div>
+              {window?.coveredDays != null && (
+                <div className="mt-1 text-xs text-slate-500">{window.coveredDays} dias cobertos</div>
+              )}
             </div>
-            <div className="mt-2 text-sm font-semibold text-slate-800">
-              {window?.label ?? ([window?.from, window?.to].filter(Boolean).join(' → ') || 'Sem recorte informado')}
-            </div>
-            {window?.coveredDays != null && (
-              <div className="mt-1 text-xs text-slate-500">{window.coveredDays} dias cobertos</div>
-            )}
-          </div>
 
-          <div className={`${CARD_CLASS} bg-white/65`}>
-            <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Status
+            <div className={`${CARD_CLASS} bg-white/65`}>
+              <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Status
+              </div>
+              <div className="mt-2 text-sm font-semibold text-slate-800">{status ?? 'Payload parcial ou em validação'}</div>
             </div>
-            <div className="mt-2 text-sm font-semibold text-slate-800">{status ?? 'Payload parcial ou em validação'}</div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="mt-5">{children}</div>

@@ -95,6 +95,7 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
   assert.equal(result.samples.length, 0, 'samples deve ser vazio')
   assert.equal(result.lags.length, 0, 'lags deve ser vazio')
   assert.equal(result.peakLagDays, null, 'peakLagDays deve ser null')
+  assert.equal(result.preregistered.expectedLagDays, 1)
 })()
 
 // ─── Test 2: Constantes ─────────────────────────────────────────────────
@@ -184,6 +185,26 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
     const peak = result.lags.find((l) => l.lagDays === result.peakLagDays)
     assert.ok(peak && peak.r < 0, `pico deve ter r negativo, foi r=${peak?.r}`)
   }
+  assert.equal(result.preregistered.contradicted, false, 'r negativo em +1d não contradiz hipótese pré-registrada')
+})()
+
+// ─── Test 6: Contradição da hipótese pré-registrada (+1d positivo) ─────────
+
+;(function preregisteredContradiction() {
+  const snaps: DailySnapshot[] = []
+  for (let i = 0; i < 30; i++) {
+    snaps.push(fixture(i, { temp: 36.0, valence: null }))
+  }
+  for (let i = 30; i < 50; i++) {
+    const phase = (i - 30) % 5
+    const temp = 36.0 + 0.1 * phase
+    const valencePhase = ((i - 30) + 4) % 5
+    const valence = 0.2 + 0.1 * valencePhase // direção positiva em +1d
+    snaps.push(fixture(i, { temp, valence }))
+  }
+
+  const result = analyzeTempHumor(snaps)
+  assert.equal(result.preregistered.contradicted, true, 'r positivo em +1d deve marcar contradição')
 })()
 
 console.log('temp-humor-correlation.test.ts — all assertions passed')

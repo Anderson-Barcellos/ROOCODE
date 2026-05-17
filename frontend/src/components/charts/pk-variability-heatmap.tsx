@@ -33,7 +33,6 @@ import {
 import {
   analyzePkVariabilityVsMood,
   getPkVariabilityAnalysisWindow,
-  PK_VARIABILITY_METRICS,
   PK_VARIABILITY_METRIC_LABELS,
   type PKVariabilityHypothesis,
   type PKVariabilityMetric,
@@ -43,6 +42,7 @@ import { formatCi, formatP, formatR } from '@/components/charts/shared/heatmap-h
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 
 const SUBSTANCE_IDS = ['lexapro', 'lamictal', 'venvanse'] as const
+const HEATMAP_METRICS: PKVariabilityMetric[] = ['cv', 'swing', 'tir']
 
 interface SubstanceCell {
   substanceId: string
@@ -103,7 +103,7 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
       const series = seriesByKey[subId] ?? []
       const subDoses = toPKDoses(doses.filter((d) => d.substance === subId))
 
-      for (const metric of PK_VARIABILITY_METRICS) {
+      for (const metric of HEATMAP_METRICS) {
         const hypothesis =
           med && series.length > 0
             ? analyzePkVariabilityVsMood(
@@ -122,8 +122,8 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
     }
 
     // FDR Benjamini-Hochberg sobre os 9 melhores p-values
-    const pValues = flat.map((item) => item.hypothesis?.bestResult?.pValue ?? null)
-    const qValues = benjaminiHochbergFdr(pValues)
+      const pValues = flat.map((item) => item.hypothesis?.bestResult?.pValue ?? null)
+      const qValues = benjaminiHochbergFdr(pValues)
 
     for (const subId of SUBSTANCE_IDS) {
       const subItems = flat.filter((it) => it.substanceId === subId)
@@ -131,6 +131,8 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
         cv: null,
         swing: null,
         tir: null,
+        swing_in_range: null,
+        swing_transgressor: null,
       }
 
       for (const item of subItems) {
@@ -149,7 +151,7 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
       // bestMetric = a métrica com maior |r| pra dar destaque visual
       let bestMetric: PKVariabilityMetric | null = null
       let bestAbs = 0
-      for (const m of PK_VARIABILITY_METRICS) {
+      for (const m of HEATMAP_METRICS) {
         const est = estimates[m]
         if (est && Math.abs(est.r) > bestAbs) {
           bestAbs = Math.abs(est.r)
@@ -169,7 +171,7 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
   }, [substances, seriesByKey, doses, snapshots, weightKg])
 
   const totalSignals = cells.flatMap((c) =>
-    PK_VARIABILITY_METRICS.map((m) => c.estimates[m]?.qFdr ?? null),
+    HEATMAP_METRICS.map((m) => c.estimates[m]?.qFdr ?? null),
   ).filter((q) => q != null && Number.isFinite(q) && q < 0.05).length
 
   return (
@@ -191,10 +193,10 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
       <div className="mt-4 overflow-x-auto">
         <div
           className="grid min-w-[480px] gap-x-1 gap-y-2"
-          style={{ gridTemplateColumns: '160px repeat(3, minmax(96px, 1fr))' }}
+          style={{ gridTemplateColumns: `160px repeat(${HEATMAP_METRICS.length}, minmax(96px, 1fr))` }}
         >
           <div />
-          {PK_VARIABILITY_METRICS.map((m) => (
+          {HEATMAP_METRICS.map((m) => (
             <div
               key={m}
               className="text-center text-[0.65rem] font-semibold uppercase tracking-wider text-slate-700"
@@ -212,7 +214,7 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
                 />
                 {row.substanceName}
               </div>
-              {PK_VARIABILITY_METRICS.map((m) => {
+              {HEATMAP_METRICS.map((m) => {
                 const estimate = row.estimates[m]
                 const label = `${row.substanceName} · ${PK_VARIABILITY_METRIC_LABELS[m]}`
                 const key = `${row.substanceId}-${m}`

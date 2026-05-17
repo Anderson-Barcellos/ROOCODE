@@ -161,6 +161,26 @@ export interface ConcentrationSeriesPayload {
   series: ConcentrationSeriesPoint[]
 }
 
+export interface RangeExposureSeriesPoint {
+  date: string
+  in_range_hours: number | null
+  out_of_range_hours: number | null
+  below_range_hours: number | null
+  above_range_hours: number | null
+  low_exit_class: 'in_range' | 'vale_breve' | 'plateau_baixo' | null
+}
+
+export interface RangeExposureSeriesPayload {
+  substance: string
+  from: string
+  to: string
+  weight_kg: number
+  source: 'dose_log' | 'regimen_fallback'
+  events_count: number
+  range_available: boolean
+  series: RangeExposureSeriesPoint[]
+}
+
 export const useConcentrationSeries = (
   substance: string | null,
   from: string,
@@ -172,6 +192,24 @@ export const useConcentrationSeries = (
     queryFn: () =>
       get<ConcentrationSeriesPayload>(
         `/farma/concentration-series?substance=${encodeURIComponent(
+          substance ?? '',
+        )}&from=${from}&to=${to}&weight_kg=${weightKg}`,
+      ),
+    enabled: Boolean(substance && from && to),
+    staleTime: 5 * 60 * 1000,
+  })
+
+export const useRangeExposureSeries = (
+  substance: string | null,
+  from: string,
+  to: string,
+  weightKg = 70,
+) =>
+  useQuery<RangeExposureSeriesPayload>({
+    queryKey: ['range-exposure-series', substance, from, to, weightKg],
+    queryFn: () =>
+      get<RangeExposureSeriesPayload>(
+        `/farma/range-exposure-series?substance=${encodeURIComponent(
           substance ?? '',
         )}&from=${from}&to=${to}&weight_kg=${weightKg}`,
       ),

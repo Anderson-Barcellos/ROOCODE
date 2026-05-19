@@ -3,6 +3,7 @@ import { interpolateRgbBasis } from 'd3'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
+  Area,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -14,10 +15,22 @@ import {
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
+import { useConcentrationSeries } from '@/lib/api'
+import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
+import { DEFAULT_PK_BODY_WEIGHT_KG } from '@/utils/pharmacokinetics'
+import { computeRollingCv, PK_VARIABILITY_WINDOW_DAYS } from '@/utils/pk-variability'
 import { sma } from '@/utils/statistics'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+
+const PK_OVERLAY_SUBSTANCES = [
+  { id: 'lexapro', label: 'Lexapro' },
+  { id: 'venvanse', label: 'Venvanse' },
+  { id: 'lamictal', label: 'Lamictal' },
+] as const
+
+type PKOverlayId = (typeof PK_OVERLAY_SUBSTANCES)[number]['id']
 
 interface MoodTimelineProps {
   snapshots: DailySnapshot[]
@@ -40,6 +53,9 @@ interface MoodDataPoint {
   interpolated: boolean
   forecasted: boolean
   forecastConfidence: number | null
+  cv_lexapro: number | null
+  cv_venvanse: number | null
+  cv_lamictal: number | null
 }
 
 const TOOLTIP_STYLE = {
@@ -102,6 +118,49 @@ function ValenceDot(props: {
 
 export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps) {
   const [smaWindow, setSmaWindow] = useState(7)
+  const [pkOverlayEnabled, setPkOverlayEnabled] = useState<Record<PKOverlayId, boolean>>({
+    lexapro: true,
+    venvanse: true,
+    lamictal: true,
+  })
+
+  const { fromIso, toIso } = useMemo(() => {
+    const validDates = snapshots
+      .map((s) => s.date)
+      .filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+      .sort()
+    return {
+      fromIso: validDates[0] ?? '',
+      toIso: validDates[validDates.length - 1] ?? '',
+    }
+  }, [snapshots])
+
+  const lex = useConcentrationSeries('lexapro', fromIso, toIso, DEFAULT_PK_BODY_WEIGHT_KG)
+  const ven = useConcentrationSeries('venvanse', fromIso, toIso, DEFAULT_PK_BODY_WEIGHT_KG)
+  const lam = useConcentrationSeries('lamictal', fromIso, toIso, DEFAULT_PK_BODY_WEIGHT_KG)
+
+  const cvByDate = useMemo<Record<PKOverlayId, Record<string, number | null>>>(() => {
+    const acc: Record<PKOverlayId, Record<string, number | null>> = {
+      lexapro: {},
+      venvanse: {},
+      lamictal: {},
+    }
+    const sources: Array<{ id: PKOverlayId; series: { date: string; cmax_est: number }[] }> = [
+      { id: 'lexapro', series: lex.data?.series ?? [] },
+      { id: 'venvanse', series: ven.data?.series ?? [] },
+      { id: 'lamictal', series: lam.data?.series ?? [] },
+    ]
+    for (const { id, series } of sources) {
+      const cv = computeRollingCv(
+        series.map((p) => p.cmax_est),
+        PK_VARIABILITY_WINDOW_DAYS,
+      )
+      series.forEach((p, i) => {
+        acc[id][p.date] = cv[i]
+      })
+    }
+    return acc
+  }, [lex.data, ven.data, lam.data])
 
   const { data, hasData, totalDays, daysWithMood, coveragePct } = useMemo(() => {
     const rawValues = snapshots.map((s) => s.mood?.valence ?? null)
@@ -117,6 +176,9 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
       interpolated: !s.forecasted && (s.interpolated === true || s.mood?.interpolated === true),
       forecasted: s.forecasted === true,
       forecastConfidence: s.forecastConfidence ?? null,
+      cv_lexapro: cvByDate.lexapro[s.date] ?? null,
+      cv_venvanse: cvByDate.venvanse[s.date] ?? null,
+      cv_lamictal: cvByDate.lamictal[s.date] ?? null,
     }))
 
     const totalDays = data.length
@@ -130,7 +192,18 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
       daysWithMood,
       coveragePct,
     }
-  }, [snapshots, smaWindow])
+  }, [snapshots, smaWindow, cvByDate])
+
+  const hasAnyCv = useMemo(
+    () =>
+      data.some(
+        (d) =>
+          (d.cv_lexapro != null) ||
+          (d.cv_venvanse != null) ||
+          (d.cv_lamictal != null),
+      ),
+    [data],
+  )
 
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.moodTimeline, 'Humor'),
@@ -210,22 +283,56 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
           </p>
           <p className="mt-1 text-xs text-slate-500">Escala do eixo: −1 desagradável · 0 neutro · +1 agradável.</p>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="mr-1 text-xs text-slate-400">Tendência</span>
-          {SMA_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setSmaWindow(opt.value)}
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                smaWindow === opt.value
-                  ? 'bg-slate-950 text-white'
-                  : 'border border-slate-900/10 bg-white text-slate-600'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-1">
+            <span className="mr-1 text-xs text-slate-400">Tendência</span>
+            {SMA_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSmaWindow(opt.value)}
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                  smaWindow === opt.value
+                    ? 'bg-slate-950 text-white'
+                    : 'border border-slate-900/10 bg-white text-slate-600'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {hasAnyCv && (
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              <span className="mr-1 text-[0.68rem] uppercase tracking-[0.14em] text-slate-400">
+                Variabilidade PK
+              </span>
+              {PK_OVERLAY_SUBSTANCES.map((sub) => {
+                const color = SUBSTANCE_COLORS[sub.id] ?? '#8b5cf6'
+                const active = pkOverlayEnabled[sub.id]
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() =>
+                      setPkOverlayEnabled((prev) => ({ ...prev, [sub.id]: !prev[sub.id] }))
+                    }
+                    className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                      active
+                        ? 'border border-slate-900/10 bg-white text-slate-700'
+                        : 'border border-slate-200 bg-slate-50 text-slate-400'
+                    }`}
+                    aria-pressed={active}
+                  >
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: active ? color : '#cbd5e1' }}
+                    />
+                    {sub.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -242,6 +349,11 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-1 w-6 rounded-full bg-slate-800" /> Média {smaWindow}d
         </span>
+        {hasAnyCv && (
+          <span className="text-slate-400">
+            Overlay: CV% rolling {PK_VARIABILITY_WINDOW_DAYS}d (eixo direito) — leitura visual, sem causalidade.
+          </span>
+        )}
       </div>
 
       {moodVerdict && (
@@ -264,6 +376,7 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
               minTickGap={xMinTickGap}
             />
             <YAxis
+              yAxisId="mood"
               domain={[-1, 1]}
               tick={{ fill: '#475569', fontSize: 11 }}
               tickLine={false}
@@ -274,16 +387,62 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
                 value === -1 ? '-1' : value === 0 ? '0' : value === 1 ? '+1' : value.toFixed(1)
               }
             />
+            <YAxis
+              yAxisId="cv"
+              orientation="right"
+              domain={[0, 'dataMax']}
+              tick={{ fill: '#94a3b8', fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+              width={36}
+              tickFormatter={(value: number) => `${Math.round(value)}%`}
+              hide={!hasAnyCv}
+            />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               content={({ payload }) => {
                 const p = payload?.[0]?.payload as MoodDataPoint | undefined
-                if (!p || p.valence == null) return null
+                if (!p) return null
+                const cvEntries = PK_OVERLAY_SUBSTANCES.filter((sub) => pkOverlayEnabled[sub.id]).map(
+                  (sub) => {
+                    const value =
+                      sub.id === 'lexapro'
+                        ? p.cv_lexapro
+                        : sub.id === 'venvanse'
+                          ? p.cv_venvanse
+                          : p.cv_lamictal
+                    return { ...sub, value, color: SUBSTANCE_COLORS[sub.id] ?? '#8b5cf6' }
+                  },
+                )
+                const hasMood = p.valence != null
+                const hasAnyCvEntry = cvEntries.some((entry) => entry.value != null)
+                if (!hasMood && !hasAnyCvEntry) return null
                 return (
                   <div style={TOOLTIP_STYLE} className="px-3 py-2">
                     <p className="font-semibold text-slate-800">{p.label}</p>
-                    <p className="text-slate-600">{p.valenceClass ?? '—'}</p>
-                    <p className="font-mono text-slate-500">Humor: {p.valence.toFixed(2)}</p>
+                    {hasMood ? (
+                      <>
+                        <p className="text-slate-600">{p.valenceClass ?? '—'}</p>
+                        <p className="font-mono text-slate-500">Humor: {p.valence!.toFixed(2)}</p>
+                      </>
+                    ) : (
+                      <p className="text-slate-400">Sem registro de humor</p>
+                    )}
+                    {cvEntries.some((entry) => entry.value != null) && (
+                      <div className="mt-1 border-t border-slate-100 pt-1 space-y-0.5">
+                        {cvEntries.map((entry) =>
+                          entry.value != null ? (
+                            <p key={entry.id} className="font-mono text-[0.7rem] text-slate-500">
+                              <span
+                                className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                                style={{ backgroundColor: entry.color }}
+                              />
+                              {entry.label} CV: {entry.value.toFixed(0)}%
+                            </p>
+                          ) : null,
+                        )}
+                      </div>
+                    )}
                     {p.forecasted && (
                       <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{p.forecastConfidence != null ? ` · conf ${p.forecastConfidence.toFixed(2)}` : ''}</p>
                     )}
@@ -294,11 +453,60 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
                 )
               }}
             />
-            <ReferenceLine y={0} stroke="rgba(100,116,139,0.4)" strokeDasharray="4 3" />
+            <ReferenceLine yAxisId="mood" y={0} stroke="rgba(100,116,139,0.4)" strokeDasharray="4 3" />
             {forecastStartDate && (
-              <ReferenceLine x={forecastStartDate} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />
+              <ReferenceLine yAxisId="mood" x={forecastStartDate} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />
+            )}
+            {pkOverlayEnabled.lexapro && (
+              <Area
+                yAxisId="cv"
+                dataKey="cv_lexapro"
+                type="monotone"
+                stroke={SUBSTANCE_COLORS.lexapro}
+                strokeOpacity={0.45}
+                strokeWidth={1}
+                fill={SUBSTANCE_COLORS.lexapro}
+                fillOpacity={0.14}
+                connectNulls
+                isAnimationActive={false}
+                activeDot={false}
+                legendType="none"
+              />
+            )}
+            {pkOverlayEnabled.venvanse && (
+              <Area
+                yAxisId="cv"
+                dataKey="cv_venvanse"
+                type="monotone"
+                stroke={SUBSTANCE_COLORS.venvanse}
+                strokeOpacity={0.45}
+                strokeWidth={1}
+                fill={SUBSTANCE_COLORS.venvanse}
+                fillOpacity={0.14}
+                connectNulls
+                isAnimationActive={false}
+                activeDot={false}
+                legendType="none"
+              />
+            )}
+            {pkOverlayEnabled.lamictal && (
+              <Area
+                yAxisId="cv"
+                dataKey="cv_lamictal"
+                type="monotone"
+                stroke={SUBSTANCE_COLORS.lamictal}
+                strokeOpacity={0.45}
+                strokeWidth={1}
+                fill={SUBSTANCE_COLORS.lamictal}
+                fillOpacity={0.14}
+                connectNulls
+                isAnimationActive={false}
+                activeDot={false}
+                legendType="none"
+              />
             )}
             <Line
+              yAxisId="mood"
               dataKey="trend"
               type="monotone"
               stroke="#0f172a"
@@ -308,6 +516,7 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
               activeDot={false}
             />
             <Line
+              yAxisId="mood"
               dataKey="valence"
               type="monotone"
               stroke="transparent"

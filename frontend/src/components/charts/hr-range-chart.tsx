@@ -19,6 +19,7 @@ import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { mean } from '@/utils/date'
 import { sma } from '@/utils/statistics'
+import { buildIndexEvidenceReport } from '@/utils/index-evidence'
 
 interface HRRangeChartProps {
   snapshots: DailySnapshot[]
@@ -32,7 +33,7 @@ const TOOLTIP_STYLE = {
 }
 
 export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps) {
-  const { data, avgMean, avgMin, avgMax, avgResting } = useMemo(() => {
+  const { data, avgMean, avgMin, avgMax, avgResting, realCount, interpCount } = useMemo(() => {
     const filtered = snapshots.filter((s) => s.health?.heartRateMean != null)
     const meanValues = filtered.map((s) => s.health?.heartRateMean ?? null)
     const realSnapshots = snapshots.filter((s) => !s.forecasted && !s.interpolated)
@@ -61,7 +62,15 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
     const avgMean = mean(meanValues)
     const avgMin = mean(filtered.map((s) => s.health?.heartRateMin ?? null))
     const avgMax = mean(filtered.map((s) => s.health?.heartRateMax ?? null))
-    return { data, avgMean, avgMin, avgMax, avgResting }
+    return {
+      data,
+      avgMean,
+      avgMin,
+      avgMax,
+      avgResting,
+      realCount: realSnapshots.length,
+      interpCount: filtered.filter((s) => s.interpolated || s.forecasted).length,
+    }
   }, [snapshots])
 
   const verdict = useMemo(() => {
@@ -104,6 +113,20 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.hrRangeChart, 'FC Range'),
     [snapshots],
   )
+  const evidence = useMemo(
+    () =>
+      buildIndexEvidenceReport({
+        eligible: readiness.status !== 'standby' && realCount > 0,
+        reason: readiness.status === 'standby' || realCount === 0 ? 'insufficient_readiness' : 'ok',
+        inputsUsed: ['heartRateMin', 'heartRateMax', 'heartRateMean', avgResting != null ? 'restingHeartRate' : ''].filter(Boolean),
+        inputsMissing: avgResting == null ? ['restingHeartRate'] : [],
+        proxiesUsed: [],
+        usedInterpolated: interpCount > 0,
+        confidencePenalty: realCount > 0 ? realCount / (realCount + interpCount) : 0,
+        readiness: readiness.status,
+      }),
+    [avgResting, interpCount, realCount, readiness.status],
+  )
 
   if (!data.length) {
     return (
@@ -132,6 +155,9 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
             range {Math.round(avgMin)}–{Math.round(avgMax)} bpm
           </span>
         )}
+        <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+          {Math.round(evidence.confidencePenalty * 100)}% base real
+        </span>
       </div>
       <p className="mt-1 text-sm text-slate-500">Min–Max diário com média · SMA 7d em tracejado · zonas: bradicardia &lt;60, normal 60–100, taquicardia &gt;100</p>
       {verdict && (
@@ -142,7 +168,7 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
 
       <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
             <ReferenceArea y1={40} y2={60} fill="#bae6fd" fillOpacity={0.06} />
             <ReferenceArea y1={60} y2={100} fill="#86efac" fillOpacity={0.08} />

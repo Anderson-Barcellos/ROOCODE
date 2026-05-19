@@ -113,7 +113,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
 
       <DataReadinessGate readiness={readiness}>
       <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 0 }} barSize={data.length > 60 ? 4 : data.length > 30 ? 6 : 10}>
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
             <XAxis

@@ -90,7 +90,7 @@ export function Spo2Chart({ snapshots, forecastStartDate }: Spo2ChartProps) {
 
       <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
             <ReferenceArea y1={88} y2={94} fill="#fee2e2" fillOpacity={0.4} />
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />

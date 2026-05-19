@@ -173,7 +173,7 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Frequência respiratória <span className="ml-1 font-normal normal-case tracking-normal text-slate-400">+ variabilidade (SD 7d, eixo direito)</span></p>
             <div className="h-[180px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
                 <LineChart syncId="vital-signs" data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                   {RESPIRATORY_RATE_BANDS.map((band) => (
                     <ReferenceArea
@@ -246,7 +246,7 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Wrist Temp Deviation <span className="ml-1 font-normal normal-case tracking-normal text-slate-400">(delta da baseline pessoal{tempBaseline ? ` · n=${tempBaseline.n}` : ''})</span></p>
             {tempBaseline ? (
             <div className="h-[190px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
                 <LineChart syncId="vital-signs" data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
                   {WRIST_TEMP_DEVIATION_BANDS.map((band) => (
                     <ReferenceArea

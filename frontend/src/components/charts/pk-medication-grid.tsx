@@ -288,7 +288,7 @@ function PKCompactCard({ med, doses, doseRecords, windowStart, windowEnd, nowTim
 
       {/* Chart */}
       <div style={{ flex: 1, minHeight: 140 }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart data={data} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid stroke="var(--border)" strokeDasharray="1 3" vertical={false} />
             <XAxis

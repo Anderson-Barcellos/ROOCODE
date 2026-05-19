@@ -159,7 +159,7 @@ export function CardioRecoveryChart({ snapshots, baselineSnapshots, forecastStar
 
       <DataReadinessGate readiness={readiness}>
         <div className="mt-4 h-[260px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
             <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
               {CARDIO_RECOVERY_BANDS.map((band) => (
                 <ReferenceArea

@@ -166,7 +166,7 @@ export function TimelineChart({ data, seriesKeys, labels, readiness, forecastSta
 
   const chartBody = (
     <div className="h-[360px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <LineChart data={chartData} margin={{ top: 16, right: 18, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="rgba(100,116,139,0.14)" vertical={false} />
             <XAxis

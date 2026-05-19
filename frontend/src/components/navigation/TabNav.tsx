@@ -1,9 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { Activity, Heart, LayoutDashboard, MoonStar, Pill, Sparkles, Telescope } from 'lucide-react'
+import { Activity, HeartPulse, LayoutDashboard, Pill, Sparkles, Telescope } from 'lucide-react'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
-export type TabKey = 'panorama' | 'sono' | 'coracao' | 'atividade' | 'farmaco' | 'insights'
+export type TabKey = 'panorama' | 'recuperacao' | 'capacidade' | 'farmaco' | 'insights'
 
 export const rangeOptions = ['7d', '30d', '90d', '1y', 'all'] as const
 export type RangeOption = (typeof rangeOptions)[number]
@@ -34,9 +34,8 @@ interface TabNavProps {
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'panorama', label: 'Panorama', icon: LayoutDashboard },
-  { key: 'sono', label: 'Sono', icon: MoonStar },
-  { key: 'coracao', label: 'Coração', icon: Heart },
-  { key: 'atividade', label: 'Atividade', icon: Activity },
+  { key: 'recuperacao', label: 'Recuperação', icon: HeartPulse },
+  { key: 'capacidade', label: 'Capacidade', icon: Activity },
   { key: 'farmaco', label: 'Farmaco', icon: Pill },
   { key: 'insights', label: 'Insights', icon: Telescope },
 ]
@@ -75,7 +74,7 @@ export function TabNav({
           })}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex max-w-full flex-wrap items-center gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Período</span>
           {rangeOptions.map((option) => (
             <button
@@ -94,7 +93,7 @@ export function TabNav({
           <button
             type="button"
             onClick={onAnalyzeClick}
-            className="ml-3 inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+            className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:ml-3"
           >
             <Sparkles className="h-3 w-3" />
             Análise IA

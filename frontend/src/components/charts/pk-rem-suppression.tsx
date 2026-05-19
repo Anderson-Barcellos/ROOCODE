@@ -241,7 +241,7 @@ export function PkRemSuppression() {
 
       <DataReadinessGate readiness={readiness}>
         <div className="mt-4 h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
             <ComposedChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
               <CartesianGrid stroke="rgba(100,116,139,0.1)" />
               <XAxis

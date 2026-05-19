@@ -252,7 +252,7 @@ export function MoodTimeline({ snapshots, forecastStartDate }: MoodTimelineProps
 
       <DataReadinessGate readiness={readiness}>
       <div className="mt-3 h-[260px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
             <XAxis

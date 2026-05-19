@@ -129,7 +129,7 @@ export function ActivityBars({ snapshots, forecastStartDate }: ActivityBarsProps
 
       <DataReadinessGate readiness={readiness}>
       <div className="mt-4 h-[260px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
           <ComposedChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }} barSize={barSize}>
             <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
             <XAxis dataKey="label" tick={{ fill: '#475569', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={20} />

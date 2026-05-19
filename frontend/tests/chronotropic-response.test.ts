@@ -32,6 +32,8 @@ function fixture(daysBack: number, opts: FixtureOptions = {}): DailySnapshot {
     forecasted: opts.forecasted,
     health: {
       date,
+      sleepStartAt: null,
+      sleepEndAt: null,
       sleepTotalHours: null,
       sleepAsleepHours: null,
       sleepInBedHours: null,

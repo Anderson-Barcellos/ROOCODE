@@ -41,6 +41,10 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
     date.setDate(today.getDate() - i)
     const dateKey = date.toISOString().slice(0, 10)
     const dow = date.getDay()
+    const wakeAt = new Date(`${dateKey}T07:00:00.000Z`)
+    wakeAt.setUTCMinutes(wakeAt.getUTCMinutes() + Math.round((rand() - 0.5) * 120))
+    const sleepDurationMinutes = Math.round(totalSleepHoursSeed(rand) * 60)
+    const sleepStart = new Date(wakeAt.getTime() - sleepDurationMinutes * 60_000)
 
     // Physiology (plausível pra homem 39a, atlético)
     const hrv = 35 + rand() * 25                     // 35-60 ms
@@ -50,7 +54,7 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
     const pulseTemp = -0.5 + rand() * 1.5            // -0.5 a +1.0°C vs baseline
 
     // Sono (7h ± 1.5h, distribuição Apple Health típica)
-    const totalSleep = 6 + rand() * 2                // 6-8h
+    const totalSleep = sleepDurationMinutes / 60     // 6-8h com timestamp coerente
     const deepRatio = 0.14 + rand() * 0.06           // 14-20%
     const remRatio = 0.20 + rand() * 0.06            // 20-26%
     const awakeRatio = 0.04 + rand() * 0.03          // 4-7%
@@ -68,8 +72,10 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
     const physicalEffort = 2 + rand() * 2            // 2-4 kcal/hr·kg
     const walkingHr = 95 + rand() * 20               // 95-115 bpm caminhando
     const walkingAsym = 1 + rand() * 2               // 1-3% (normal <3%)
+    const walkingDoubleSupport = 20 + rand() * 8     // 20-28% suporte duplo
     const walkingSpeed = 4.5 + rand() * 1.5          // 4.5-6 km/h
     const runningSpeed = rand() > 0.7 ? 8 + rand() * 2 : 0  // corrida em ~30% dos dias
+    const runningGroundContact = runningSpeed > 0 ? 240 + rand() * 45 : null
     const vo2 = 38 + rand() * 6                      // 38-44 ml/(kg·min)
     const cardioRecovery = 25 + rand() * 15          // 25-40 bpm recovery
 
@@ -82,6 +88,8 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
       date: dateKey,
       health: {
         date: dateKey,
+        sleepStartAt: sleepStart.toISOString(),
+        sleepEndAt: wakeAt.toISOString(),
         sleepTotalHours: +totalSleep.toFixed(2),
         sleepAsleepHours: +(totalSleep * (1 - awakeRatio)).toFixed(2),
         sleepInBedHours: +(totalSleep + 0.4).toFixed(2),
@@ -110,9 +118,11 @@ export function buildMockSnapshots(days = 14, startOffsetDays = 1): DailySnapsho
         physicalEffort: +physicalEffort.toFixed(2),
         walkingHeartRateAvg: +walkingHr.toFixed(1),
         walkingAsymmetryPct: +walkingAsym.toFixed(1),
+        walkingDoubleSupportPct: +walkingDoubleSupport.toFixed(1),
         walkingSpeedKmh: +walkingSpeed.toFixed(2),
         walkingStepLengthCm: +(60 + walkingSpeed * 5).toFixed(1),
         runningSpeedKmh: runningSpeed > 0 ? +runningSpeed.toFixed(2) : null,
+        runningGroundContactTimeMs: runningGroundContact != null ? +runningGroundContact.toFixed(0) : null,
         vo2Max: +vo2.toFixed(1),
         sixMinuteWalkMeters: null, // teste clínico raro
         cardioRecoveryBpm: +cardioRecovery.toFixed(0),
@@ -152,3 +162,7 @@ function pickAssociations(rand: () => number): string[] {
 }
 
 export const MOCK_SNAPSHOTS: DailySnapshot[] = buildMockSnapshots()
+
+function totalSleepHoursSeed(rand: () => number): number {
+  return 6 + rand() * 2
+}

@@ -25,6 +25,8 @@ function isoDate(daysBack: number): string {
 function buildHealth(date: string, opts: FixtureOpts): DailyHealthMetrics {
   return {
     date,
+    sleepStartAt: null,
+    sleepEndAt: null,
     sleepTotalHours: opts.sleepTotal ?? 7,
     sleepAsleepHours: null,
     sleepInBedHours: null,

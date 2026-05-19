@@ -35,6 +35,22 @@ function maxFields(rows: HealthAutoExportRow[], key: keyof HealthAutoExportRow):
   return values.length > 0 ? Math.max(...values) : null
 }
 
+function minDateTimeField(rows: HealthAutoExportRow[], key: 'sleepStartAt' | 'sleepEndAt'): string | null {
+  const values = rows
+    .map((row) => row[key])
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .sort((left, right) => left.localeCompare(right))
+  return values[0] ?? null
+}
+
+function maxDateTimeField(rows: HealthAutoExportRow[], key: 'sleepStartAt' | 'sleepEndAt'): string | null {
+  const values = rows
+    .map((row) => row[key])
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .sort((left, right) => left.localeCompare(right))
+  return values.at(-1) ?? null
+}
+
 function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHealthMetrics {
   const sleepInBedHours = sumFields(rows, 'sleepInBedHours')
   const sleepAsleepHours = sumFields(rows, 'sleepAsleepHours')
@@ -45,6 +61,8 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
 
   return {
     date,
+    sleepStartAt: minDateTimeField(rows, 'sleepStartAt'),
+    sleepEndAt: maxDateTimeField(rows, 'sleepEndAt'),
     sleepTotalHours: sumFields(rows, 'sleepTotalHours'),
     sleepAsleepHours,
     sleepInBedHours,
@@ -73,9 +91,11 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
     physicalEffort: meanFields(rows, 'physicalEffort'),
     walkingHeartRateAvg: meanFields(rows, 'walkingHeartRateAvg'),
     walkingAsymmetryPct: meanFields(rows, 'walkingAsymmetryPct'),
+    walkingDoubleSupportPct: meanFields(rows, 'walkingDoubleSupportPct'),
     walkingSpeedKmh: meanFields(rows, 'walkingSpeedKmh'),
     walkingStepLengthCm: meanFields(rows, 'walkingStepLengthCm'),
     runningSpeedKmh: meanFields(rows, 'runningSpeedKmh'),
+    runningGroundContactTimeMs: meanFields(rows, 'runningGroundContactTimeMs'),
     vo2Max: meanFields(rows, 'vo2Max'),
     sixMinuteWalkMeters: meanFields(rows, 'sixMinuteWalkMeters'),
     cardioRecoveryBpm: meanFields(rows, 'cardioRecoveryBpm'),

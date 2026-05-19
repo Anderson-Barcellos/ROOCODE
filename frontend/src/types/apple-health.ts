@@ -12,6 +12,8 @@ export interface ParsedCsvFile {
 
 export interface HealthAutoExportRow {
   dateTime: string
+  sleepStartAt: string | null
+  sleepEndAt: string | null
   sleepTotalHours: number | null
   sleepAsleepHours: number | null
   sleepInBedHours: number | null
@@ -39,9 +41,11 @@ export interface HealthAutoExportRow {
   physicalEffort: number | null
   walkingHeartRateAvg: number | null
   walkingAsymmetryPct: number | null
+  walkingDoubleSupportPct?: number | null
   walkingSpeedKmh: number | null
   walkingStepLengthCm: number | null
   runningSpeedKmh: number | null
+  runningGroundContactTimeMs?: number | null
   vo2Max: number | null
   sixMinuteWalkMeters: number | null
   cardioRecoveryBpm: number | null
@@ -75,6 +79,8 @@ export interface MedicationRow {
 export interface DailyHealthMetrics {
   date: string
   interpolated?: boolean
+  sleepStartAt: string | null
+  sleepEndAt: string | null
   sleepTotalHours: number | null
   sleepAsleepHours: number | null
   sleepInBedHours: number | null
@@ -103,9 +109,11 @@ export interface DailyHealthMetrics {
   physicalEffort: number | null
   walkingHeartRateAvg: number | null
   walkingAsymmetryPct: number | null
+  walkingDoubleSupportPct?: number | null
   walkingSpeedKmh: number | null
   walkingStepLengthCm: number | null
   runningSpeedKmh: number | null
+  runningGroundContactTimeMs?: number | null
   vo2Max: number | null
   sixMinuteWalkMeters: number | null
   cardioRecoveryBpm: number | null

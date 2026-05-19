@@ -24,6 +24,8 @@ import {
 
 const BASE_HEALTH: Omit<DailyHealthMetrics, 'date'> = {
   interpolated: false,
+  sleepStartAt: null,
+  sleepEndAt: null,
   sleepTotalHours: null,
   sleepAsleepHours: null,
   sleepInBedHours: null,

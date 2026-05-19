@@ -5,6 +5,8 @@ import { buildForecastPayload } from '../src/hooks/useForecast'
 
 const BASE_HEALTH: Omit<DailyHealthMetrics, 'date' | 'sleepTotalHours' | 'hrvSdnn' | 'restingHeartRate' | 'activeEnergyKcal' | 'exerciseMinutes'> = {
   interpolated: false,
+  sleepStartAt: null,
+  sleepEndAt: null,
   sleepAsleepHours: null,
   sleepInBedHours: null,
   sleepCoreHours: null,

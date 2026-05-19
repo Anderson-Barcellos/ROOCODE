@@ -31,6 +31,8 @@ const BOUNDED_DELTAS: Partial<Record<keyof DailyHealthMetrics, number>> = {
 const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   date: 'skip',
   interpolated: 'skip',
+  sleepStartAt: 'skip',
+  sleepEndAt: 'skip',
   sleepTotalHours: 'interpolate',
   sleepAsleepHours: 'interpolate',
   sleepInBedHours: 'interpolate',
@@ -59,9 +61,11 @@ const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   physicalEffort: 'interpolate',
   walkingHeartRateAvg: 'interpolate',
   walkingAsymmetryPct: 'skip', // sinal neurológico raro — não inventar
+  walkingDoubleSupportPct: 'skip',
   walkingSpeedKmh: 'linear_bounded',
   walkingStepLengthCm: 'linear_bounded',
   runningSpeedKmh: 'skip', // esporádico: zero → valor → zero pode ser válido
+  runningGroundContactTimeMs: 'skip',
   vo2Max: 'linear_bounded', // crônico, varia pouco dia-a-dia
   sixMinuteWalkMeters: 'skip', // teste clínico, raramente medido
   cardioRecoveryBpm: 'skip', // esporádico: só válido quando há sessão de exercício
@@ -212,6 +216,8 @@ function interpolateHealth(
     date,
     interpolated: true,
     // Sono
+    sleepStartAt: null,
+    sleepEndAt: null,
     sleepTotalHours: null,
     sleepAsleepHours: null,
     sleepInBedHours: null,
@@ -242,9 +248,11 @@ function interpolateHealth(
     physicalEffort: null,
     walkingHeartRateAvg: null,
     walkingAsymmetryPct: null,
+    walkingDoubleSupportPct: null,
     walkingSpeedKmh: null,
     walkingStepLengthCm: null,
     runningSpeedKmh: null,
+    runningGroundContactTimeMs: null,
     vo2Max: null,
     sixMinuteWalkMeters: null,
     cardioRecoveryBpm: null,

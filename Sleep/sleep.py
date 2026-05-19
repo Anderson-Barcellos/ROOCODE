@@ -43,9 +43,11 @@ def _organizeSleep() -> bool:
         dates = pd.to_datetime(pd.Series(data["Date/Time"]), format="mixed")
         data["Date/Time"] = pd.Series([date.strftime("%d-%m-%y") for date in dates])
 
-    #Dropping unnecessary columns
-    case_1 = ["Iniciar", "Fim", "Fontes"]
-    case_2 = ["Start", "End", "Sources"]
+    #Preserva horários brutos de sono (Start/End ou Iniciar/Fim) porque a
+    #camada analítica usa onset/offset para regularidade e jet lag social.
+    #A única coluna realmente descartável aqui é a de origem.
+    case_1 = ["Fontes"]
+    case_2 = ["Sources"]
     cols_to_drop = [c for c in case_1 if c in data.columns] or [c for c in case_2 if c in data.columns]
     data = data.drop(cols_to_drop, axis=1)
 

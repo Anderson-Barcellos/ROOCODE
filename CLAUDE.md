@@ -66,11 +66,10 @@ git diff --check
 
 | Aba | Componentes |
 |---|---|
-| **Panorama** | MetricGrid · LimitingFactorCard · NightQualityCard (summary) · PKCoverageCard (summary) · RecoveryScoreChart · WeekdayWeekendCard |
+| **Panorama** | PanoramaSparkline · PanoramaWeeklyRegimeCard · PanoramaHistoryChart · MetricGrid · RecoveryWeekCard · RecoveryIndexChart |
 | **Farmaco** | MoodTimeline · PKMedicationGrid · PKHumorCorrelation · PKCoverageCard · DoseLogger · DoseCalendarView · MedicationCatalogEditor |
-| **Sono** | NightQualityCard · SleepStagesChart · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline |
-| **Coração** | AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart |
-| **Atividade** | ActivityReadinessCard · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart |
+| **Recuperação** | NightQualityCard · RecoveryIndexCard · SleepStagesChart · SleepRegularityCard · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline · AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · CardiovascularAgeCard · RecoveryWeekCard · RecoveryIndexChart |
+| **Capacidade** | ActivityReadinessCard · CapacityPanels (FCI + Carga real + Cardio + CRI + Movement Efficiency) · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart |
 | **Insights** | MoodDriverBoard · CorrelationHeatmap · TempHumorCorrelation · PKVariabilityReportCard · PKVariabilityHumorLab (grade 4×3) · PKMoodScatterChart · LagCorrelationChart · PkRemSuppression · ForecastAccuracyCard (colapsada) |
 
 ## Baseline funcional a preservar
@@ -89,9 +88,14 @@ git diff --check
 - `CorrelationHeatmap` deve manter uma seção "Leitura clínica rápida" antes da matriz, destacando a maior associação positiva e negativa para ajudar a interpretar Humor vs fisiologia sem tratar correlação como causalidade.
 - Labs PK intraday (`PKMoodScatterChart`, `LagCorrelationChart`) usam `DEFAULT_PK_BODY_WEIGHT_KG`; não reintroduzir peso literal `91` em cálculos novos.
 - Gráficos Recharts que aparecem no primeiro render auditado (`RecoveryScoreChart`, `PKMoodScatterChart`, `LagCorrelationChart`) usam `initialDimension={{ width: 1, height: 1 }}` para evitar warning de dimensão `-1` na montagem.
-- Política de janela no `App`: `ranged` para leitura histórica filtrada, `rangedWithForecast` para gráficos com projeção futura, `data.snapshots` para baseline/dia atual. Na aba Sono, `NightQualityCard` recebe `ranged`; em Atividade, `ActivityReadinessCard` recebe `ranged` + `baselineSnapshots={data.snapshots}`; no Farma, `PKMedicationGrid` deriva `hoursWindow` de `PK_HOURS_BY_RANGE`.
+- Política de janela no `App`: `ranged` para leitura histórica filtrada, `rangedWithForecast` para gráficos com projeção futura, `data.snapshots` para baseline/dia atual. Em Recuperação, `NightQualityCard` recebe `ranged` e os gráficos fisiológicos usam `rangedWithForecast`; em Capacidade, `ActivityReadinessCard` recebe `ranged` + `baselineSnapshots={data.snapshots}`; no Farma, `PKMedicationGrid` deriva `hoursWindow` de `PK_HOURS_BY_RANGE`.
 - Lamictal sem `therapeutic_range` (TDM não padrão em bipolar); `PKCoverageCard` mostra concentração corrente sem badge de status (`klass: 'sem_faixa'`).
 - Estado "dados insuficientes" explícito em correlações; sem causalidade clínica.
+- O pipeline de sono agora preserva `Start/End` ou `Iniciar/Fim`; `sleepStartAt` e `sleepEndAt` fazem parte de `DailyHealthMetrics` e sustentam `SleepRegularityCard` e `Social Jet Lag`.
+- `Recovery Index` é o índice basal novo para Panorama/Recuperação. O `Recovery Score` legado continua existindo no código para consumidores antigos, mas não é mais a superfície principal dessas abas.
+- Índices da aba Capacidade (`Functional Capacity Index`, `Circadian Robustness`, `Movement Efficiency`) e da aba Recuperação declaram fonte, proxy aceito e política de interpolação na matriz central `frontend/src/utils/index-evidence.ts` + `INDEX_EVIDENCE_MATRIX.md`. Novos índices ou mudança de política devem entrar nessa matriz, não em ifs espalhados.
+- Panorama é tela de decisão: `Estado geral` composto por pesos fixos (recovery=0.40, capacity=0.35, chronobiology=0.25) com renormalização por pilar ausente, EMA curta e modulação PK por cap progressivo. Motor único em `frontend/src/utils/panorama-model.ts` — não duplicar fórmula em componentes.
+- Recharts: novos charts devem nascer com `ResponsiveContainer` + `minWidth={0}` + `minHeight={0}` + `initialDimension={{ width: 1, height: 1 }}`. Padrão aplicado em 20 charts no QA de 2026-05-18.
 
 ## Fresh start
 
@@ -101,10 +105,24 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8011/sleep
 git status --short
 ```
 
-Depois: abrir `BACKLOG.md`, escolher ticket, resolver em 1 commit focado.
+Depois: revisar `AGENTS.md` (registro cronológico de cada onda Codex/Claude no projeto) ou abrir nova frente. Backlog histórico arquivado em `docs/HISTORY/BACKLOG.md`.
+
+## Próxima sessão
+
+- Estado funcional atual: `REBUILD phase 1` já aplicado e validado; a navegação final agora é `Panorama`, `Recuperação`, `Capacidade`, `Farmaco`, `Insights`.
+- Ponto de retomada recomendado: revisar visualmente `Panorama -> Recuperação -> Capacidade` em `https://ultrassom.ai/health/` antes de abrir a próxima frente de produto.
+- Pendência honesta importante: a aba Recuperação já mostra o desvio noturno de temperatura, mas **não** calcula amplitude diária da temperatura do pulso porque o pipeline atual ainda não recebe esse dado bruto.
+- Decisão já tomada: `Sleep Regularity Index` e `Social Jet Lag` estão implementados como leitura exploratória baseada em `sleepStartAt/sleepEndAt`; não voltar a tratar isso como se fosse cálculo minuto-a-minuto definitivo.
+- Se a próxima etapa for continuação natural desta linha, o melhor bundle seguinte é um destes:
+  - polimento narrativo/visual do `Panorama` depois da migração para `Recovery Index`;
+  - expansão do pipeline de temperatura para suportar amplitude circadiana real;
+  - nova spec de `Capacidade`, agora que os cards de resposta a esforço já migraram.
 
 ## Histórico
 
 - 2026-05-16: auditoria frontend consolidou viewport/heatmaps/janelas/Insights. QA visual em `https://ultrassom.ai/health/` validou desktop 1440×1000 e mobile 390×844 sem overlay, sem tela em branco, sem warning/erro de console, com `Leitura clínica rápida`, `PK × Humor (variabilidade)` consolidado e zero duplicidade de "Substância × métrica de variabilidade" na tela principal.
+- 2026-05-16: REBUILD phase 1 aplicado. Taxonomia mudou para `Panorama`, `Recuperação`, `Capacidade`, `Farmaco`, `Insights`; backend de sono preserva horários brutos; frontend ganhou `RecoveryIndex`, `SleepRegularityCard`, `Social Jet Lag`, `CardiovascularAgeCard` e a migração de `HeartRateReserveChart`/`ChronotropicResponseChart`/`CardioRecoveryChart` para `Capacidade`. Validação em verde com `npm run test:unit`, `npx tsc --noEmit`, `npm run lint`, `npm run build`, restart do `roocode.service` e `curl` 200 em `http://localhost:8011/sleep`, `https://ultrassom.ai/health/` e `https://ultrassom.ai/health/api/sleep`.
+- 2026-05-17: refactor da aba Capacidade. 6 painéis (Prontidão, Functional Capacity Index, Cardio, Carga real, CRI, Movement Efficiency); FCI usa último valor válido por componente; CRI proxy térmica `Temp. pulso vs baseline` (não amplitude pico-nadir, que aguarda dado intradia); `RecoveryIndex` filtra inputs ausentes em vez de ranquear como zero.
+- 2026-05-18: 3 ondas — governance formal de evidência de índices (matriz central em `index-evidence.ts` + `INDEX_EVIDENCE_MATRIX.md`, 11 índices cobertos), Panorama refactor final em tela de decisão (`panorama-model.ts` único motor, pesos 40/35/25, modulação PK por cap progressivo, trinca clicável navega pras abas), e QA visual mobile (overflow TabNav corrigido + 20 charts ganharam `initialDimension` Recharts).
 
 10 sprints concluídas até 2026-05-11: REG-0..5, Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology, M1-M7, R, D, D-patch1. Detalhes em `docs/HISTORY/ROADMAP_maturation.md`, `docs/HISTORY/ROADMAP.md`, `docs/HISTORY/AGENTS.md` ou `git log --oneline`.

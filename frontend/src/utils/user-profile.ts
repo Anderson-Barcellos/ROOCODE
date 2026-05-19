@@ -19,9 +19,9 @@ export function getCurrentAge(): number {
 export const USER_PROFILE = {
   name: 'Anders',
   weightKg: 91,
-  birthYear: 1987,
-  age: 39,
-  hrMaxBpm: 181, // 220 − 39
+  birthYear: 1986,
+  age: 40,
+  hrMaxBpm: 181, // valor calibrado preservado (220 − 39, pré-aniversário)
   sex: 'M',
   timezone: 'America/Sao_Paulo',
 } as const

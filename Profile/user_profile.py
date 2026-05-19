@@ -9,9 +9,9 @@ from typing import Final
 USER_PROFILE: Final[dict] = {
     "name": "Anders",
     "weight_kg": 91.0,
-    "birth_year": 1987,
-    "age": 39,
-    "hr_max_bpm": 181,  # 220 − 39
+    "birth_year": 1986,
+    "age": 40,
+    "hr_max_bpm": 181,  # valor calibrado preservado (220 − 39, pré-aniversário)
     "sex": "M",
     "timezone": "America/Sao_Paulo",
 }

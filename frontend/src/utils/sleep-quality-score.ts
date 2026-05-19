@@ -35,6 +35,8 @@
 import type { DailySnapshot } from '@/types/apple-health'
 import { computeRollingBaseline, type PersonalBaseline } from './personal-baselines'
 import { INTERP_CONFIDENCE_MULTIPLIER } from './interp-policy'
+import { CHART_REQUIREMENTS, evaluateReadiness } from './data-readiness'
+import { buildIndexEvidenceReport, type IndexEvidenceReport } from './index-evidence'
 
 export const SLEEP_QUALITY_WEIGHTS = {
   sleepEff: 0.30,
@@ -87,6 +89,7 @@ export interface SleepQualityPoint {
   derivedFromInterpolated: boolean
   reason?: 'inputs_missing'
   flags: SleepQualityFlags
+  evidence: IndexEvidenceReport
 }
 
 export interface SleepQualityBaselines {
@@ -253,6 +256,12 @@ export function computeSleepQualityScoreSeries(
   snapshots: ReadonlyArray<DailySnapshot>,
 ): SleepQualityPoint[] {
   const baselines = computeSleepQualityBaselines(snapshots)
+  const readiness = evaluateReadiness(
+    snapshots as DailySnapshot[],
+    CHART_REQUIREMENTS.nightQualityIndex,
+    'NightQuality',
+  )
+  const allInputs: SleepQualityComponentKey[] = ['sleepEff', 'deep', 'rem', 'awake', 'respiratory', 'spo2']
 
   return snapshots.map((snap) => {
     const date = snap.date
@@ -270,6 +279,14 @@ export function computeSleepQualityScoreSeries(
     const noFlags: SleepQualityFlags = { fragmentada: false, respiratoria: false, autonomica: false }
 
     if (!partial) {
+      const missingInputs = allInputs.filter((key) => {
+        if (key === 'sleepEff') return raw.sleepEffPct == null
+        if (key === 'deep') return raw.deepHours == null
+        if (key === 'rem') return raw.remHours == null
+        if (key === 'awake') return raw.awakeHours == null
+        if (key === 'respiratory') return raw.respDisturbances == null
+        return raw.spo2 == null
+      })
       return {
         date,
         score: null,
@@ -279,6 +296,16 @@ export function computeSleepQualityScoreSeries(
         derivedFromInterpolated,
         reason: 'inputs_missing' as const,
         flags: noFlags,
+        evidence: buildIndexEvidenceReport({
+          eligible: false,
+          reason: 'inputs_missing',
+          inputsUsed: [],
+          inputsMissing: missingInputs,
+          proxiesUsed: [],
+          usedInterpolated: derivedFromInterpolated,
+          confidencePenalty: 0,
+          readiness: readiness.status,
+        }),
       }
     }
 
@@ -313,6 +340,16 @@ export function computeSleepQualityScoreSeries(
       confidence,
       derivedFromInterpolated,
       flags,
+      evidence: buildIndexEvidenceReport({
+        eligible: readiness.status !== 'standby',
+        reason: readiness.status === 'standby' ? 'insufficient_readiness' : 'ok',
+        inputsUsed: partial.inputsUsed,
+        inputsMissing: allInputs.filter((key) => !partial.inputsUsed.includes(key)),
+        proxiesUsed: [],
+        usedInterpolated: derivedFromInterpolated,
+        confidencePenalty: confidence,
+        readiness: readiness.status,
+      }),
     }
   })
 }

@@ -1,4 +1,6 @@
 import type { DailyHealthMetrics, DailySnapshot } from '@/types/apple-health'
+import { CHART_REQUIREMENTS, evaluateReadiness } from './data-readiness'
+import { buildIndexEvidenceReport, type IndexEvidenceReport } from './index-evidence'
 
 type HealthKey = keyof Pick<
   DailyHealthMetrics,
@@ -32,7 +34,8 @@ export interface ActivityReadinessResult {
   summary: string
   confidence: number
   factors: ActivityReadinessFactor[]
-  reason: 'ok' | 'insufficient_data'
+  reason: 'ok' | 'insufficient_data' | 'insufficient_readiness'
+  evidence: IndexEvidenceReport
 }
 
 interface FactorDefinition {
@@ -167,6 +170,11 @@ export function computeActivityReadiness(
   snapshots: DailySnapshot[],
   baselineSnapshots: DailySnapshot[] = snapshots,
 ): ActivityReadinessResult {
+  const readiness = evaluateReadiness(
+    snapshots,
+    CHART_REQUIREMENTS.activityReadinessIndex,
+    'ActivityReadiness',
+  )
   const latest = latestHealthSnapshot(snapshots)
   if (!latest?.health) {
     return {
@@ -178,6 +186,16 @@ export function computeActivityReadiness(
       confidence: 0,
       factors: [],
       reason: 'insufficient_data',
+      evidence: buildIndexEvidenceReport({
+        eligible: false,
+        reason: 'inputs_missing',
+        inputsUsed: [],
+        inputsMissing: FACTORS.map((factor) => factor.key),
+        proxiesUsed: [],
+        usedInterpolated: false,
+        confidencePenalty: 0,
+        readiness: readiness.status,
+      }),
     }
   }
 
@@ -230,22 +248,48 @@ export function computeActivityReadiness(
       confidence: latest.interpolated ? 0.4 : 0.6,
       factors,
       reason: 'insufficient_data',
+      evidence: buildIndexEvidenceReport({
+        eligible: false,
+        reason: 'inputs_missing',
+        inputsUsed: factors.filter((factor) => factor.score != null).map((factor) => factor.key),
+        inputsMissing: FACTORS.filter((factor) => {
+          const match = factors.find((item) => item.key === factor.key)
+          return !match || match.score == null
+        }).map((factor) => factor.key),
+        proxiesUsed: [],
+        usedInterpolated: !!latest.interpolated,
+        confidencePenalty: latest.interpolated ? 0.4 : 0.6,
+        readiness: readiness.status,
+      }),
     }
   }
 
   const weightSum = scored.reduce((sum, entry) => sum + entry.weight, 0)
   const score = scored.reduce((sum, entry) => sum + entry.score * entry.weight, 0) / weightSum
+  const eligible = readiness.status !== 'standby'
   const klass = classify(score)
   const text = CLASS_TEXT[klass]
+  const usedKeys = factors.filter((factor) => factor.score != null).map((factor) => factor.key)
+  const missingKeys = factors.filter((factor) => factor.score == null).map((factor) => factor.key)
 
   return {
     date: latest.date,
-    score,
-    klass,
+    score: eligible ? score : null,
+    klass: eligible ? klass : null,
     headline: text.headline,
     summary: text.summary,
     confidence: latest.interpolated ? 0.7 : 1,
     factors,
-    reason: 'ok',
+    reason: eligible ? 'ok' : 'insufficient_readiness',
+    evidence: buildIndexEvidenceReport({
+      eligible,
+      reason: eligible ? 'ok' : 'insufficient_readiness',
+      inputsUsed: usedKeys,
+      inputsMissing: missingKeys,
+      proxiesUsed: [],
+      usedInterpolated: !!latest.interpolated,
+      confidencePenalty: latest.interpolated ? 0.7 : 1,
+      readiness: readiness.status,
+    }),
   }
 }

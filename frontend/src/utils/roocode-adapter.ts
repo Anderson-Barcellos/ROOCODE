@@ -15,6 +15,7 @@ import type {
 } from '@/lib/api'
 
 import { buildDailySnapshots } from './aggregation'
+import { toIsoDateTime } from './date'
 
 export type MoodDataQuality = 'valid' | 'corrupted' | 'empty'
 
@@ -66,8 +67,13 @@ function sleepRecordToHealthRow(record: SleepRecord): HealthAutoExportRow | null
   const iso = sleepDateToIso(record['Date/Time'])
   if (!iso) return null
 
+  const sleepStartAt = toIsoDateTime(record.Start ?? record.Iniciar ?? null)
+  const sleepEndAt = toIsoDateTime(record.End ?? record.Fim ?? null)
+
   return {
     dateTime: iso,
+    sleepStartAt,
+    sleepEndAt,
     sleepTotalHours: record['Total Sleep (hr)'] ?? null,
     sleepAsleepHours: record['Asleep (Unspecified) (hr)'] ?? null,
     sleepInBedHours:
@@ -98,9 +104,11 @@ function sleepRecordToHealthRow(record: SleepRecord): HealthAutoExportRow | null
     physicalEffort: null,
     walkingHeartRateAvg: null,
     walkingAsymmetryPct: null,
+    walkingDoubleSupportPct: null,
     walkingSpeedKmh: null,
     walkingStepLengthCm: null,
     runningSpeedKmh: null,
+    runningGroundContactTimeMs: null,
     vo2Max: null,
     sixMinuteWalkMeters: null,
     cardioRecoveryBpm: null,
@@ -120,6 +128,8 @@ function metricsRecordToHealthRow(record: MetricsRecord): HealthAutoExportRow | 
 
   return {
     dateTime: iso,
+    sleepStartAt: null,
+    sleepEndAt: null,
     sleepTotalHours: null,
     sleepAsleepHours: null,
     sleepInBedHours: null,
@@ -147,9 +157,18 @@ function metricsRecordToHealthRow(record: MetricsRecord): HealthAutoExportRow | 
     physicalEffort: record['Esforço Físico (kcal/hr·kg)'] ?? null,
     walkingHeartRateAvg: record['Média de Frequência Cardíaca ao Caminhar (bpm)'] ?? null,
     walkingAsymmetryPct: record['Porcentagem de Assimetria ao Andar (%)'] ?? null,
+    walkingDoubleSupportPct:
+      record['Tempo de Duplo Apoio ao Caminhar (%)'] ??
+      record['Porcentagem de Suporte Duplo ao Caminhar (%)'] ??
+      record['Porcentagem de Tempo de Duplo Apoio (%)'] ??
+      null,
     walkingSpeedKmh: record['Velocidade de Caminhada (km/hr)'] ?? null,
     walkingStepLengthCm: record['Comprimento do Passo ao Caminhar (cm)'] ?? null,
     runningSpeedKmh: record['Velocidade de Corrida (km/hr)'] ?? null,
+    runningGroundContactTimeMs:
+      record['Tempo de Contato com o Solo na Corrida (ms)'] ??
+      record['Tempo de Contato no Solo ao Correr (ms)'] ??
+      null,
     vo2Max: record['VO2 Máx (ml/(kg·min))'] ?? null,
     sixMinuteWalkMeters: record['Teste de Caminhada de Seis Minutos - Distância (m)'] ?? null,
     cardioRecoveryBpm: record['Recuperação Cardio (contagem/min)'] ?? null,

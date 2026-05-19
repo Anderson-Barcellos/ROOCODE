@@ -70,6 +70,10 @@ export type { MedicationRegimenEntry }
 
 export interface SleepRecord {
   'Date/Time': string
+  Start?: string
+  End?: string
+  Iniciar?: string
+  Fim?: string
   'Total Sleep (hr)': number
   'Asleep (Unspecified) (hr)': number
   'In Bed (hr)'?: number
@@ -108,6 +112,9 @@ export interface MetricsRecord {
   'Frequência Cardíaca em Repouso (bpm)'?: number
   'Média de Frequência Cardíaca ao Caminhar (bpm)'?: number
   'Porcentagem de Assimetria ao Andar (%)'?: number
+  'Porcentagem de Suporte Duplo ao Caminhar (%)'?: number
+  'Tempo de Duplo Apoio ao Caminhar (%)'?: number
+  'Porcentagem de Tempo de Duplo Apoio (%)'?: number
   'Saturação de Oxigênio no Sangue (%)'?: number
   'Taxa Respiratória (contagem/min)'?: number
   'Temperatura do Pulso ao Dormir Apple (ºC)'?: number
@@ -120,6 +127,8 @@ export interface MetricsRecord {
   'Velocidade de Caminhada (km/hr)'?: number
   'Comprimento do Passo ao Caminhar (cm)'?: number
   'Velocidade de Corrida (km/hr)'?: number
+  'Tempo de Contato com o Solo na Corrida (ms)'?: number
+  'Tempo de Contato no Solo ao Correr (ms)'?: number
   'Recuperação Cardio (contagem/min)'?: number
 }
 

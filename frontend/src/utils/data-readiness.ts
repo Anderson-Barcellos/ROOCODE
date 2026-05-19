@@ -206,4 +206,14 @@ export const CHART_REQUIREMENTS = {
   hrvVariabilityChart: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
   heartRateReserveChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'restingHeartRate' },
   chronotropicResponseChart: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'walkingHeartRateAvg' },
+  functionalCapacityIndex: { type: 'days', robustMin: 28, exploratoryMin: 10, collectingMin: 5, field: 'walkingHeartRateAvg' },
+  capacityRealLoadPanel: { type: 'days', robustMin: 14, exploratoryMin: 7, collectingMin: 3, field: 'steps' },
+  circadianRobustnessIndex: { type: 'days', robustMin: 28, exploratoryMin: 14, collectingMin: 5, field: 'daylightMinutes' },
+  movementEfficiencyIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'walkingSpeedKmh' },
+  // Governança de índices (Recuperação + Capacidade)
+  nightQualityIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 3, field: 'sleepTotalHours' },
+  recoveryIndex: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'hrvSdnn' },
+  sleepRegularityIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5 },
+  cardiovascularAgeIndex: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'restingHeartRate' },
+  activityReadinessIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 3, field: 'steps' },
 } as const satisfies Record<string, ReadinessRequirement>

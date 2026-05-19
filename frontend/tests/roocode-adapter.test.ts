@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
 import type { MoodRecord } from '../src/lib/api'
-import { detectMoodDataQuality } from '../src/utils/roocode-adapter'
+import { buildSnapshotsFromAPI, detectMoodDataQuality } from '../src/utils/roocode-adapter'
 
 assert.equal(detectMoodDataQuality(undefined), 'empty')
 assert.equal(detectMoodDataQuality([]), 'empty')
@@ -51,3 +51,23 @@ const malformedMoodRows: MoodRecord[] = [
   },
 ]
 assert.equal(detectMoodDataQuality(malformedMoodRows), 'corrupted')
+
+const adapted = buildSnapshotsFromAPI({
+  metrics: [
+    {
+      'Data/Hora': '10/05/2026 12:00:00',
+      'Contador de Passos (passos)': 4200,
+      'Tempo de Duplo Apoio ao Caminhar (%)': 31.5,
+      'Tempo de Contato com o Solo na Corrida (ms)': 276,
+    },
+    {
+      'Data/Hora': '11/05/2026 12:00:00',
+      'Contador de Passos (passos)': 5100,
+      'Porcentagem de Suporte Duplo ao Caminhar (%)': 30.2,
+    },
+  ],
+})
+
+assert.equal(adapted.snapshots[0]?.health?.walkingDoubleSupportPct, 31.5)
+assert.equal(adapted.snapshots[0]?.health?.runningGroundContactTimeMs, 276)
+assert.equal(adapted.snapshots[1]?.health?.walkingDoubleSupportPct, 30.2)

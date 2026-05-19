@@ -15,6 +15,8 @@ import { rollingStandardDeviation } from './personal-baselines'
 import { INTERP_CONFIDENCE_MULTIPLIER } from './interp-policy'
 import { sma } from './statistics'
 import type { ClinicalTone } from './health-policies'
+import { CHART_REQUIREMENTS, evaluateReadiness } from './data-readiness'
+import { buildIndexEvidenceReport, type IndexEvidenceReport } from './index-evidence'
 
 export interface HrvBand {
   label: string
@@ -42,7 +44,8 @@ export interface HrvVariabilityPoint {
   band: HrvBand | null
   confidence: number
   derivedFromInterpolated: boolean
-  reason?: 'inputs_missing'
+  reason?: 'inputs_missing' | 'insufficient_readiness'
+  evidence: IndexEvidenceReport
 }
 
 export function getHrvBand(hrv: number | null): HrvBand | null {
@@ -56,6 +59,11 @@ export function getHrvBand(hrv: number | null): HrvBand | null {
 export function computeHrvVariabilitySeries(
   snapshots: ReadonlyArray<DailySnapshot>,
 ): HrvVariabilityPoint[] {
+  const readiness = evaluateReadiness(
+    snapshots as DailySnapshot[],
+    CHART_REQUIREMENTS.hrvVariabilityChart,
+    'HRVVariability',
+  )
   const hrvValues = snapshots.map((s) => s.health?.hrvSdnn ?? null)
 
   const sma7Array = sma(hrvValues, 7)
@@ -82,10 +90,21 @@ export function computeHrvVariabilitySeries(
         confidence: 0,
         derivedFromInterpolated,
         reason: 'inputs_missing' as const,
+        evidence: buildIndexEvidenceReport({
+          eligible: false,
+          reason: 'inputs_missing',
+          inputsUsed: [],
+          inputsMissing: ['hrvSdnn'],
+          proxiesUsed: [],
+          usedInterpolated: derivedFromInterpolated,
+          confidencePenalty: 0,
+          readiness: readiness.status,
+        }),
       }
     }
 
     const confidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
+    const eligible = readiness.status !== 'standby'
 
     return {
       date: s.date,
@@ -98,6 +117,16 @@ export function computeHrvVariabilitySeries(
       band: getHrvBand(hrv),
       confidence,
       derivedFromInterpolated,
+      evidence: buildIndexEvidenceReport({
+        eligible,
+        reason: eligible ? 'ok' : 'insufficient_readiness',
+        inputsUsed: ['hrvSdnn'],
+        inputsMissing: [],
+        proxiesUsed: [],
+        usedInterpolated: derivedFromInterpolated,
+        confidencePenalty: confidence,
+        readiness: readiness.status,
+      }),
     }
   })
 }

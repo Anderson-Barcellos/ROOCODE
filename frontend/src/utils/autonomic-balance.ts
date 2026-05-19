@@ -25,6 +25,8 @@
 import type { DailySnapshot } from '@/types/apple-health'
 import { computeRollingBaseline, type PersonalBaseline } from './personal-baselines'
 import { INTERP_CONFIDENCE_MULTIPLIER } from './interp-policy'
+import { CHART_REQUIREMENTS, evaluateReadiness } from './data-readiness'
+import { buildIndexEvidenceReport, type IndexEvidenceReport } from './index-evidence'
 
 export const ABI_BAND_THRESHOLD = 1
 
@@ -42,7 +44,8 @@ export interface AbiPoint {
   components: AbiComponents | null
   confidence: number
   derivedFromInterpolated: boolean
-  reason?: 'baseline_missing' | 'inputs_missing'
+  reason?: 'baseline_missing' | 'inputs_missing' | 'insufficient_readiness'
+  evidence: IndexEvidenceReport
 }
 
 function logRatio(hrv: number, rhr: number): number | null {
@@ -78,6 +81,11 @@ export function computeAbiBaseline(
 export function computeAbiSeries(
   snapshots: ReadonlyArray<DailySnapshot>,
 ): AbiPoint[] {
+  const readiness = evaluateReadiness(
+    snapshots as DailySnapshot[],
+    CHART_REQUIREMENTS.autonomicBalanceChart,
+    'AutonomicBalance',
+  )
   const baseline = computeAbiBaseline(snapshots)
 
   return snapshots.map((snapshot) => {
@@ -85,22 +93,74 @@ export function computeAbiSeries(
     const derivedFromInterpolated = !!(snapshot.interpolated || snapshot.forecasted)
 
     if (!baseline) {
-      return { date, abi: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'baseline_missing' as const }
+      return {
+        date,
+        abi: null,
+        components: null,
+        confidence: 0,
+        derivedFromInterpolated,
+        reason: 'baseline_missing' as const,
+        evidence: buildIndexEvidenceReport({
+          eligible: false,
+          reason: 'baseline_missing',
+          inputsUsed: [],
+          inputsMissing: ['hrvSdnn', 'restingHeartRate'],
+          proxiesUsed: [],
+          usedInterpolated: derivedFromInterpolated,
+          confidencePenalty: 0,
+          readiness: readiness.status,
+        }),
+      }
     }
 
     const hrv = snapshot.health?.hrvSdnn ?? null
     const rhr = snapshot.health?.restingHeartRate ?? null
     if (hrv == null || rhr == null || !Number.isFinite(hrv) || !Number.isFinite(rhr)) {
-      return { date, abi: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'inputs_missing' as const }
+      return {
+        date,
+        abi: null,
+        components: null,
+        confidence: 0,
+        derivedFromInterpolated,
+        reason: 'inputs_missing' as const,
+        evidence: buildIndexEvidenceReport({
+          eligible: false,
+          reason: 'inputs_missing',
+          inputsUsed: [],
+          inputsMissing: ['hrvSdnn', 'restingHeartRate'],
+          proxiesUsed: [],
+          usedInterpolated: derivedFromInterpolated,
+          confidencePenalty: 0,
+          readiness: readiness.status,
+        }),
+      }
     }
 
     const lnr = logRatio(hrv, rhr)
     if (lnr == null) {
-      return { date, abi: null, components: null, confidence: 0, derivedFromInterpolated, reason: 'inputs_missing' as const }
+      return {
+        date,
+        abi: null,
+        components: null,
+        confidence: 0,
+        derivedFromInterpolated,
+        reason: 'inputs_missing' as const,
+        evidence: buildIndexEvidenceReport({
+          eligible: false,
+          reason: 'inputs_missing',
+          inputsUsed: [],
+          inputsMissing: ['hrvSdnn', 'restingHeartRate'],
+          proxiesUsed: [],
+          usedInterpolated: derivedFromInterpolated,
+          confidencePenalty: 0,
+          readiness: readiness.status,
+        }),
+      }
     }
 
     const zScore = baseline.sd === 0 ? 0 : (lnr - baseline.mean) / baseline.sd
     const confidence = derivedFromInterpolated ? INTERP_CONFIDENCE_MULTIPLIER : 1
+    const eligible = readiness.status !== 'standby'
 
     return {
       date,
@@ -114,6 +174,16 @@ export function computeAbiSeries(
       },
       confidence,
       derivedFromInterpolated,
+      evidence: buildIndexEvidenceReport({
+        eligible,
+        reason: eligible ? 'ok' : 'insufficient_readiness',
+        inputsUsed: ['hrvSdnn', 'restingHeartRate'],
+        inputsMissing: [],
+        proxiesUsed: [],
+        usedInterpolated: derivedFromInterpolated,
+        confidencePenalty: confidence,
+        readiness: readiness.status,
+      }),
     }
   })
 }

@@ -740,7 +740,13 @@ export default function App() {
                   >
                     <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
                       <RecoveryWeekCard snapshots={recoveryWindow30} />
-                      <RecoveryIndexChart snapshots={recoveryWindow30} title="Recovery Index · fechamento de 30 dias" />
+                      <RecoveryIndexChart
+                        snapshots={recoveryWindow30}
+                        title="Recovery Index · fechamento de 30 dias"
+                        brushRange={panoramaBrushRange}
+                        onBrushChange={setPanoramaBrushRange}
+                        showSleepDebt
+                      />
                     </div>
                   </DecisionSection>
                 </div>

@@ -47,6 +47,7 @@ import { RecoveryWeekCard } from '@/components/cards/recovery-week-card'
 import { PillarGaugeBars } from '@/components/charts/pillar-gauge-bars'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
 import { PanoramaCompositeChart, type PanoramaBrushRange } from '@/components/charts/panorama-composite-chart'
+import { PillarMiniCharts } from '@/components/charts/pillar-mini-charts'
 import { PanoramaWeeklyRegimeCard } from '@/components/charts/panorama-weekly-regime-card'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
@@ -602,6 +603,17 @@ export default function App() {
                             brushRange={panoramaBrushRange}
                             onBrushChange={setPanoramaBrushRange}
                           />
+                          <details className="mt-3 rounded-2xl border border-slate-900/10 bg-white/70 p-3 group">
+                            <summary className="cursor-pointer text-sm font-semibold text-slate-700 group-open:mb-3">
+                              Quebrar por pilar (recovery × capacity × chronobiology)
+                            </summary>
+                            <PillarMiniCharts
+                              history={history}
+                              snapshots={ranged}
+                              brushRange={panoramaBrushRange}
+                              onNavigate={(target) => setActiveTab(target)}
+                            />
+                          </details>
                         </DecisionSection>
                       </>
                     )

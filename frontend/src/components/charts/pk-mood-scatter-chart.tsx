@@ -3,6 +3,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   Scatter,
   Tooltip,
@@ -10,6 +11,8 @@ import {
   YAxis,
   ZAxis,
 } from 'recharts'
+
+import { CHART_TOKENS } from './shared/chart-tokens'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -50,6 +53,7 @@ const TOOLTIP_STYLE = {
   border: '1px solid rgba(15,23,42,0.08)',
   fontSize: 12,
   background: 'rgba(255,252,246,0.97)',
+  boxShadow: '0 18px 42px rgba(17,35,30,0.12)',
 }
 
 const LAG_OPTIONS = [0, 1, 2, 4, 6, 8]
@@ -212,27 +216,34 @@ export function PKMoodScatterChart() {
         <div className="mt-4 h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
             <ComposedChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-              <CartesianGrid stroke="rgba(100,116,139,0.1)" />
+              <CartesianGrid stroke={CHART_TOKENS.ui.grid} />
               <XAxis
                 type="number"
                 dataKey="concentration"
                 name="Concentração"
-                tick={{ fill: '#475569', fontSize: 11 }}
+                tick={{ fill: CHART_TOKENS.ui.axis, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => (v >= 10 ? v.toFixed(0) : v.toFixed(1))}
-                label={{ value: 'Concentração (ng/mL)', position: 'bottom', offset: -5, fontSize: 11, fill: '#475569' }}
+                label={{ value: 'Concentração (ng/mL)', position: 'bottom', offset: -5, fontSize: 11, fill: CHART_TOKENS.ui.axis }}
               />
               <YAxis
                 type="number"
                 dataKey="valence"
                 name="Valência"
                 domain={[-1, 1]}
-                tick={{ fill: '#475569', fontSize: 11 }}
+                tick={{ fill: CHART_TOKENS.ui.axis, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => v.toFixed(1)}
-                label={{ value: 'Valência', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: '#475569' }}
+                label={{ value: 'Valência', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: CHART_TOKENS.ui.axis }}
+              />
+              <ReferenceLine
+                y={0}
+                stroke={CHART_TOKENS.reference.meanText}
+                strokeDasharray="3 3"
+                strokeWidth={1}
+                label={{ value: 'humor neutro', position: 'insideTopRight', fontSize: 10, fill: CHART_TOKENS.reference.meanText }}
               />
               <ZAxis range={[40, 40]} />
               <Tooltip
@@ -247,7 +258,7 @@ export function PKMoodScatterChart() {
               <Scatter
                 name="Eventos"
                 data={scatterData}
-                fill="#0f766e"
+                fill={CHART_TOKENS.series.composite}
                 fillOpacity={0.65}
               />
               {regressionLine.length === 2 && (
@@ -255,7 +266,7 @@ export function PKMoodScatterChart() {
                   type="linear"
                   dataKey="valence"
                   data={regressionLine}
-                  stroke="#d97706"
+                  stroke={CHART_TOKENS.series.chronobiology}
                   strokeWidth={2}
                   strokeDasharray="5 3"
                   dot={false}

@@ -21,6 +21,7 @@ import {
   PREREGISTERED_LAG_DAYS,
   type LagEstimate,
 } from '@/utils/temp-humor-correlation'
+import { heatmapColorForR } from './shared/heatmap-helpers'
 
 interface Props {
   snapshots: DailySnapshot[]
@@ -242,14 +243,6 @@ function formatCi(lower: number | null, upper: number | null): string {
   return `[${lower.toFixed(2)}, ${upper.toFixed(2)}]`
 }
 
-function colorForR(r: number): string {
-  const clamped = Math.max(-1, Math.min(1, r))
-  const intensity = Math.abs(clamped)
-  if (clamped < 0) return `rgba(239, 68, 68, ${intensity * 0.45})`
-  if (clamped > 0) return `rgba(20, 184, 166, ${intensity * 0.45})`
-  return 'rgba(241, 245, 249, 1)'
-}
-
 function HeatmapCell({
   label,
   estimate,
@@ -315,7 +308,7 @@ function HeatmapCell({
         aria-pressed={selected}
         onClick={() => onSelect(tooltip)}
         className={`${className} cursor-pointer transition hover:ring-2 hover:ring-slate-900/20 hover:ring-offset-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-1`}
-        style={{ background: colorForR(estimate.r) }}
+        style={{ background: heatmapColorForR(estimate.r) }}
       >
         {content}
       </button>
@@ -325,7 +318,7 @@ function HeatmapCell({
     <div
       title={tooltip}
       className={className}
-      style={{ background: colorForR(estimate.r) }}
+      style={{ background: heatmapColorForR(estimate.r) }}
     >
       {content}
     </div>

@@ -5,24 +5,26 @@ import { CHART_TOKENS } from './shared/chart-tokens'
 /**
  * Substitui PanoramaSparkline com: (a) barra horizontal 0–100 com gauge
  * tricolor fixo (crítico / atenção / ótimo), (b) marcador thumb na posição
- * do valor atual, (c) mini-sparkline 7d em escala FIXA (sem normalização
- * local que mata magnitude absoluta), (d) tick lateral da média da janela.
+ * do valor atual, (c) tick lateral da média da janela recente.
  *
  * Suporta dois modos via `scale`:
  *  - `percent`: valores 0–100, zonas em 45 e 70.
  *  - `valence`: valores −1..+1 (mood), zonas em −0.3 e +0.3 (visual 35/65).
+ *
+ * A sparkline temporal foi removida — tendência detalhada por pilar é
+ * acessível clicando no card (navega pra aba específica do pilar).
  */
 
 export type PillarGaugeScale = 'percent' | 'valence'
 
 interface PillarGaugeBarsProps {
-  /** Série recente; até 7 pontos típicos. */
+  /** Série recente; usada apenas para calcular tick da média da janela. */
   values: number[]
   /** Valor atual destacado pelo thumb. `null` esconde o marcador. */
   currentValue: number | null
   /** Escala dos valores; default `percent`. */
   scale?: PillarGaugeScale
-  /** Cor primária do thumb e do mini-spark; default teal-700. */
+  /** Cor primária do thumb; default teal-700. */
   accentColor?: string
   /** Marcador em borda tracejada quando valor atual é interpolado. */
   isInterpolated?: boolean
@@ -68,7 +70,7 @@ export function PillarGaugeBars({
 
   const isEmpty = values.length === 0 && currentValue == null
   if (isEmpty) {
-    return <div className="h-[40px] rounded-md border border-dashed border-slate-200 bg-slate-50/70" aria-label={ariaLabel} />
+    return <div className="h-[16px] rounded-md border border-dashed border-slate-200 bg-slate-50/70" aria-label={ariaLabel} />
   }
 
   const { low, mid } = zoneThresholds(scale)
@@ -79,30 +81,14 @@ export function PillarGaugeBars({
     : null
   const visualMean = recentMean != null ? toVisualPct(recentMean, scale) : null
 
-  const SPARK_TOP = 20
-  const SPARK_BOTTOM = 38
-  const SPARK_HEIGHT = SPARK_BOTTOM - SPARK_TOP
-
-  const sparkPoints =
-    values.length > 1
-      ? values
-          .map((v, i) => {
-            const x = (i / (values.length - 1)) * 100
-            const yNorm = toVisualPct(v, scale) / 100
-            const y = SPARK_BOTTOM - yNorm * SPARK_HEIGHT
-            return `${x.toFixed(2)},${y.toFixed(2)}`
-          })
-          .join(' ')
-      : null
-
   const thumbFill = isForecast ? CHART_TOKENS.series.chronobiology : accentColor
   const thumbStrokeDash = isInterpolated ? '1.4 1.4' : undefined
 
   return (
     <svg
-      viewBox="0 0 100 40"
+      viewBox="0 0 100 16"
       preserveAspectRatio="none"
-      className="block h-[40px] w-full"
+      className="block h-[16px] w-full"
       role="img"
       aria-label={ariaLabel}
     >
@@ -155,19 +141,6 @@ export function PillarGaugeBars({
         />
       )}
 
-      {/* mini-spark em escala FIXA (sem normalização local) */}
-      {sparkPoints && (
-        <polyline
-          points={sparkPoints}
-          fill="none"
-          stroke={accentColor}
-          strokeOpacity="0.85"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
     </svg>
   )
 }

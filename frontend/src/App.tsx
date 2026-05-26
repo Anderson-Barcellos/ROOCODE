@@ -48,6 +48,7 @@ import { PillarGaugeBars } from '@/components/charts/pillar-gauge-bars'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
 import { PanoramaCompositeChart, type PanoramaBrushRange } from '@/components/charts/panorama-composite-chart'
 import { PillarMiniCharts } from '@/components/charts/pillar-mini-charts'
+import { PKTimelineChart } from '@/components/charts/pk-timeline-chart'
 import { PanoramaWeeklyRegimeCard } from '@/components/charts/panorama-weekly-regime-card'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
@@ -612,6 +613,16 @@ export default function App() {
                               snapshots={ranged}
                               brushRange={panoramaBrushRange}
                               onNavigate={(target) => setActiveTab(target)}
+                            />
+                          </details>
+                          <details className="mt-3 rounded-2xl border border-slate-900/10 bg-white/70 p-3 group">
+                            <summary className="cursor-pointer text-sm font-semibold text-slate-700 group-open:mb-3">
+                              Concentração farmacológica (Lexapro · Venvanse · Lamictal)
+                            </summary>
+                            <PKTimelineChart
+                              regimen={data.regimen}
+                              doses={data.doses}
+                              brushRange={panoramaBrushRange}
                             />
                           </details>
                         </DecisionSection>

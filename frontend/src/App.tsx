@@ -44,7 +44,8 @@ import { RecoveryIndexChart } from '@/components/charts/recovery-index-chart'
 import { SleepRegularityCard } from '@/components/cards/sleep-regularity-card'
 import { CardiovascularAgeCard } from '@/components/cards/cardiovascular-age-card'
 import { RecoveryWeekCard } from '@/components/cards/recovery-week-card'
-import { PanoramaSparkline } from '@/components/charts/panorama-sparkline'
+import { PillarGaugeBars } from '@/components/charts/pillar-gauge-bars'
+import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
 import { PanoramaHistoryChart } from '@/components/charts/panorama-history-chart'
 import { PanoramaWeeklyRegimeCard } from '@/components/charts/panorama-weekly-regime-card'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
@@ -515,7 +516,11 @@ export default function App() {
                                   /100 · {card.confidenceLabel} {card.confidencePct > 0 ? `${card.confidencePct}%` : ''}
                                 </p>
                                 <div className="mt-3">
-                                  <PanoramaSparkline values={card.sparkline} />
+                                  <PillarGaugeBars
+                                    values={card.sparkline}
+                                    currentValue={card.score}
+                                    ariaLabel={`${card.label}: ${card.score != null ? card.score.toFixed(0) : 'sem dado'} de 100`}
+                                  />
                                 </div>
                                 <p className="mt-2 text-xs text-slate-600">
                                   Limitante: {card.limiterText ?? 'sem limitante dominante'}
@@ -542,7 +547,13 @@ export default function App() {
                               </p>
                               <p className="text-xs text-slate-500">escala -1 a +1 · tendência {trendArrow(moodBridge.trend)}</p>
                               <div className="mt-3">
-                                <PanoramaSparkline values={moodBridge.sparkline} strokeClassName="stroke-emerald-700" />
+                                <PillarGaugeBars
+                                  values={moodBridge.sparkline}
+                                  currentValue={moodBridge.average7d}
+                                  scale="valence"
+                                  accentColor={CHART_TOKENS.series.mood}
+                                  ariaLabel={`Humor 7d: ${moodBridge.average7d != null ? moodBridge.average7d.toFixed(2) : 'sem dado'}`}
+                                />
                               </div>
                               <p className="mt-2 text-xs text-slate-600">{moodBridge.verdict}</p>
                             </button>

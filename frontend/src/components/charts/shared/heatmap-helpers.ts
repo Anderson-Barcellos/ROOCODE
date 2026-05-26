@@ -26,10 +26,14 @@ export function formatCi(
   return `[${lower.toFixed(2)}, ${upper.toFixed(2)}]`
 }
 
+// RGB base alinhado ao CHART_TOKENS:
+//  - positivo: teal-700 (#0f766e = CHART_TOKENS.series.composite)
+//  - negativo: red-700  (#b91c1c = CHART_TOKENS.reference.criticalText)
+// Mantém alpha máximo 0.45 pra preservar legibilidade do texto sobre célula.
 export function heatmapColorForR(r: number): string {
   const clamped = Math.max(-1, Math.min(1, r))
   const intensity = Math.abs(clamped)
-  if (clamped < 0) return `rgba(239, 68, 68, ${intensity * 0.45})`
-  if (clamped > 0) return `rgba(20, 184, 166, ${intensity * 0.45})`
+  if (clamped < 0) return `rgba(185, 28, 28, ${intensity * 0.45})`
+  if (clamped > 0) return `rgba(15, 118, 110, ${intensity * 0.45})`
   return 'rgba(241, 245, 249, 1)'
 }

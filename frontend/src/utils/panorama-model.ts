@@ -83,6 +83,14 @@ export interface PanoramaHistoryPoint {
   recovery: number | null
   capacity: number | null
   chronobiology: number | null
+  /** Composite raw (sem EMA aplicada) — útil pra plotar volatilidade real. */
+  compositeRaw?: number | null
+  /** Valence diária ([-1, +1]) — usada quando o chart liga overlay de humor. */
+  valence?: number | null
+  /** Dia é resultado de interpolação no pipeline upstream. */
+  isInterpolated?: boolean
+  /** Dia é projeção futura (forecast). */
+  isForecast?: boolean
 }
 
 export interface PanoramaModel {
@@ -518,12 +526,18 @@ function buildHistory(
         ? Math.min(score, pkMod.cap)
         : score
 
+    const snapshot = snapshots[index]
+
     return {
       date: point.date,
       composite: modulated,
+      compositeRaw: point.composite,
       recovery: point.recovery,
       capacity: point.capacity,
       chronobiology: point.chronobiology,
+      valence: snapshot?.mood?.valence ?? null,
+      isInterpolated: snapshot?.interpolated === true,
+      isForecast: snapshot?.forecasted === true,
     }
   })
 }

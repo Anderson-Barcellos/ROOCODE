@@ -46,7 +46,7 @@ import { CardiovascularAgeCard } from '@/components/cards/cardiovascular-age-car
 import { RecoveryWeekCard } from '@/components/cards/recovery-week-card'
 import { PillarGaugeBars } from '@/components/charts/pillar-gauge-bars'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
-import { PanoramaHistoryChart } from '@/components/charts/panorama-history-chart'
+import { PanoramaCompositeChart, type PanoramaBrushRange } from '@/components/charts/panorama-composite-chart'
 import { PanoramaWeeklyRegimeCard } from '@/components/charts/panorama-weekly-regime-card'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
@@ -258,6 +258,7 @@ export default function App() {
     localStorage.setItem('roocode-interpolation', nextMode)
   }
   const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [panoramaBrushRange, setPanoramaBrushRange] = useState<PanoramaBrushRange | null>(null)
   const pendingCapacityAnchorRef = useRef<string | null>(null)
   const data = useRooCodeData(interpolation, 'on')
   // Política de janela: `ranged` = leitura histórica filtrada; `rangedWithForecast`
@@ -595,7 +596,12 @@ export default function App() {
                           title="Como tô em janela longa?"
                           description="Histórico do Estado geral com sobreposição opcional da trinca."
                         >
-                          <PanoramaHistoryChart history={history} title="Estado geral · histórico" />
+                          <PanoramaCompositeChart
+                            history={history}
+                            title="Estado geral · histórico"
+                            brushRange={panoramaBrushRange}
+                            onBrushChange={setPanoramaBrushRange}
+                          />
                         </DecisionSection>
                       </>
                     )

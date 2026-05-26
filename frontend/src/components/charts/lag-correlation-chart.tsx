@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 
+import { CHART_TOKENS } from './shared/chart-tokens'
 import { FULL_HISTORY_DOSE_HOURS, useDoses, useMood, useSubstances } from '@/lib/api'
 import type { MoodRecord } from '@/lib/api'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
@@ -43,6 +44,7 @@ const TOOLTIP_STYLE = {
   border: '1px solid rgba(15,23,42,0.08)',
   fontSize: 12,
   background: 'rgba(255,252,246,0.97)',
+  boxShadow: '0 18px 42px rgba(17,35,30,0.12)',
 }
 
 // Lags de -6h até +12h — negativo testa se concentração FUTURA correlaciona (controle de causalidade)
@@ -50,13 +52,14 @@ const LAGS = [-6, -4, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12]
 const METHOD_OPTIONS: IntradayCorrelationMethod[] = ['pearson', 'spearman']
 const FDR_SIGNIFICANCE_THRESHOLD = 0.05
 
+// Alinhado ao heatmap-helpers.ts: positivo = teal-700, negativo = red-700
 function dotColorForR(r: number | null | undefined): string {
-  if (r == null || !Number.isFinite(r)) return '#94a3b8'
+  if (r == null || !Number.isFinite(r)) return CHART_TOKENS.series.forecast
   const clamped = Math.max(-1, Math.min(1, r))
   const intensity = Math.max(0.2, Math.abs(clamped))
-  if (clamped < 0) return `rgba(239, 68, 68, ${0.35 + intensity * 0.55})`
-  if (clamped > 0) return `rgba(20, 184, 166, ${0.35 + intensity * 0.55})`
-  return '#94a3b8'
+  if (clamped < 0) return `rgba(185, 28, 28, ${0.35 + intensity * 0.55})`
+  if (clamped > 0) return `rgba(15, 118, 110, ${0.35 + intensity * 0.55})`
+  return CHART_TOKENS.series.forecast
 }
 
 function formatPValue(value: number | null): string {
@@ -89,7 +92,7 @@ function renderLagDot(props: {
       cy={cy}
       r={isSignificant ? 4.5 : 3}
       fill={fill}
-      stroke={isSignificant ? '#d97706' : '#fff'}
+      stroke={isSignificant ? CHART_TOKENS.series.chronobiology : '#fff'}
       strokeWidth={isSignificant ? 1.5 : 1}
     />
   )
@@ -232,7 +235,7 @@ export function LagCorrelationChart() {
         Pontos dourados: {`q_fdr < ${FDR_SIGNIFICANCE_THRESHOLD.toFixed(2)}`} · lags significativos: {significantLagCount}
       </p>
       <p className="mt-1 text-xs text-slate-500">
-        Cor do ponto: <span className="font-semibold text-teal-700">verde</span> = associação positiva, <span className="font-semibold text-red-500">vermelho</span> = negativa (intensidade proporcional a |r|).
+        Cor do ponto: <span className="font-semibold text-teal-700">verde</span> = associação positiva, <span className="font-semibold text-red-700">vermelho</span> = negativa (intensidade proporcional a |r|).
         Associação positiva significa valência subindo; isso inclui melhora de negativa para menos negativa.
       </p>
       {futureImprovements.length > 0 && (
@@ -323,12 +326,12 @@ export function LagCorrelationChart() {
         <div className="mt-4 h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
             <ComposedChart data={data} margin={{ top: 10, right: 16, bottom: 4, left: 0 }}>
-              <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
+              <CartesianGrid stroke={CHART_TOKENS.ui.grid} vertical={false} />
               <XAxis
                 dataKey="lag"
                 type="number"
                 domain={[LAGS[0], LAGS[LAGS.length - 1]]}
-                tick={{ fill: '#475569', fontSize: 11 }}
+                tick={{ fill: CHART_TOKENS.ui.axis, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => (v > 0 ? `+${v}h` : `${v}h`)}
@@ -337,11 +340,11 @@ export function LagCorrelationChart() {
                 type="number"
                 domain={yDomain}
                 ticks={yTicks}
-                tick={{ fill: '#475569', fontSize: 11 }}
+                tick={{ fill: CHART_TOKENS.ui.axis, fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v: number) => v.toFixed(2)}
-                label={{ value: correlationMethod === 'pearson' ? 'Pearson r' : 'Spearman ρ', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: '#475569' }}
+                label={{ value: correlationMethod === 'pearson' ? 'Pearson r' : 'Spearman ρ', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: CHART_TOKENS.ui.axis }}
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
@@ -358,15 +361,30 @@ export function LagCorrelationChart() {
                   return `Lag ${num > 0 ? '+' : ''}${num}h`
                 }}
               />
-              <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-              <ReferenceLine x={0} stroke="#94a3b8" strokeDasharray="3 3" />
+              <ReferenceLine
+                y={0}
+                stroke={CHART_TOKENS.reference.meanText}
+                strokeDasharray="3 3"
+                label={{ value: 'sem correlação', position: 'insideTopLeft', fontSize: 10, fill: CHART_TOKENS.reference.meanText }}
+              />
+              <ReferenceLine
+                x={0}
+                stroke={CHART_TOKENS.reference.meanText}
+                strokeDasharray="3 3"
+                label={{ value: 'lag 0', position: 'insideBottomRight', fontSize: 10, fill: CHART_TOKENS.reference.meanText }}
+              />
               {bestLag != null && (
-                <ReferenceLine x={bestLag} stroke="#d97706" strokeWidth={1.5} />
+                <ReferenceLine
+                  x={bestLag}
+                  stroke={CHART_TOKENS.series.chronobiology}
+                  strokeWidth={1.5}
+                  label={{ value: `pico ${bestLag > 0 ? '+' : ''}${bestLag}h`, position: 'insideTopRight', fontSize: 10, fill: CHART_TOKENS.series.chronobiology }}
+                />
               )}
               <Line
                 type="monotone"
                 dataKey="r"
-                stroke="#0f766e"
+                stroke={CHART_TOKENS.series.composite}
                 strokeWidth={2.5}
                 dot={renderLagDot}
                 connectNulls

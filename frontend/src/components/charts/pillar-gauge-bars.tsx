@@ -79,12 +79,17 @@ export function PillarGaugeBars({
     : null
   const visualMean = recentMean != null ? toVisualPct(recentMean, scale) : null
 
+  const SPARK_TOP = 20
+  const SPARK_BOTTOM = 38
+  const SPARK_HEIGHT = SPARK_BOTTOM - SPARK_TOP
+
   const sparkPoints =
     values.length > 1
       ? values
           .map((v, i) => {
             const x = (i / (values.length - 1)) * 100
-            const y = 100 - toVisualPct(v, scale)
+            const yNorm = toVisualPct(v, scale) / 100
+            const y = SPARK_BOTTOM - yNorm * SPARK_HEIGHT
             return `${x.toFixed(2)},${y.toFixed(2)}`
           })
           .join(' ')
@@ -97,7 +102,7 @@ export function PillarGaugeBars({
     <svg
       viewBox="0 0 100 40"
       preserveAspectRatio="none"
-      className="block h-[40px] w-full overflow-visible"
+      className="block h-[40px] w-full"
       role="img"
       aria-label={ariaLabel}
     >
@@ -130,7 +135,7 @@ export function PillarGaugeBars({
         <line
           x1={visualMean}
           x2={visualMean}
-          y1="-1"
+          y1="0"
           y2="10"
           stroke="rgba(17,35,30,0.42)"
           strokeWidth="0.8"
@@ -152,18 +157,16 @@ export function PillarGaugeBars({
 
       {/* mini-spark em escala FIXA (sem normalização local) */}
       {sparkPoints && (
-        <g transform="translate(0, 18)">
-          <polyline
-            points={sparkPoints}
-            fill="none"
-            stroke={accentColor}
-            strokeOpacity="0.85"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        </g>
+        <polyline
+          points={sparkPoints}
+          fill="none"
+          stroke={accentColor}
+          strokeOpacity="0.85"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
       )}
     </svg>
   )

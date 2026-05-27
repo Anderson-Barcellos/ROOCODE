@@ -66,7 +66,7 @@ git diff --check
 
 | Aba | Componentes |
 |---|---|
-| **Panorama** | PanoramaSparkline · PanoramaWeeklyRegimeCard · PanoramaHistoryChart · MetricGrid · RecoveryWeekCard · RecoveryIndexChart |
+| **Panorama** | PillarGaugeBars · PanoramaCompositeChart · RecoveryIndexChart · PillarMiniCharts · PKTimelineChart · IndexRadarSnapshot · PanoramaWeeklyRegimeCard · MetricGrid · RecoveryWeekCard |
 | **Farmaco** | MoodTimeline · PKMedicationGrid · PKHumorCorrelation · PKCoverageCard · DoseLogger · DoseCalendarView · MedicationCatalogEditor |
 | **Recuperação** | NightQualityCard · RecoveryIndexCard · SleepStagesChart · SleepRegularityCard · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline · AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · CardiovascularAgeCard · RecoveryWeekCard · RecoveryIndexChart |
 | **Capacidade** | ActivityReadinessCard · CapacityPanels (FCI + Carga real + Cardio + CRI + Movement Efficiency) · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart |
@@ -96,6 +96,9 @@ git diff --check
 - Índices da aba Capacidade (`Functional Capacity Index`, `Circadian Robustness`, `Movement Efficiency`) e da aba Recuperação declaram fonte, proxy aceito e política de interpolação na matriz central `frontend/src/utils/index-evidence.ts` + `INDEX_EVIDENCE_MATRIX.md`. Novos índices ou mudança de política devem entrar nessa matriz, não em ifs espalhados.
 - Panorama é tela de decisão: `Estado geral` composto por pesos fixos (recovery=0.40, capacity=0.35, chronobiology=0.25) com renormalização por pilar ausente, EMA curta e modulação PK por cap progressivo. Motor único em `frontend/src/utils/panorama-model.ts` — não duplicar fórmula em componentes.
 - Recharts: novos charts devem nascer com `ResponsiveContainer` + `minWidth={0}` + `minHeight={0}` + `initialDimension={{ width: 1, height: 1 }}`. Padrão aplicado em 20 charts no QA de 2026-05-18.
+- Paleta visual centralizada em `frontend/src/components/charts/shared/chart-tokens.ts` (`CHART_TOKENS`). Charts novos devem importar daqui em vez de hardcodar hex/rgba; isso evita drift quando charts são editados isoladamente. Heatmaps e charts de Insights já consomem essa fonte; charts antigos podem migrar gradualmente.
+- Zoom horizontal sobre Recharts usa `useChartBrush` em `frontend/src/components/charts/shared/useChartBrush.tsx` — brush D3 montado como overlay SVG sobre `ResponsiveContainer`; D3 captura o drag, Recharts mantém o hover. Consumidor controla `BrushIndexSelection` e filtra `data` antes do chart.
+- Panorama virou tela de exploração aditiva: a trinca clicável (decisão) continua no topo intacta, mas abaixo dela `PanoramaCompositeChart` (histórico longo com brush + overlay de humor), `PillarGaugeBars` (substituiu o sparkline antigo), `RecoveryIndexChart` v2 (zoom sincronizado + sleep debt) e três accordions colapsados por padrão (`PillarMiniCharts`, `PKTimelineChart`, `IndexRadarSnapshot`) entregam camada exploratória. `panorama-model.ts` segue como motor único — novos componentes só visualizam séries já calculadas.
 
 ## Fresh start
 
@@ -109,14 +112,12 @@ Depois: revisar `AGENTS.md` (registro cronológico de cada onda Codex/Claude no 
 
 ## Próxima sessão
 
-- Estado funcional atual: `REBUILD phase 1` já aplicado e validado; a navegação final agora é `Panorama`, `Recuperação`, `Capacidade`, `Farmaco`, `Insights`.
-- Ponto de retomada recomendado: revisar visualmente `Panorama -> Recuperação -> Capacidade` em `https://ultrassom.ai/health/` antes de abrir a próxima frente de produto.
-- Pendência honesta importante: a aba Recuperação já mostra o desvio noturno de temperatura, mas **não** calcula amplitude diária da temperatura do pulso porque o pipeline atual ainda não recebe esse dado bruto.
+- Estado funcional: Insights redesign aplicado em 2026-05-27 (cockpit narrativo "Quem mexeu no humor essa janela" — Top 3 + accordion + faixa de medicação; `ForecastAccuracyCard` migrou pro rodapé do Panorama em accordion). Spec/plan completos em `docs/superpowers/specs/insights-redesign.md` + `docs/superpowers/plans/2026-05-27-insights-redesign.md`. Validação visual desktop em verde.
+- Ponto de retomada recomendado: QA visual mobile do novo Insights (`Top 3 + accordion + faixa medicação` em viewport estreito) antes de abrir frente nova.
+- Pendência honesta antiga: a aba Recuperação já mostra o desvio noturno de temperatura, mas **não** calcula amplitude diária da temperatura do pulso porque o pipeline atual ainda não recebe esse dado bruto.
 - Decisão já tomada: `Sleep Regularity Index` e `Social Jet Lag` estão implementados como leitura exploratória baseada em `sleepStartAt/sleepEndAt`; não voltar a tratar isso como se fosse cálculo minuto-a-minuto definitivo.
-- Se a próxima etapa for continuação natural desta linha, o melhor bundle seguinte é um destes:
-  - polimento narrativo/visual do `Panorama` depois da migração para `Recovery Index`;
-  - expansão do pipeline de temperatura para suportar amplitude circadiana real;
-  - nova spec de `Capacidade`, agora que os cards de resposta a esforço já migraram.
+- Opções naturais de continuação (sem ordem fixa): expansão do pipeline de temperatura pra suportar amplitude circadiana real, nova spec de `Capacidade`, polimento narrativo do `Panorama`, ou reativação dos 4 PKs preservados (`PKVariabilityReportCard`, `PKVariabilityHumorLab`, `PKMoodScatterChart`, `LagCorrelationChart`) numa superfície dedicada (Lab PK separado?).
+- Evolução futura prevista no design doc do Insights: templates determinísticos podem virar LLM se o tom narrativo soar raso; faixa contextual de medicação ganha timing médio quando ticket #1 do BACKLOG (PK Coverage 3-camadas) entregar adesão/timing como eventos categorizados.
 
 ## Histórico
 
@@ -124,5 +125,6 @@ Depois: revisar `AGENTS.md` (registro cronológico de cada onda Codex/Claude no 
 - 2026-05-16: REBUILD phase 1 aplicado. Taxonomia mudou para `Panorama`, `Recuperação`, `Capacidade`, `Farmaco`, `Insights`; backend de sono preserva horários brutos; frontend ganhou `RecoveryIndex`, `SleepRegularityCard`, `Social Jet Lag`, `CardiovascularAgeCard` e a migração de `HeartRateReserveChart`/`ChronotropicResponseChart`/`CardioRecoveryChart` para `Capacidade`. Validação em verde com `npm run test:unit`, `npx tsc --noEmit`, `npm run lint`, `npm run build`, restart do `roocode.service` e `curl` 200 em `http://localhost:8011/sleep`, `https://ultrassom.ai/health/` e `https://ultrassom.ai/health/api/sleep`.
 - 2026-05-17: refactor da aba Capacidade. 6 painéis (Prontidão, Functional Capacity Index, Cardio, Carga real, CRI, Movement Efficiency); FCI usa último valor válido por componente; CRI proxy térmica `Temp. pulso vs baseline` (não amplitude pico-nadir, que aguarda dado intradia); `RecoveryIndex` filtra inputs ausentes em vez de ranquear como zero.
 - 2026-05-18: 3 ondas — governance formal de evidência de índices (matriz central em `index-evidence.ts` + `INDEX_EVIDENCE_MATRIX.md`, 11 índices cobertos), Panorama refactor final em tela de decisão (`panorama-model.ts` único motor, pesos 40/35/25, modulação PK por cap progressivo, trinca clicável navega pras abas), e QA visual mobile (overflow TabNav corrigido + 20 charts ganharam `initialDimension` Recharts).
+- 2026-05-26: 13 commits em 3 frentes coordenadas. (1) Foundation: `CHART_TOKENS` + `useChartBrush` em `components/charts/shared/`. (2) Panorama virou tela de exploração aditiva — `PillarGaugeBars` substitui sparkline; `PanoramaCompositeChart` (com brush) substitui `panorama-history-chart.tsx`; `RecoveryIndexChart` ganhou zoom sincronizado + sleep debt; três accordions novos colapsados por padrão (`PillarMiniCharts`, `PKTimelineChart`, `IndexRadarSnapshot`). (3) Insights migrou pra paleta `CHART_TOKENS` (heatmap-helpers, `PKMoodScatterChart`, `LagCorrelationChart`, `TempHumorCorrelation`) como polimento visual antes de reestruturação narrativa maior — esta última segue em brainstorm pausado (checkpoint `/root/RooCode/.superpowers/brainstorm/RESUME_INSIGHTS.md`, parou na Q#7).
 
 10 sprints concluídas até 2026-05-11: REG-0..5, Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology, M1-M7, R, D, D-patch1. Detalhes em `docs/HISTORY/ROADMAP_maturation.md`, `docs/HISTORY/ROADMAP.md`, `docs/HISTORY/AGENTS.md` ou `git log --oneline`.

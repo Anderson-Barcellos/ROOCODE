@@ -74,3 +74,6 @@ credentials.json
 *.sqlite3
 *.db
 .remember/
+.superpowers/
+.claude/worktrees/
+.playwright-mcp/

@@ -85,11 +85,9 @@ function formatP(value: number | null | undefined): string {
 
 export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: CorrelationHeatmapProps) {
   const [selectedHeatmapCell, setSelectedHeatmapCell] = useState<SelectedHeatmapCell | null>(null)
-  // T9 (2026-05-15): MoodDriverBoard e PKVariabilityHumorLab já filtram
-  // interpolated/forecasted antes de correlacionar. Padronizar aqui também
-  // pra não inflar r artificialmente em métricas auto-preenchidas (sono).
-  // `usableSnapshots` é a base canônica; `extraMetrics.values` é
-  // re-alinhado pela mesma máscara de índices.
+  // Filtra interpolated/forecasted antes de correlacionar pra não inflar r
+  // artificialmente em métricas auto-preenchidas (sono). `usableSnapshots` é
+  // a base canônica; `extraMetrics.values` é re-alinhado pela mesma máscara.
   const { usableSnapshots, usableExtraMetrics } = useMemo(() => {
     const mask = snapshots.map((s) => !s.forecasted && !s.interpolated)
     const filteredSnapshots = snapshots.filter((_, i) => mask[i])

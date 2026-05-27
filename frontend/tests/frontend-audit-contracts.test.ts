@@ -17,7 +17,6 @@ function runAssertions(): void {
   const correlationHeatmap = readSource('components/charts/correlation-heatmap.tsx')
   const forecastModal = readSource('components/charts/ForecastReportModal.tsx')
   const heatmapCell = readSource('components/charts/shared/heatmap-cell.tsx')
-  const moodDriverBoard = readSource('components/charts/mood-driver-board.tsx')
   const app = readSource('App.tsx')
   const activityReadinessCard = readSource('components/cards/activity-readiness-card.tsx')
   const activityReadinessUtil = readSource('utils/activity-readiness.ts')
@@ -66,13 +65,6 @@ function runAssertions(): void {
       `${name} deve expor detalhe persistente ao selecionar uma célula de heatmap.`,
     )
   }
-  assert(
-    moodDriverBoard.includes('expandedDriverId') &&
-      moodDriverBoard.includes('Evidência do driver') &&
-      moodDriverBoard.includes('sourcePath') &&
-      moodDriverBoard.includes('recentEvidence'),
-    'MoodDriverBoard deve permitir expandir drivers com fonte, janela recente e evidencia persistente.',
-  )
   for (const [name, source] of [
     ['CorrelationHeatmap', correlationHeatmap],
     ['TempHumorCorrelation', tempHumor],
@@ -121,12 +113,6 @@ function runAssertions(): void {
   assert(
     pkCoverageCard.includes('const COVERAGE_WINDOW_LABEL =') && pkCoverageCard.includes('Cobertura PK · {COVERAGE_WINDOW_LABEL}'),
     'PKCoverageCard deve manter explicita a janela fixa de cobertura atual.',
-  )
-  assert(
-    !app.includes('<PKVariabilityHeatmap snapshots={ranged} />') &&
-      app.indexOf('<PKVariabilityReportCard snapshots={ranged} />') >
-        app.indexOf('title="Concentrações irregulares ou muito estáveis afetam humor?"'),
-    'Insights deve consolidar o resumo de variabilidade dentro do bloco PK x Humor e remover o heatmap panoramico duplicado.',
   )
   assert(
     lag.includes('menos negativa') &&

@@ -632,6 +632,12 @@ export default function App() {
                             </summary>
                             <IndexRadarSnapshot snapshots={ranged} />
                           </details>
+                          <details className="mt-3 rounded-2xl border border-slate-900/10 bg-white/70 p-3 group">
+                            <summary className="cursor-pointer text-sm font-semibold text-slate-700 group-open:mb-3">
+                              Calibração técnica · histórico de acurácia do forecast IA
+                            </summary>
+                            <ForecastAccuracyCard snapshots={ranged} />
+                          </details>
                         </DecisionSection>
                       </>
                     )

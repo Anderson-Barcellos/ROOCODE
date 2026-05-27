@@ -19,10 +19,7 @@ import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
-import { LagCorrelationChart } from '@/components/charts/lag-correlation-chart'
-import { PKMoodScatterChart } from '@/components/charts/pk-mood-scatter-chart'
-import { PKVariabilityHumorLab } from '@/components/charts/pk-variability-humor-lab'
-import { PKVariabilityReportCard } from '@/components/cards/pk-variability-report-card'
+import { InsightsCockpit } from '@/components/insights/insights-cockpit'
 import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
 import { HRRangeChart } from '@/components/charts/hr-range-chart'
@@ -160,29 +157,6 @@ function DecisionSection({
         <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
       </div>
       {children}
-    </section>
-  )
-}
-
-function LabGroup({
-  eyebrow,
-  title,
-  description,
-  children,
-}: {
-  eyebrow: string
-  title: string
-  description: string
-  children: ReactNode
-}) {
-  return (
-    <section className="rounded-[1.75rem] border border-slate-900/10 bg-slate-50/70 p-4 shadow-inner shadow-white/50">
-      <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{eyebrow}</p>
-        <h3 className="mt-1 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">{title}</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
-      </div>
-      <div className="space-y-4">{children}</div>
     </section>
   )
 }
@@ -899,39 +873,23 @@ export default function App() {
                 </div>
                 {ranged.length > 0 && (
                   <>
-                    <LabGroup
-                      eyebrow="Hipóteses acionáveis"
-                      title="Quais drivers parecem mais ligados ao humor?"
-                      description="Começa pelos cards mais interpretáveis e deixa o heatmap como suporte visual, não como decisão isolada."
-                    >
-                      <CorrelationHeatmap snapshots={ranged} />
-                      <TempHumorCorrelation snapshots={ranged} />
-                    </LabGroup>
+                    <InsightsCockpit snapshots={ranged} />
 
-                    <LabGroup
-                      eyebrow="PK × Humor (variabilidade)"
-                      title="Concentrações irregulares ou muito estáveis afetam humor?"
-                      description="Testa se a VARIABILIDADE da concentração (CV% inter-dia, swing intra-dia, tempo no range) correlaciona com humor. Análise quartil Q1×Q4 capta sweet spot em U que Pearson sozinho perde."
-                    >
-                      <PKVariabilityReportCard snapshots={ranged} />
-                      <PKVariabilityHumorLab snapshots={ranged} />
-                    </LabGroup>
-
-                    <LabGroup
-                      eyebrow="Modo laboratório"
-                      title="Exploração interativa e controles de causalidade"
-                      description="Ferramentas para investigar sinais promissores sem misturar esses gráficos com o cockpit diário."
-                    >
-                      <PKMoodScatterChart />
-                      <LagCorrelationChart />
-                    </LabGroup>
-
-                    <details className="rounded-[1.5rem] border border-violet-200 bg-violet-50/60 p-4">
-                      <summary className="cursor-pointer text-sm font-semibold text-violet-800">
-                        Calibração técnica da IA de forecast
+                    <details className="rounded-[1.5rem] border border-slate-200 bg-white/70 p-4">
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                        Ver matriz de correlação completa
                       </summary>
                       <div className="mt-4">
-                        <ForecastAccuracyCard snapshots={ranged} />
+                        <CorrelationHeatmap snapshots={ranged} />
+                      </div>
+                    </details>
+
+                    <details className="rounded-[1.5rem] border border-slate-200 bg-white/70 p-4">
+                      <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                        Temperatura corporal × humor
+                      </summary>
+                      <div className="mt-4">
+                        <TempHumorCorrelation snapshots={ranged} />
                       </div>
                     </details>
                   </>

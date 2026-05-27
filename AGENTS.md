@@ -234,3 +234,49 @@ Corrigido overflow horizontal mobile no topo: `frontend/src/components/navigatio
 
 Notes:
 Browser plugin não estava disponível nesta sessão; Playwright foi usado com pacote temporário em `/tmp/roocode-playwright-check` e `/usr/bin/google-chrome`, sem alterar dependências do repo. O build ainda emite apenas o warning conhecido de chunk >500kB.
+
+### 2026-05-26 01:28 - Charts foundation: CHART_TOKENS + useChartBrush
+
+Context:
+Antes da reestruturação narrativa do Panorama, criada uma camada compartilhada de tokens visuais e de zoom horizontal para evitar drift de paleta entre charts editados isoladamente e para padronizar o gesto de brush sobre Recharts.
+
+Details:
+Novo módulo `frontend/src/components/charts/shared/chart-tokens.ts` exporta `CHART_TOKENS` (séries por domínio — composite/recovery/capacity/chronobiology/mood + Lexapro/Venvanse/Lamictal; fills de zona ótima/atenção/crítica; tokens de eixo, grid, tooltip e thresholds visuais). Espelha CSS vars de `index.css` em um único lugar consultável; charts existentes podem migrar gradualmente, novos charts devem importar daqui. Novo hook `frontend/src/components/charts/shared/useChartBrush.tsx` monta um brush D3 horizontal como overlay SVG sobre `ResponsiveContainer` do Recharts: D3 captura o drag, Recharts mantém o hover do tooltip, o consumidor controla `BrushIndexSelection` e filtra `data` antes do chart.
+
+Notes:
+Esta foundation suporta o redesign do Panorama (`PanoramaCompositeChart`, `RecoveryIndexChart` v2) e o polimento incremental dos charts de Insights na mesma janela de commits.
+
+### 2026-05-26 02:10 - Panorama vira tela de exploração (composite + pilares + PK + radar)
+
+Context:
+A aba Panorama deixou de ser apenas "tela de decisão" (1 número + trinca + atalhos) e ganhou uma camada de exploração logo abaixo: histórico longo navegável, pilares por dimensão, timeline PK das três substâncias e snapshot 11D. Mantém o motor `panorama-model.ts` como única fonte do `Estado geral`; toda a nova superfície apenas visualiza séries já calculadas.
+
+Details:
+`frontend/src/components/charts/panorama-sparkline.tsx` foi removido em favor de `pillar-gauge-bars.tsx`, que apresenta cada pilar (Recuperação · Capacidade · Cronobiologia) como barra horizontal com banda de zona ótima e percentual atual — sem mini-spark dentro do card (removido por overflow visual). Novo `panorama-composite-chart.tsx` substitui o antigo `panorama-history-chart.tsx` (deletado) e usa `useChartBrush` para janela navegável de 30/60/90 dias com overlay opcional de humor diário e marcadores PK. `recovery-index-chart.tsx` foi refeito com zoom sincronizado ao brush do composite e camada de sleep debt sobreposta. Três componentes novos abrem em accordion abaixo: `pillar-mini-charts.tsx` (grade 3-col com séries por pilar), `pk-timeline-chart.tsx` (3 substâncias com marcadores de dose real) e `index-radar-snapshot.tsx` (radar 11D com toggle entre hoje vs. baseline 30d). `panorama-model.ts` ganhou helpers para alimentar o novo composite sem duplicar fórmula.
+
+Notes:
+A trinca clicável (decisão rápida) continua intacta no topo; o redesign é aditivo. `App.tsx` ganhou os três novos painéis em modo colapsado por padrão para manter o tempo de leitura curto no first paint. Validação rodada após cada commit isolado (`npm run test:unit`, `npx tsc --noEmit`, `npm run lint`, `npm run build`).
+
+### 2026-05-27 00:55 - Insights redesign aplicado (cockpit narrativo)
+
+Context:
+Implementada a spec `docs/superpowers/specs/insights-redesign.md` em 11 commits encadeados via plano `docs/superpowers/plans/2026-05-27-insights-redesign.md`. Aba Insights deixa de ser painel multivariado denso (3 LabGroups + `<details>` do forecast) e vira cockpit narrativo curto "Quem mexeu no humor essa janela" com Top 3 + accordion "ver outros" + faixa contextual de medicação. ForecastAccuracyCard migra pro rodapé do Panorama em accordion. 14 decisões consolidadas no brainstorm (7 do dia 26-05 + 5 de fechamento Q#7–#11 + 2 de self-review Q#13–#14).
+
+Details:
+Foundation: novo `frontend/src/utils/driver-ranking.ts` (`rankDrivers`, `RankedDriver`, `RankingResult` + thresholds `MIN_PAIRED_DAYS_FOR_RANKING=10`, `ROBUST_R_THRESHOLD=0.3`, `TOP_N=3`) e `frontend/src/utils/insights-narrative.ts` (templates determinísticos `buildCockpitHeadline` + `buildInvestigativePrompt`). Driver `medicação` (`polarity: 'context'`) fica fora do ranking e vai pra strip separada. Cinco componentes novos em `frontend/src/components/insights/`: `driver-icons.ts`, `ranking-metadata-chips.tsx`, `medication-context-strip.tsx`, `driver-ranking-card.tsx` (sparkline 14d com baseline pontilhada, estados qualified/dim), `driver-detail-panel.tsx` (pergunta investigativa + mini-scatter driver×humor com regressão se n≥10 + link pro chartHint, sem números crus — decisão consciente da spec) e `insights-cockpit.tsx` (container).
+
+Integração: `frontend/src/App.tsx` substitui 3 `LabGroup` antigos pelo `InsightsCockpit` + 2 `<details>` próprios (CorrelationHeatmap "Ver matriz de correlação completa" e TempHumorCorrelation "Temperatura corporal × humor"). `ForecastAccuracyCard` migra do `<details>` violeta do Insights pra um quarto accordion no rodapé do Panorama, junto dos 3 existentes (PillarMiniCharts, PKTimelineChart, IndexRadarSnapshot). `MoodDriverBoard` desacoplado do `CorrelationHeatmap` (que vivia embutido na linha 191), arquivo `mood-driver-board.tsx` deletado (lógica útil migrou pra `driver-ranking.ts`). 4 PKs preservados como arquivos sem callsite: `PKVariabilityReportCard`, `PKVariabilityHumorLab`, `PKMoodScatterChart`, `LagCorrelationChart`. Testes novos: `driver-ranking.test.ts` (6 casos) e `insights-narrative.test.ts` (7 casos), incluídos em `run-all.test.ts`. `tsconfig.test.json` registrou os 2 utils novos no `include`. `frontend-audit-contracts.test.ts` limpou 2 asserts obsoletos (referentes ao MoodDriverBoard deletado + à organização antiga do bloco "PK × Humor").
+
+Notes:
+Validação verde em todos os gates: `npm run test:unit`, `npx tsc --noEmit`, `npm run lint`, `npm run build` (apenas warning conhecido de chunk >500kB). Restart de `roocode.service` + curl 200 em `http://localhost:8011/sleep`, `https://ultrassom.ai/health/` e `https://ultrassom.ai/health/api/sleep`. **Execução foi subagent-driven adaptado**: 5 dispatches de Sonnet pros componentes folha novos (T4–T8); orquestrador fez utils com TDD strict (T1–T2), edições em arquivos existentes (T3, T9–T11), e QA final (T12). Skip consciente do "two-stage review formal" do skill `superpowers:subagent-driven-development` — plano já era spec executável, validação técnica automática (`tsc+lint+test+build`) cobriu o papel do code quality review pra projeto pessoal em modo manutenção. Decisão registrada via `rules/plugins.md` (princípio de autonomia sobre sub-skills).
+
+### 2026-05-26 02:20 - Insights migra pra CHART_TOKENS (preparação visual)
+
+Context:
+Polimento incremental dos charts da aba Insights para zerar drift de cor antes de uma reestruturação narrativa maior da aba (em brainstorm separado). Sem mudança de algoritmo nem de contrato — apenas paleta e legibilidade.
+
+Details:
+`heatmap-helpers.ts` deixou de hardcodar teal/red e passa a derivar cores da paleta `CHART_TOKENS`; consumidores (`CorrelationHeatmap`, `TempHumorCorrelation`, `PKVariabilityHumorLab`) ficam coerentes automaticamente. `PKMoodScatterChart` adotou `CHART_TOKENS` e ganhou linha de referência explícita no humor neutro. `LagCorrelationChart` recebeu polimento visual (espaçamento, eixo, ênfase) e labels textuais nos lags significativos. `TempHumorCorrelation` consolidou `colorForR` no helper compartilhado em vez de manter cópia local.
+
+Notes:
+Esta janela é puramente visual; nada de estrutura narrativa do Insights mudou. A reestruturação narrativa (cockpit "Quem mexeu no meu humor essa semana", absorção do `MoodDriverBoard`, remoção de 4 PKs do view) está em brainstorm pausado — checkpoint em `/root/RooCode/.superpowers/brainstorm/RESUME_INSIGHTS.md`, retomada na Q#7 (granularidade do ranking).

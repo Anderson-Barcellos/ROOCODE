@@ -36,6 +36,7 @@
     "src/utils/heart-rate-reserve.ts",
     "src/utils/hrv-variability.ts",
     "src/utils/chronotropic-response.ts",
+    "src/utils/driver-ranking.ts",
     "tests/**/*.ts"
   ]
 }

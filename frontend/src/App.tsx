@@ -13,8 +13,6 @@ import DoseCalendarView from '@/components/DoseCalendarView'
 import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
 import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-chart'
-import { MoodTimeline } from '@/components/charts/mood-timeline'
-import { PKMedicationGrid } from '@/components/charts/pk-medication-grid'
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
@@ -25,7 +23,7 @@ import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-di
 import { HRRangeChart } from '@/components/charts/hr-range-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { NightQualityCard } from '@/components/cards/night-quality-card'
-import { PKCoverageCard } from '@/components/cards/pk-coverage-card'
+import { PKMoodConcentrationChart } from '@/components/charts/pk-mood-concentration-chart'
 import { ActivityReadinessCard } from '@/components/cards/activity-readiness-card'
 import { ForecastAccuracyCard } from '@/components/charts/forecast-accuracy-card'
 import { HrvVariabilityChart } from '@/components/charts/hrv-variability-chart'
@@ -52,7 +50,6 @@ import { InterpolationDemo } from '@/pages/InterpolationDemo'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { DailySnapshot } from '@/types/apple-health'
 import { selectSnapshotRange } from '@/utils/aggregation'
-import { FULL_HISTORY_DOSE_HOURS } from '@/lib/api'
 import {
   buildPanoramaModel,
   formatMoodAverage,
@@ -60,14 +57,6 @@ import {
 } from '@/utils/panorama-model'
 
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
-
-const PK_HOURS_BY_RANGE: Record<RangeOption, number> = {
-  '7d': 24 * 7,
-  '30d': 24 * 30,
-  '90d': 24 * 90,
-  '1y': 24 * 365,
-  all: FULL_HISTORY_DOSE_HOURS,
-}
 
 function mean(values: Array<number | null>): number | null {
   const numeric = values.filter((value): value is number => value != null && Number.isFinite(value))
@@ -245,7 +234,6 @@ export default function App() {
     () => selectSnapshotRange(data.snapshots, '30d'),
     [data.snapshots],
   )
-  const pkHoursWindow = PK_HOURS_BY_RANGE[range]
   const todayIso = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const rangedWithForecast = useMemo(
     () =>
@@ -647,13 +635,16 @@ export default function App() {
                 </div>
                 <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
 
-                <MoodTimeline snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                <PKMoodConcentrationChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
-                <PKCoverageCard />
-
-                <PKMedicationGrid hoursWindow={pkHoursWindow} windowLabel={range} />
-
-                <PKHumorCorrelation snapshots={ranged} />
+                <details className="group">
+                  <summary className="cursor-pointer rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300">
+                    Remédio × Humor — análise estatística (7 lags, correção FDR)
+                  </summary>
+                  <div className="mt-3">
+                    <PKHumorCorrelation snapshots={ranged} />
+                  </div>
+                </details>
 
                 <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
                   <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">

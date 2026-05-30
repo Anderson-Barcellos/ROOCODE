@@ -21,9 +21,8 @@ function runAssertions(): void {
   const activityReadinessCard = readSource('components/cards/activity-readiness-card.tsx')
   const activityReadinessUtil = readSource('utils/activity-readiness.ts')
   const nightQualityCard = readSource('components/cards/night-quality-card.tsx')
-  const pkMedicationGrid = readSource('components/charts/pk-medication-grid.tsx')
+  const farmacoTimeline = readSource('components/charts/pk-mood-concentration-chart.tsx')
   const recoveryScoreChart = readSource('components/charts/recovery-score-chart.tsx')
-  const pkCoverageCard = readSource('components/cards/pk-coverage-card.tsx')
   const pkHumor = readSource('components/charts/pk-humor-correlation.tsx')
   const tempHumor = readSource('components/charts/temp-humor-correlation.tsx')
   const variabilityHeatmap = readSource('components/charts/pk-variability-heatmap.tsx')
@@ -78,12 +77,6 @@ function runAssertions(): void {
     )
   }
   assert(
-    app.includes('PK_HOURS_BY_RANGE') &&
-      app.includes('const pkHoursWindow = PK_HOURS_BY_RANGE[range]') &&
-      app.includes('<PKMedicationGrid hoursWindow={pkHoursWindow} windowLabel={range} />'),
-    'App deve derivar a janela visual do PKMedicationGrid do range selecionado.',
-  )
-  assert(
     app.includes('<NightQualityCard snapshots={ranged} windowLabel={range} />'),
     'A aba Sono deve enviar apenas snapshots da janela selecionada ao NightQualityCard.',
   )
@@ -107,12 +100,19 @@ function runAssertions(): void {
     'NightQualityCard deve deixar explicita a janela quando receber snapshots filtrados.',
   )
   assert(
-    pkMedicationGrid.includes('windowLabel') && pkMedicationGrid.includes('Janela PK'),
-    'PKMedicationGrid deve exibir a janela visual que esta sendo usada.',
+    farmacoTimeline.includes('computeCoverageStatus') && farmacoTimeline.includes('escala real'),
+    'Card unificado da Farmaco deve fundir o status de cobertura e usar escala real de concentração por droga.',
   )
   assert(
-    pkCoverageCard.includes('const COVERAGE_WINDOW_LABEL =') && pkCoverageCard.includes('Cobertura PK · {COVERAGE_WINDOW_LABEL}'),
-    'PKCoverageCard deve manter explicita a janela fixa de cobertura atual.',
+    farmacoTimeline.includes('MOOD_KEY') && farmacoTimeline.includes('Humor'),
+    'Card unificado deve oferecer o modo Humor além das drogas no mesmo seletor.',
+  )
+  assert(
+    app.includes('<PKMoodConcentrationChart') &&
+      !app.includes('PKMedicationGrid') &&
+      !app.includes('MoodTimeline') &&
+      !app.includes('PKCoverageCard'),
+    'Farmaco deve usar somente o card unificado (sem grade, sem MoodTimeline e sem card de cobertura standalone).',
   )
   assert(
     lag.includes('menos negativa') &&

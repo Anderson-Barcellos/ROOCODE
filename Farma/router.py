@@ -515,11 +515,58 @@ def _resolve_pk_dose_events(
     - `dose_events`: eventos reais e/ou sintéticos (warm-up)
     - `used_fallback`: true quando não havia dose real e foi usado regime
     """
-    dose_events, used_fallback = _resolve_pk_dose_events(
-        canonical_key,
-        range_start,
-        range_end,
-    )
+    real_events: list[tuple[datetime, float]] = []
+    for record in _load_doses():
+        if record.get("substance") != canonical_key:
+            continue
+        parsed = _parse_dose_event(record)
+        if parsed is None:
+            continue
+        if range_start <= parsed[0] <= range_end:
+            real_events.append(parsed)
+
+    used_fallback = False
+    dose_events = real_events
+
+    if not dose_events:
+        # Nenhuma dose logada no período → fallback completo ao regime
+        try:
+            regimen = _load_regimen()
+        except (json.JSONDecodeError, ValueError, TypeError):
+            regimen = []
+        synthetic = _expand_regimen_to_doses(
+            regimen,
+            canonical_key,
+            range_start,
+            range_end,
+        )
+        if synthetic:
+            used_fallback = True
+            dose_events = synthetic
+    else:
+        # Doses reais existem, mas pode haver lacuna antes do primeiro registro.
+        # Para drogas crônicas, pré-aquecer com sintéticas até a 1ª dose real.
+        first_real_dt = min(event[0] for event in real_events)
+        if first_real_dt > range_start + timedelta(hours=1):
+            try:
+                regimen = _load_regimen()
+            except (json.JSONDecodeError, ValueError, TypeError):
+                regimen = []
+
+            pre_end = datetime.combine(
+                (first_real_dt - timedelta(days=1)).date(),
+                datetime.max.time(),
+                tzinfo=timezone.utc,
+            )
+            if pre_end > range_start:
+                synthetic_pre = _expand_regimen_to_doses(
+                    regimen,
+                    canonical_key,
+                    range_start,
+                    pre_end,
+                )
+                if synthetic_pre:
+                    dose_events = synthetic_pre + real_events
 
     return dose_events, used_fallback
 
@@ -827,51 +874,11 @@ async def concentrationSeries(
         to_date, datetime.max.time(), tzinfo=timezone.utc
     )
 
-    real_events: list[tuple[datetime, float]] = []
-    for record in _load_doses():
-        if record.get("substance") != canonical_key:
-            continue
-        parsed = _parse_dose_event(record)
-        if parsed is None:
-            continue
-        if range_start <= parsed[0] <= range_end:
-            real_events.append(parsed)
-
-    used_fallback = False
-    dose_events = real_events
-    if not dose_events:
-        # Nenhuma dose logada no período → fallback completo ao regime
-        try:
-            regimen = _load_regimen()
-        except (json.JSONDecodeError, ValueError, TypeError):
-            regimen = []
-        synthetic = _expand_regimen_to_doses(
-            regimen, canonical_key, range_start, range_end
-        )
-        if synthetic:
-            used_fallback = True
-            dose_events = synthetic
-    else:
-        # Doses reais existem, mas pode haver lacuna antes do primeiro registro.
-        # Droga crônica (no regime ativo) → pré-aquece com doses sintéticas até
-        # a primeira dose real, garantindo estado estacionário desde o início da série.
-        first_real_dt = min(e[0] for e in real_events)
-        if first_real_dt > range_start + timedelta(hours=1):
-            try:
-                regimen = _load_regimen()
-            except (json.JSONDecodeError, ValueError, TypeError):
-                regimen = []
-            pre_end = datetime.combine(
-                (first_real_dt - timedelta(days=1)).date(),
-                datetime.max.time(),
-                tzinfo=timezone.utc,
-            )
-            if pre_end > range_start:
-                synthetic_pre = _expand_regimen_to_doses(
-                    regimen, canonical_key, range_start, pre_end
-                )
-                if synthetic_pre:
-                    dose_events = synthetic_pre + real_events
+    dose_events, used_fallback = _resolve_pk_dose_events(
+        canonical_key,
+        range_start,
+        range_end,
+    )
 
     series = _compute_daily_pk_series(
         dose_events,

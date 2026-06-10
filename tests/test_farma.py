@@ -233,6 +233,93 @@ class ConcentrationSeriesEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_range_exposure_series_uses_logged_doses(self) -> None:
+        today = datetime.now(timezone.utc).date()
+        from_date = today - timedelta(days=6)
+        doses = []
+        for offset in range(7):
+            dose_day = from_date + timedelta(days=offset)
+            doses.append({
+                "id": f"rx{offset}",
+                "substance": "lexapro",
+                "dose_mg": 40.0,
+                "taken_at": datetime(
+                    dose_day.year, dose_day.month, dose_day.day, 7, 0,
+                    tzinfo=timezone.utc,
+                ).isoformat(),
+                "note": "",
+                "logged_at": datetime.now(timezone.utc).isoformat(),
+            })
+        self._seed_doses(doses)
+
+        response = self.client.get(
+            "/range-exposure-series",
+            params={
+                "substance": "lexapro",
+                "from": from_date.isoformat(),
+                "to": today.isoformat(),
+                "weight_kg": 70.0,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "dose_log")
+        self.assertEqual(payload["substance"], "lexapro")
+        self.assertTrue(payload["range_available"])
+        self.assertEqual(len(payload["series"]), 7)
+        self.assertGreater(payload["events_count"], 0)
+
+        last = payload["series"][-1]
+        in_range = last["in_range_hours"]
+        out_of_range = last["out_of_range_hours"]
+        below_range = last["below_range_hours"]
+        above_range = last["above_range_hours"]
+        self.assertEqual(in_range + out_of_range, 24)
+        self.assertEqual(out_of_range, below_range + above_range)
+        self.assertIn(last["low_exit_class"], ["in_range", "vale_breve", "plateau_baixo"])
+
+    def test_range_exposure_series_falls_back_to_regimen(self) -> None:
+        today = datetime.now(timezone.utc).date()
+        from_date = today - timedelta(days=4)
+
+        response = self.client.get(
+            "/range-exposure-series",
+            params={
+                "substance": "lexapro",
+                "from": from_date.isoformat(),
+                "to": today.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"], "regimen_fallback")
+        self.assertTrue(payload["range_available"])
+        self.assertEqual(len(payload["series"]), 5)
+        self.assertGreater(payload["events_count"], 0)
+
+    def test_range_exposure_series_returns_nulls_when_no_therapeutic_range(self) -> None:
+        response = self.client.get(
+            "/range-exposure-series",
+            params={
+                "substance": "lamictal",
+                "from": "2026-04-01",
+                "to": "2026-04-03",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["range_available"])
+        self.assertEqual(len(payload["series"]), 3)
+        for row in payload["series"]:
+            self.assertIsNone(row["in_range_hours"])
+            self.assertIsNone(row["out_of_range_hours"])
+            self.assertIsNone(row["below_range_hours"])
+            self.assertIsNone(row["above_range_hours"])
+            self.assertIsNone(row["low_exit_class"])
+
     def test_regimen_synthetic_doses_use_user_timezone(self) -> None:
         """Regimen times são horários locais (BRT) — devem ser interpretados em
         America/Sao_Paulo, não UTC. Antes do fix, "07:00" virava 07:00 UTC

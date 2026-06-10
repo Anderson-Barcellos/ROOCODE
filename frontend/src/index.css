@@ -30,19 +30,130 @@
   --warm: #d97706;
   --rose: #b45309;
   --shadow: 0 24px 60px rgba(27, 45, 39, 0.12);
-
-  /* Medicação — identidade visual de domínio (promovido na Fase 9C) */
   --accent-violet: #7c3aed;
   --accent-violet-dim: rgba(124, 58, 237, 0.12);
+
+  --bg-gradient-start: #f7f3ec;
+  --bg-gradient-mid: #f4efe5;
+  --bg-gradient-end: #efe8d8;
+  --bg-glow-left: rgba(217, 119, 6, 0.18);
+  --bg-glow-right: rgba(15, 118, 110, 0.22);
+
+  --shell-width: 1220px;
+  --shell-padding-top: 2rem;
+  --shell-padding-bottom: 3rem;
+  --surface-radius: 1.75rem;
+  --surface-blur: 18px;
+  --panel-padding: 1.45rem;
+  --hero-padding: 2rem;
+  --hero-title-size: clamp(1.8rem, 4vw, 2.8rem);
+
+  --chart-series-composite: #0f766e;
+  --chart-series-recovery: #0f766e;
+  --chart-series-capacity: #0284c7;
+  --chart-series-chronobiology: #d97706;
+  --chart-series-mood: #059669;
+  --chart-series-lexapro: #7c3aed;
+  --chart-series-venvanse: #0284c7;
+  --chart-series-lamictal: #b45309;
+  --chart-series-forecast: #94a3b8;
+  --chart-fill-optimal: rgba(16, 185, 129, 0.08);
+  --chart-fill-attention: rgba(245, 158, 11, 0.08);
+  --chart-fill-critical: rgba(239, 68, 68, 0.08);
+  --chart-fill-area: rgba(15, 118, 110, 0.15);
+  --chart-reference-optimal: #0f766e;
+  --chart-reference-attention: #b45309;
+  --chart-reference-critical: #b91c1c;
+  --chart-reference-mean: #64748b;
+  --chart-ui-grid: rgba(100, 116, 139, 0.08);
+  --chart-ui-axis: #64748b;
+  --chart-ui-border: rgba(17, 35, 30, 0.12);
+  --chart-ui-foreground: #11231e;
+  --chart-ui-muted: #48635a;
+  --chart-ui-card-bg: rgba(255, 252, 246, 0.96);
+}
+
+:root[data-theme='graphite'] {
+  --background: #edf2f3;
+  --foreground: #16242e;
+  --muted: #405663;
+  --border: rgba(22, 36, 46, 0.12);
+  --card: rgba(247, 250, 251, 0.86);
+  --card-strong: rgba(252, 254, 255, 0.96);
+  --accent: #0f766e;
+  --accent-soft: rgba(14, 116, 110, 0.14);
+  --warm: #ca8a04;
+  --rose: #c2410c;
+  --shadow: 0 24px 60px rgba(22, 36, 46, 0.11);
+  --accent-violet: #6d28d9;
+  --accent-violet-dim: rgba(109, 40, 217, 0.14);
+
+  --bg-gradient-start: #f4f8fa;
+  --bg-gradient-mid: #ebf2f4;
+  --bg-gradient-end: #e4edf0;
+  --bg-glow-left: rgba(14, 116, 144, 0.16);
+  --bg-glow-right: rgba(14, 116, 110, 0.17);
+
+  --chart-series-capacity: #0369a1;
+  --chart-series-venvanse: #0369a1;
+  --chart-fill-area: rgba(14, 116, 110, 0.16);
+}
+
+:root[data-theme='contrast'] {
+  --background: #f5f7f8;
+  --foreground: #0f172a;
+  --muted: #334155;
+  --border: rgba(15, 23, 42, 0.2);
+  --card: rgba(255, 255, 255, 0.93);
+  --card-strong: rgba(255, 255, 255, 1);
+  --accent: #0b7285;
+  --accent-soft: rgba(11, 114, 133, 0.12);
+  --warm: #b45309;
+  --rose: #9f1239;
+  --shadow: 0 22px 56px rgba(15, 23, 42, 0.12);
+  --accent-violet: #6d28d9;
+  --accent-violet-dim: rgba(109, 40, 217, 0.15);
+
+  --bg-gradient-start: #f8fbfd;
+  --bg-gradient-mid: #f3f7fb;
+  --bg-gradient-end: #edf2f9;
+  --bg-glow-left: rgba(180, 83, 9, 0.12);
+  --bg-glow-right: rgba(11, 114, 133, 0.14);
+
+  --chart-fill-optimal: rgba(5, 150, 105, 0.12);
+  --chart-fill-attention: rgba(217, 119, 6, 0.12);
+  --chart-fill-critical: rgba(225, 29, 72, 0.12);
+}
+
+:root[data-density='compact'] {
+  --shell-padding-top: 1.25rem;
+  --shell-padding-bottom: 2rem;
+  --surface-radius: 1.45rem;
+  --panel-padding: 1.1rem;
+  --hero-padding: 1.35rem;
+  --hero-title-size: clamp(1.55rem, 3.1vw, 2.2rem);
+}
+
+:root[data-motion='reduced'] {
+  scroll-behavior: auto;
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 * { box-sizing: border-box; }
 
 html {
   background:
-    radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 26%),
-    radial-gradient(circle at top right, rgba(15, 118, 110, 0.22), transparent 24%),
-    linear-gradient(180deg, #f7f3ec 0%, #f4efe5 45%, #efe8d8 100%);
+    radial-gradient(circle at top left, var(--bg-glow-left), transparent 26%),
+    radial-gradient(circle at top right, var(--bg-glow-right), transparent 24%),
+    linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 45%, var(--bg-gradient-end) 100%);
+  transition: background 260ms ease;
 }
 
 body {
@@ -76,9 +187,9 @@ code {
 
 /* Shell layout */
 .app-shell {
-  width: min(1220px, calc(100% - 2rem));
+  width: min(var(--shell-width), calc(100% - 2rem));
   margin: 0 auto;
-  padding: 2rem 0 3rem;
+  padding: var(--shell-padding-top) 0 var(--shell-padding-bottom);
 }
 
 /* Hero + Panel surfaces */
@@ -86,11 +197,12 @@ code {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 1.75rem;
+  border-radius: var(--surface-radius);
   background: var(--card);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
-  padding: 2rem;
+  backdrop-filter: blur(var(--surface-blur));
+  padding: var(--hero-padding);
+  transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
 }
 
 .hero-panel::after {
@@ -109,11 +221,12 @@ code {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 1.75rem;
+  border-radius: var(--surface-radius);
   background: var(--card);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
-  padding: 1.45rem;
+  backdrop-filter: blur(var(--surface-blur));
+  padding: var(--panel-padding);
+  transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
 }
 
 .panel-wide {
@@ -142,7 +255,7 @@ code {
 .hero-panel h1 {
   margin: 0.75rem 0 0.5rem;
   font-family: 'Fraunces', serif;
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-size: var(--hero-title-size);
   line-height: 1.05;
   letter-spacing: -0.04em;
   max-width: 20ch;

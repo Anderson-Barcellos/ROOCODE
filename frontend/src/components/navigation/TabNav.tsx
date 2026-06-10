@@ -4,6 +4,8 @@ import { Activity, HeartPulse, LayoutDashboard, Pill, Sparkles, Telescope } from
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
 export type TabKey = 'panorama' | 'recuperacao' | 'capacidade' | 'farmaco' | 'insights'
+export type ThemeMode = 'clinical' | 'graphite' | 'contrast'
+export type DensityMode = 'cozy' | 'compact'
 
 export const rangeOptions = ['7d', '30d', '90d', '1y', 'all'] as const
 export type RangeOption = (typeof rangeOptions)[number]
@@ -31,8 +33,25 @@ interface TabNavProps {
   interpolation: InterpolationMode
   onInterpolationChange: (mode: InterpolationMode) => void
   interpolationLoading?: boolean
+  theme: ThemeMode
+  onThemeChange: (theme: ThemeMode) => void
+  density: DensityMode
+  onDensityChange: (density: DensityMode) => void
+  reducedMotion: boolean
+  onReducedMotionChange: (enabled: boolean) => void
   onAnalyzeClick: () => void
 }
+
+const themeOptions: Array<{ key: ThemeMode; label: string }> = [
+  { key: 'clinical', label: 'Clinical' },
+  { key: 'graphite', label: 'Graphite' },
+  { key: 'contrast', label: 'Contraste' },
+]
+
+const densityOptions: Array<{ key: DensityMode; label: string }> = [
+  { key: 'cozy', label: 'Conforto' },
+  { key: 'compact', label: 'Compacto' },
+]
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> = [
   { key: 'panorama', label: 'Panorama', icon: LayoutDashboard },
@@ -52,6 +71,12 @@ export function TabNav({
   interpolation,
   onInterpolationChange,
   interpolationLoading = false,
+  theme,
+  onThemeChange,
+  density,
+  onDensityChange,
+  reducedMotion,
+  onReducedMotionChange,
   onAnalyzeClick,
 }: TabNavProps) {
   return (
@@ -151,6 +176,55 @@ export function TabNav({
             )
           })}
         </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Tema</span>
+          {themeOptions.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onThemeChange(key)}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                theme === key
+                  ? 'bg-slate-900 text-white'
+                  : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Densidade</span>
+          {densityOptions.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onDensityChange(key)}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                density === key
+                  ? 'bg-slate-900 text-white'
+                  : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onReducedMotionChange(!reducedMotion)}
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+            reducedMotion
+              ? 'bg-slate-900 text-white'
+              : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+          }`}
+          title="Reduz animações e transições visuais"
+        >
+          Movimento reduzido
+        </button>
 
       </div>
     </nav>

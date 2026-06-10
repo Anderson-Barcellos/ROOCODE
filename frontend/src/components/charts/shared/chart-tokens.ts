@@ -6,35 +6,35 @@
 
 export const CHART_TOKENS = {
   series: {
-    composite: '#0f766e',      // --accent (teal-700)
-    recovery: '#0f766e',
-    capacity: '#0284c7',       // sky-600
-    chronobiology: '#d97706',  // --warm (amber-600)
-    mood: '#059669',           // emerald-600
-    lexapro: '#7c3aed',        // --accent-violet
-    venvanse: '#0284c7',       // sky-600
-    lamictal: '#b45309',       // --rose
-    forecast: '#94a3b8',       // slate-400
+    composite: 'var(--chart-series-composite)',
+    recovery: 'var(--chart-series-recovery)',
+    capacity: 'var(--chart-series-capacity)',
+    chronobiology: 'var(--chart-series-chronobiology)',
+    mood: 'var(--chart-series-mood)',
+    lexapro: 'var(--chart-series-lexapro)',
+    venvanse: 'var(--chart-series-venvanse)',
+    lamictal: 'var(--chart-series-lamictal)',
+    forecast: 'var(--chart-series-forecast)',
   },
   fill: {
-    optimal: 'rgba(16,185,129,0.08)',   // emerald
-    attention: 'rgba(245,158,11,0.08)', // amber
-    critical: 'rgba(239,68,68,0.08)',   // rose
-    chartArea: 'rgba(15,118,110,0.15)', // teal área principal (≥ 0.08 antigo)
+    optimal: 'var(--chart-fill-optimal)',
+    attention: 'var(--chart-fill-attention)',
+    critical: 'var(--chart-fill-critical)',
+    chartArea: 'var(--chart-fill-area)',
   },
   reference: {
-    optimalText: '#0f766e',    // teal-700 (label de zona ótima)
-    attentionText: '#b45309',  // amber-700 (label de atenção)
-    criticalText: '#b91c1c',   // red-700
-    meanText: '#64748b',       // slate-500 (label de média 30d)
+    optimalText: 'var(--chart-reference-optimal)',
+    attentionText: 'var(--chart-reference-attention)',
+    criticalText: 'var(--chart-reference-critical)',
+    meanText: 'var(--chart-reference-mean)',
   },
   ui: {
-    grid: 'rgba(100,116,139,0.08)',     // slate/8% horizontal grid
-    axis: '#64748b',                    // slate-500
-    border: 'rgba(17,35,30,0.12)',      // --border
-    foreground: '#11231e',              // --foreground
-    muted: '#48635a',                   // --muted
-    cardBg: 'rgba(255,252,246,0.96)',   // --card-strong (tooltip bg)
+    grid: 'var(--chart-ui-grid)',
+    axis: 'var(--chart-ui-axis)',
+    border: 'var(--chart-ui-border)',
+    foreground: 'var(--chart-ui-foreground)',
+    muted: 'var(--chart-ui-muted)',
+    cardBg: 'var(--chart-ui-card-bg)',
   },
   zones: {
     optimalThreshold: 70,

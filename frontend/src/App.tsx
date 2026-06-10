@@ -3,7 +3,13 @@ import type { ReactNode } from 'react'
 import { format, getDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Activity, Compass, HeartPulse, Pill, Telescope } from 'lucide-react'
-import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
+import {
+  TabNav,
+  type DensityMode,
+  type RangeOption,
+  type TabKey,
+  type ThemeMode,
+} from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 import { ForecastReportModal } from '@/components/charts/ForecastReportModal'
@@ -58,6 +64,11 @@ import {
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
 const FARMACO_ONLY_MODE = true
 const FARMACO_ONLY_BLOCKED_TABS: TabKey[] = ['panorama', 'recuperacao', 'capacidade', 'insights']
+const THEME_OPTIONS: ThemeMode[] = ['clinical', 'graphite', 'contrast']
+
+const THEME_STORAGE_KEY = 'roocode-theme'
+const DENSITY_STORAGE_KEY = 'roocode-density'
+const REDUCED_MOTION_STORAGE_KEY = 'roocode-reduced-motion'
 
 function mean(values: Array<number | null>): number | null {
   const numeric = values.filter((value): value is number => value != null && Number.isFinite(value))
@@ -208,10 +219,83 @@ function ForecastBanner({ mode, loading, error, errorMessage, forecastedCount }:
   )
 }
 
+interface DataQualityStripProps {
+  totalDays: number
+  realDays: number
+  interpolatedDays: number
+  forecastDays: number
+  pairedMoodDays: number
+  readinessRealDays: number
+  readinessMoodDays: number
+}
+
+function DataQualityStrip({
+  totalDays,
+  realDays,
+  interpolatedDays,
+  forecastDays,
+  pairedMoodDays,
+  readinessRealDays,
+  readinessMoodDays,
+}: DataQualityStripProps) {
+  const moodCoveragePct = realDays > 0 ? Math.round((pairedMoodDays / realDays) * 100) : 0
+  return (
+    <section className="mb-4 rounded-[1.1rem] border border-slate-900/10 bg-white/75 p-3 shadow-[0_10px_24px_rgba(17,35,30,0.08)] backdrop-blur">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Janela atual</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">{realDays} reais · {totalDays} totais</p>
+        </div>
+        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Cobertura de humor</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">{moodCoveragePct}% ({pairedMoodDays}/{realDays || 0})</p>
+        </div>
+        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Dias estimados</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">{interpolatedDays} interpolados · {forecastDays} projetados</p>
+        </div>
+        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Readiness global</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">{readinessRealDays} fisiologia · {readinessMoodDays} humor</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('farmaco')
   const [range, setRange] = useState<RangeOption>('30d')
   const [hash, setHash] = useState(() => window.location.hash)
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    if (saved === 'clinical' || saved === 'graphite' || saved === 'contrast') return saved
+    return 'clinical'
+  })
+  const [density, setDensityState] = useState<DensityMode>(() => {
+    const saved = localStorage.getItem(DENSITY_STORAGE_KEY)
+    return saved === 'compact' ? 'compact' : 'cozy'
+  })
+  const [reducedMotion, setReducedMotionState] = useState<boolean>(() => {
+    const saved = localStorage.getItem(REDUCED_MOTION_STORAGE_KEY)
+    if (saved === '1') return true
+    if (saved === '0') return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  })
+
+  const setTheme = (nextTheme: ThemeMode) => {
+    setThemeState(nextTheme)
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+  }
+  const setDensity = (nextDensity: DensityMode) => {
+    setDensityState(nextDensity)
+    localStorage.setItem(DENSITY_STORAGE_KEY, nextDensity)
+  }
+  const setReducedMotion = (enabled: boolean) => {
+    setReducedMotionState(enabled)
+    localStorage.setItem(REDUCED_MOTION_STORAGE_KEY, enabled ? '1' : '0')
+  }
+
   const [interpolation, setInterpolationState] = useState<InterpolationMode>(() => {
     const saved = localStorage.getItem('roocode-interpolation')
     if (saved === 'off' || saved === 'linear') return saved
@@ -273,6 +357,21 @@ export default function App() {
     [ranged, data.doses, data.regimen],
   )
   const sleepSummaryLine = useMemo(() => computeSleepSummaryLine(data.snapshots), [data.snapshots])
+  const rangeDataQuality = useMemo(() => {
+    const realDays = ranged.filter((snapshot) => !snapshot.interpolated && !snapshot.forecasted)
+    const interpolatedDays = ranged.filter((snapshot) => snapshot.interpolated === true).length
+    const forecastDays = ranged.filter((snapshot) => snapshot.forecasted === true).length
+    const pairedMoodDays = realDays.filter((snapshot) => snapshot.mood?.valence != null).length
+
+    return {
+      totalDays: ranged.length,
+      realDays: realDays.length,
+      interpolatedDays,
+      forecastDays,
+      pairedMoodDays,
+    }
+  }, [ranged])
+
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
     window.addEventListener('hashchange', onHash)
@@ -290,6 +389,44 @@ export default function App() {
       pendingCapacityAnchorRef.current = null
     }
   }, [activeTab])
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.theme = theme
+    root.dataset.density = density
+    root.dataset.motion = reducedMotion ? 'reduced' : 'full'
+  }, [theme, density, reducedMotion])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      if (event.key === 't' || event.key === 'T') {
+        event.preventDefault()
+        const currentIndex = THEME_OPTIONS.indexOf(theme)
+        const nextTheme = THEME_OPTIONS[(currentIndex + 1) % THEME_OPTIONS.length]
+        setTheme(nextTheme)
+      }
+
+      if (event.key === 'd' || event.key === 'D') {
+        event.preventDefault()
+        setDensity(density === 'cozy' ? 'compact' : 'cozy')
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [theme, density])
 
   if (hash === '#interpolation-demo') return <InterpolationDemo />
 
@@ -326,6 +463,12 @@ export default function App() {
         interpolation={interpolation}
         onInterpolationChange={setInterpolation}
         interpolationLoading={data.interpolationLoading}
+        theme={theme}
+        onThemeChange={setTheme}
+        density={density}
+        onDensityChange={setDensity}
+        reducedMotion={reducedMotion}
+        onReducedMotionChange={setReducedMotion}
         onAnalyzeClick={() => setReportModalOpen(true)}
       />
 
@@ -341,6 +484,15 @@ export default function App() {
         </section>
 
         <div className="mt-6">
+          <DataQualityStrip
+            totalDays={rangeDataQuality.totalDays}
+            realDays={rangeDataQuality.realDays}
+            interpolatedDays={rangeDataQuality.interpolatedDays}
+            forecastDays={rangeDataQuality.forecastDays}
+            pairedMoodDays={rangeDataQuality.pairedMoodDays}
+            readinessRealDays={data.validRealDays}
+            readinessMoodDays={data.validMoodDays}
+          />
           {data.usedMock && <MockBanner />}
           <InterpolationBanner
             mode={data.interpolationMode}

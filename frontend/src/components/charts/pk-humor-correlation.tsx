@@ -32,6 +32,7 @@ import {
   substanceToPKMedication,
   toPKDoses,
 } from '@/utils/intraday-correlation'
+import { pearsonPValueFromR } from '@/utils/statistics'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 import { HeatmapCell, type HeatmapCellEstimate } from '@/components/charts/shared/heatmap-cell'
 import { formatCi, formatP, formatR } from '@/components/charts/shared/heatmap-helpers'
@@ -81,27 +82,16 @@ function buildDailyEmaSamples(
   return samples
 }
 
-// p-value bilateral via Fisher z-transform + erf approx (Abramowitz & Stegun 26.2.17)
-function normCdf(z: number): number {
-  const a1 = 0.254829592
-  const a2 = -0.284496736
-  const a3 = 1.421413741
-  const a4 = -1.453152027
-  const a5 = 1.061405429
-  const p = 0.3275911
-  const sign = z < 0 ? -1 : 1
-  const x = Math.abs(z) / Math.sqrt(2)
-  const t = 1 / (1 + p * x)
-  const y =
-    1 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t) * Math.exp(-x * x)
-  return 0.5 * (1 + sign * y)
+function shiftIsoDate(dateIso: string, lagDays: number): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return null
+  const base = new Date(`${dateIso}T00:00:00Z`)
+  if (!Number.isFinite(base.getTime())) return null
+  base.setUTCDate(base.getUTCDate() + lagDays)
+  return base.toISOString().slice(0, 10)
 }
 
 function pValueFromR(r: number, n: number): number {
-  if (n < 4 || !Number.isFinite(r) || Math.abs(r) >= 1) return Number.NaN
-  const z = 0.5 * Math.log((1 + r) / (1 - r))
-  const se = 1 / Math.sqrt(n - 3)
-  return 2 * (1 - normCdf(Math.abs(z / se)))
+  return pearsonPValueFromR(r, n)
 }
 
 interface LagEstimate {
@@ -132,21 +122,24 @@ interface FutureImpactRow {
 }
 
 const LAG_DAYS_SWEEP = [-3, -2, -1, 0, 1, 2, 3] as const
-const MIN_VALID_PAIRS = 5
+const MIN_VALID_PAIRS = 10
 const MAX_LAG_ABS = 3
-const MIN_TOTAL_SAMPLES = MIN_VALID_PAIRS + MAX_LAG_ABS // = 8
+const MIN_TOTAL_SAMPLES = MIN_VALID_PAIRS + MAX_LAG_ABS
 
 function pairAtLag(
   samples: DailyEmaSample[],
   lagDays: number,
 ): { xs: number[]; ys: number[] } {
+  const byDate = new Map(samples.map((sample) => [sample.date, sample]))
   const xs: number[] = []
   const ys: number[] = []
-  for (let i = 0; i < samples.length; i++) {
-    const j = i + lagDays
-    if (j < 0 || j >= samples.length) continue
-    const ema = samples[i].ema
-    const valence = samples[j].valence
+  for (const sample of samples) {
+    const shiftedDate = shiftIsoDate(sample.date, lagDays)
+    if (!shiftedDate) continue
+    const paired = byDate.get(shiftedDate)
+    if (!paired) continue
+    const ema = sample.ema
+    const valence = paired.valence
     if (Number.isFinite(ema) && valence != null) {
       xs.push(ema)
       ys.push(valence)

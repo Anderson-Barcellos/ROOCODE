@@ -9,6 +9,7 @@ import {
   PREREGISTERED_LAG_DAYS,
   analyzeTempHumor,
   buildTempHumorSamples,
+  pairAtLag,
 } from '../src/utils/temp-humor-correlation'
 
 const BASE_HEALTH: Omit<DailyHealthMetrics, 'date' | 'sleepTotalHours'> = {
@@ -108,10 +109,30 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
   assert.equal(PREREGISTERED_LAG_DAYS, 1, 'pré-registro é lag +1d')
   assert.equal(BASELINE_WINDOW_DAYS, 30)
   assert.equal(BASELINE_MIN_POINTS, 14)
-  assert.equal(MIN_TOTAL_SAMPLES, 8)
+  assert.equal(MIN_TOTAL_SAMPLES, 13)
 })()
 
-// ─── Test 3: Smoke com fixture válida ────────────────────────────────────
+// ─── Test 3: Lag por data real (não por índice) ─────────────────────────
+
+;(function lagByCalendarDate() {
+  const pairs = pairAtLag(
+    [
+      { date: '2026-01-01', tempDelta: 0.2, valence: 0.1 },
+      { date: '2026-01-03', tempDelta: 0.4, valence: 0.2 },
+      { date: '2026-01-04', tempDelta: 0.5, valence: 0.3 },
+    ],
+    1,
+  )
+
+  // 2026-01-01 não deve parear com 2026-01-03 (faltou 2026-01-02)
+  // Apenas 2026-01-03 -> 2026-01-04 entra no lag +1d.
+  assert.equal(pairs.xs.length, 1)
+  assert.equal(pairs.ys.length, 1)
+  assert.equal(pairs.xs[0], 0.4)
+  assert.equal(pairs.ys[0], 0.3)
+})()
+
+// ─── Test 4: Smoke com fixture válida ────────────────────────────────────
 
 ;(function smokeValid() {
   const snaps: DailySnapshot[] = []
@@ -119,13 +140,13 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
   for (let i = 0; i < 14; i++) {
     snaps.push(fixture(i, { temp: 36.0, valence: null }))
   }
-  // 10 dias com temp variando e valence presente
-  for (let i = 14; i < 24; i++) {
+  // 15 dias com temp variando e valence presente
+  for (let i = 14; i < 29; i++) {
     snaps.push(fixture(i, { temp: 36.0 + (i % 3) * 0.1, valence: 0.5 + (i % 4) * 0.1 }))
   }
 
   const result = analyzeTempHumor(snaps)
-  assert.ok(result.samples.length >= MIN_TOTAL_SAMPLES, 'samples >= 8 esperado')
+  assert.ok(result.samples.length >= MIN_TOTAL_SAMPLES, 'samples >= 13 esperado')
   assert.ok(result.lags.length > 0, 'lags devem existir')
   // Todos os lags devem ter qFdr atribuído (ou null se p inválido)
   result.lags.forEach((l) => {
@@ -133,7 +154,7 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
   })
 })()
 
-// ─── Test 4: Filtro de interpolated/forecasted ───────────────────────────
+// ─── Test 5: Filtro de interpolated/forecasted ───────────────────────────
 
 ;(function filtersInterpolated() {
   const snaps: DailySnapshot[] = []
@@ -156,7 +177,7 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
   })
 })()
 
-// ─── Test 5: Sanity matemática — correlação inversa em lag +1 ────────────
+// ─── Test 6: Sanity matemática — correlação inversa em lag +1 ────────────
 
 ;(function inverseCorrelationAtLag1() {
   const snaps: DailySnapshot[] = []
@@ -190,7 +211,7 @@ function fixture(index: number, opts: FixtureOptions): DailySnapshot {
   assert.equal(result.preregistered.contradicted, false, 'r negativo em +1d não contradiz hipótese pré-registrada')
 })()
 
-// ─── Test 6: Contradição da hipótese pré-registrada (+1d positivo) ─────────
+// ─── Test 7: Contradição da hipótese pré-registrada (+1d positivo) ─────────
 
 ;(function preregisteredContradiction() {
   const snaps: DailySnapshot[] = []

@@ -57,6 +57,8 @@ import {
 } from '@/utils/panorama-model'
 
 const AI_INTERPOLATION_ENABLED = import.meta.env.VITE_ENABLE_AI_INTERPOLATION === 'true'
+const FARMACO_ONLY_MODE = true
+const FARMACO_ONLY_BLOCKED_TABS: TabKey[] = ['panorama', 'recuperacao', 'capacidade', 'insights']
 
 function mean(values: Array<number | null>): number | null {
   const numeric = values.filter((value): value is number => value != null && Number.isFinite(value))
@@ -208,7 +210,7 @@ function ForecastBanner({ mode, loading, error, errorMessage, forecastedCount }:
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('panorama')
+  const [activeTab, setActiveTab] = useState<TabKey>('farmaco')
   const [range, setRange] = useState<RangeOption>('30d')
   const [hash, setHash] = useState(() => window.location.hash)
   const [catalogOpen, setCatalogOpen] = useState(false)
@@ -226,6 +228,10 @@ export default function App() {
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [panoramaBrushRange, setPanoramaBrushRange] = useState<PanoramaBrushRange | null>(null)
   const pendingCapacityAnchorRef = useRef<string | null>(null)
+  const navigateToTab = (tab: TabKey) => {
+    if (FARMACO_ONLY_MODE && tab !== 'farmaco') return
+    setActiveTab(tab)
+  }
   const data = useRooCodeData(interpolation, 'on')
   // Política de janela: `ranged` = leitura histórica filtrada; `rangedWithForecast`
   // = gráficos que devem mostrar projeção futura; `data.snapshots` = baseline/dia atual.
@@ -276,6 +282,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (FARMACO_ONLY_MODE) return
     if (activeTab !== 'capacidade') return
     const pendingAnchor = pendingCapacityAnchorRef.current
     if (!pendingAnchor) return
@@ -289,12 +296,30 @@ export default function App() {
   if (hash === '#interpolation-demo') return <InterpolationDemo />
 
   const today = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
+  const blockedTabs = FARMACO_ONLY_MODE ? FARMACO_ONLY_BLOCKED_TABS : []
+  const heroEyebrow = FARMACO_ONLY_MODE
+    ? 'RooCode · Farmaco em foco'
+    : activeTab === 'panorama'
+    ? 'RooCode · Panorama'
+    : 'RooCode · Dashboard de Saúde Pessoal'
+  const heroTitle = FARMACO_ONLY_MODE
+    ? 'Vamos lapidar a farmacologia primeiro.'
+    : activeTab === 'panorama'
+    ? 'Estado geral para decidir o dia.'
+    : 'Neuropsiquiatria, farmacocinética e dados de Apple Watch — sob o mesmo teto.'
+  const heroDescription = FARMACO_ONLY_MODE
+    ? 'Modo foco ativo: as outras abas estão temporariamente bloqueadas para refinarmos a experiência de Farmaco.'
+    : activeTab === 'panorama'
+    ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
+    : 'Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.'
 
   return (
     <>
       <TabNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={navigateToTab}
+        blockedTabs={blockedTabs}
+        blockReasonLabel={FARMACO_ONLY_MODE ? 'Em revisão' : undefined}
         range={range}
         onRangeChange={setRange}
         interpolation={interpolation}
@@ -306,18 +331,10 @@ export default function App() {
       <main className="app-shell">
         {/* Hero panel */}
         <section className={`hero-panel ${activeTab === 'panorama' ? 'hero-panel--compact' : ''}`}>
-          <span className="eyebrow">
-            {activeTab === 'panorama' ? 'RooCode · Panorama' : 'RooCode · Dashboard de Saúde Pessoal'}
-          </span>
-          <h1>
-            {activeTab === 'panorama'
-              ? 'Estado geral para decidir o dia.'
-              : 'Neuropsiquiatria, farmacocinética e dados de Apple Watch — sob o mesmo teto.'}
-          </h1>
+          <span className="eyebrow">{heroEyebrow}</span>
+          <h1>{heroTitle}</h1>
           <p>
-            {activeTab === 'panorama'
-              ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
-              : 'Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.'}
+            {heroDescription}
             {' '}Janela atual: <strong>{range}</strong> · {today}.
           </p>
         </section>
@@ -467,7 +484,7 @@ export default function App() {
                                 type="button"
                                 onClick={() => {
                                   pendingCapacityAnchorRef.current = card.targetAnchor ?? null
-                                  setActiveTab(card.targetTab)
+                                  navigateToTab(card.targetTab)
                                 }}
                                 className="text-left rounded-[1.35rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_14px_32px_rgba(17,35,30,0.07)] transition hover:border-slate-900/20 hover:bg-white"
                               >
@@ -504,7 +521,7 @@ export default function App() {
                           <div className="grid gap-4 xl:grid-cols-2">
                             <button
                               type="button"
-                              onClick={() => setActiveTab('farmaco')}
+                              onClick={() => navigateToTab('farmaco')}
                               className="text-left rounded-[1.35rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_14px_32px_rgba(17,35,30,0.07)] transition hover:border-slate-900/20 hover:bg-white"
                             >
                               <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Humor 7d</span>
@@ -526,7 +543,7 @@ export default function App() {
 
                             <button
                               type="button"
-                              onClick={() => setActiveTab('farmaco')}
+                              onClick={() => navigateToTab('farmaco')}
                               className="text-left rounded-[1.35rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_14px_32px_rgba(17,35,30,0.07)] transition hover:border-slate-900/20 hover:bg-white"
                             >
                               <span className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Cobertura farmacológica</span>
@@ -575,7 +592,7 @@ export default function App() {
                               history={history}
                               snapshots={ranged}
                               brushRange={panoramaBrushRange}
-                              onNavigate={(target) => setActiveTab(target)}
+                              onNavigate={(target) => navigateToTab(target)}
                             />
                           </details>
                           <details className="mt-3 rounded-2xl border border-slate-900/10 bg-white/70 p-3 group">
@@ -619,6 +636,11 @@ export default function App() {
               status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
             >
               <div className="min-w-0 space-y-4">
+                {FARMACO_ONLY_MODE && (
+                  <p className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-900">
+                    <span className="font-semibold">Modo foco:</span> as abas Panorama, Recuperação, Capacidade e Insights estão bloqueadas temporariamente enquanto refinamos esta seção.
+                  </p>
+                )}
                 <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-700">
                   <span className="font-semibold">Nota importante:</span> as concentrações exibidas são estimativas de um modelo farmacocinético baseado no regime registrado, não medições laboratoriais.
                 </p>

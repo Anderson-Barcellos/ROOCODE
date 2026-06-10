@@ -24,6 +24,8 @@ const interpolationOptions: Array<{ key: InterpolationMode; label: string }> = A
 interface TabNavProps {
   activeTab: TabKey
   onTabChange: (tab: TabKey) => void
+  blockedTabs?: TabKey[]
+  blockReasonLabel?: string
   range: RangeOption
   onRangeChange: (range: RangeOption) => void
   interpolation: InterpolationMode
@@ -43,6 +45,8 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> 
 export function TabNav({
   activeTab,
   onTabChange,
+  blockedTabs = [],
+  blockReasonLabel,
   range,
   onRangeChange,
   interpolation,
@@ -55,20 +59,34 @@ export function TabNav({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 pt-3 pb-2">
         <div className="flex flex-wrap gap-1">
           {tabs.map(({ key, label, icon: Icon }) => {
-            const active = activeTab === key
+            const blocked = blockedTabs.includes(key)
+            const active = activeTab === key && !blocked
             return (
               <button
                 key={key}
                 type="button"
-                onClick={() => onTabChange(key)}
+                onClick={() => {
+                  if (blocked) return
+                  onTabChange(key)
+                }}
+                disabled={blocked}
+                aria-disabled={blocked}
+                title={blocked ? 'Aba temporariamente bloqueada' : undefined}
                 className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
                   active
                     ? 'bg-slate-950 text-white shadow-sm'
+                    : blocked
+                    ? 'cursor-not-allowed border border-slate-200 bg-slate-100/80 text-slate-400'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
                 {label}
+                {blocked && blockReasonLabel && (
+                  <span className="rounded-full border border-slate-300/80 bg-white/70 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    {blockReasonLabel}
+                  </span>
+                )}
               </button>
             )
           })}

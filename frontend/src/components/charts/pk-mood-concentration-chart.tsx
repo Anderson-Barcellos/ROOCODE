@@ -58,6 +58,12 @@ const SMA_OPTIONS = [
   { value: 14, label: '14d' },
 ]
 
+const CONC_SMA_OPTIONS = [
+  { value: 3, label: '3d' },
+  { value: 5, label: '5d' },
+  { value: 7, label: '7d' },
+]
+
 const CHART_HEIGHT = 290
 const BRUSH_HEIGHT = 30
 const PLOT_MARGIN_LEFT = 38
@@ -92,6 +98,7 @@ interface Row {
   forecastConfidence: number | null
   trend: number | null
   conc: number | null
+  concTrend: number | null
 }
 
 interface TrackedMed {
@@ -129,6 +136,7 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
   const { data: allDoses = [] } = useDoses(FULL_HISTORY_DOSE_HOURS)
   const { data: regimen = [] } = useRegimen()
   const [smaWindow, setSmaWindow] = useState(7)
+  const [concSmaWindow, setConcSmaWindow] = useState(5)
   const [selectedKey, setSelectedKey] = useState<string>(MOOD_KEY)
   const [selection, setSelection] = useState<BrushIndexSelection>(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -177,10 +185,15 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
     const doses = med ? dosesForPreset(allDoses, activeKey) : []
     const rawValence = snapshots.map((s) => s.mood?.valence ?? null)
     const trend = sma(rawValence, smaWindow)
+    const rawConc = snapshots.map((snap) => {
+      if (!med) return null
+      const eod = new Date(`${snap.date}T23:59:59`).getTime()
+      if (!Number.isFinite(eod)) return null
+      return calculateConcentration(med, doses, eod, weightKg)
+    })
+    const concTrend = sma(rawConc, concSmaWindow)
 
     return snapshots.map((snap, i) => {
-      const eod = new Date(`${snap.date}T23:59:59`).getTime()
-      const conc = med && Number.isFinite(eod) ? calculateConcentration(med, doses, eod, weightKg) : null
       const valence = snap.mood?.valence ?? null
       return {
         date: snap.date,
@@ -192,10 +205,11 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
         forecasted: snap.forecasted === true,
         forecastConfidence: snap.forecastConfidence ?? null,
         trend: trend[i],
-        conc,
+        conc: rawConc[i],
+        concTrend: concTrend[i],
       }
     })
-  }, [isMoodMode, activeKey, allDoses, snapshots, smaWindow, weightKg])
+  }, [isMoodMode, activeKey, allDoses, snapshots, smaWindow, concSmaWindow, weightKg])
 
   const visibleRows = useMemo(() => {
     if (!selection) return allRows
@@ -319,85 +333,215 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
         </div>
       </div>
 
-      {/* Header dinâmico: veredito de humor (modo Humor) OU status clínico (modo droga) */}
-      {isMoodMode ? (
-        moodVerdict && (
-          <p className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
-            <span className="font-semibold">Veredito:</span> {moodVerdict.text}
-          </p>
-        )
-      ) : (
-        activeStatus && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs">
-            {badge && activeStatus.klass !== 'sem_faixa' ? (
-              <span className="rounded-full border px-2 py-0.5 font-semibold" style={{ color: badge.color, background: badge.bg, borderColor: `${badge.color}33` }}>
-                {badge.short}
-              </span>
-            ) : (
-              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-500">sem faixa</span>
-            )}
-            <span className="font-mono font-semibold text-slate-800">{fmtConc(activeStatus.concentrationNow)} {activeStatus.unit}</span>
-            {activeStatus.trendPctPerDay != null && (
-              <span
-                className="font-mono"
-                style={{ color: activeStatus.klass === 'acima_faixa' ? '#dc2626' : activeStatus.trendPctPerDay < -5 ? '#b45309' : activeStatus.trendPctPerDay > 5 ? '#15803d' : '#64748b' }}
-              >
-                {activeStatus.trendPctPerDay >= 0 ? '+' : ''}{activeStatus.trendPctPerDay.toFixed(0)}%/24h
-              </span>
-            )}
-            <span className="text-slate-500">
-              {activeStatus.expectedDosesLast48h > 0
-                ? `48h: ${activeStatus.loggedDosesLast48h}/${activeStatus.expectedDosesLast48h} doses`
-                : activeStatus.loggedDosesLast48h > 0
-                  ? `48h: ${activeStatus.loggedDosesLast48h} dose${activeStatus.loggedDosesLast48h > 1 ? 's' : ''} (sob demanda)`
-                  : '48h: sem dose'}
-            </span>
-            {activeStatus.missedDoses > 0 && (
-              <span className="text-fuchsia-700">{activeStatus.missedDoses} não registrada(s)</span>
-            )}
-            {activeStatus.hoursUntilBelowMin != null && activeStatus.klass !== 'vulnerabilidade' && (
-              <span className="text-amber-700">cobre ~{activeStatus.hoursUntilBelowMin}h</span>
-            )}
-          </div>
-        )
+      {moodVerdict && (
+        <p className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
+          <span className="font-semibold">Veredito do humor:</span> {moodVerdict.text}
+        </p>
       )}
 
-      {!hasMood && isMoodMode ? (
-        <p className="mt-4 text-sm text-slate-400">Sem registros de humor na janela atual.</p>
-      ) : (
-        <>
-          <div className="relative mt-4" style={{ height: CHART_HEIGHT }}>
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-              minWidth={0}
-              minHeight={0}
-              initialDimension={{ width: 1, height: 1 }}
-              onResize={(width) => setContainerWidth(width)}
+      {!isMoodMode && activeStatus && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs">
+          {badge && activeStatus.klass !== 'sem_faixa' ? (
+            <span className="rounded-full border px-2 py-0.5 font-semibold" style={{ color: badge.color, background: badge.bg, borderColor: `${badge.color}33` }}>
+              {badge.short}
+            </span>
+          ) : (
+            <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold text-slate-500">sem faixa</span>
+          )}
+          <span className="font-mono font-semibold text-slate-800">{fmtConc(activeStatus.concentrationNow)} {activeStatus.unit}</span>
+          {activeStatus.trendPctPerDay != null && (
+            <span
+              className="font-mono"
+              style={{ color: activeStatus.klass === 'acima_faixa' ? '#dc2626' : activeStatus.trendPctPerDay < -5 ? '#b45309' : activeStatus.trendPctPerDay > 5 ? '#15803d' : '#64748b' }}
             >
-              <ComposedChart data={visibleRows} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
-                <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: '#475569', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  minTickGap={28}
-                />
-                <YAxis
-                  yAxisId="mood"
-                  domain={[-1, 1]}
-                  ticks={[-1, -0.5, 0, 0.5, 1]}
-                  tick={{ fill: '#475569', fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={32}
-                  tickFormatter={(v: number) => (v === -1 ? '-1' : v === 0 ? '0' : v === 1 ? '+1' : v.toFixed(1))}
-                />
-                {!isMoodMode && (
+              {activeStatus.trendPctPerDay >= 0 ? '+' : ''}{activeStatus.trendPctPerDay.toFixed(0)}%/24h
+            </span>
+          )}
+          <span className="text-slate-500">
+            {activeStatus.expectedDosesLast48h > 0
+              ? `48h: ${activeStatus.loggedDosesLast48h}/${activeStatus.expectedDosesLast48h} doses`
+              : activeStatus.loggedDosesLast48h > 0
+                ? `48h: ${activeStatus.loggedDosesLast48h} dose${activeStatus.loggedDosesLast48h > 1 ? 's' : ''} (sob demanda)`
+                : '48h: sem dose'}
+          </span>
+          {activeStatus.missedDoses > 0 && (
+            <span className="text-fuchsia-700">{activeStatus.missedDoses} não registrada(s)</span>
+          )}
+          {activeStatus.hoursUntilBelowMin != null && activeStatus.klass !== 'vulnerabilidade' && (
+            <span className="text-amber-700">cobre ~{activeStatus.hoursUntilBelowMin}h</span>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4 space-y-4">
+        <section className="rounded-xl border border-slate-200 bg-white/70 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Janela 1</p>
+              <p className="text-sm font-semibold text-slate-800">Humor diário (sem overlay de concentração)</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="mr-1 text-xs text-slate-400">MM humor</span>
+              {SMA_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSmaWindow(opt.value)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                    smaWindow === opt.value ? 'bg-slate-950 text-white' : 'border border-slate-900/10 bg-white text-slate-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {hasMood ? (
+            <div className="relative" style={{ height: CHART_HEIGHT - 40 }}>
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={0}
+                minHeight={0}
+                initialDimension={{ width: 1, height: 1 }}
+                onResize={(width) => setContainerWidth(width)}
+              >
+                <ComposedChart data={visibleRows} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
+                  <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: '#475569', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={28}
+                  />
+                  <YAxis
+                    yAxisId="mood"
+                    domain={[-1, 1]}
+                    ticks={[-1, -0.5, 0, 0.5, 1]}
+                    tick={{ fill: '#475569', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                    tickFormatter={(v: number) => (v === -1 ? '-1' : v === 0 ? '0' : v === 1 ? '+1' : v.toFixed(1))}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', fontSize: 12 }}
+                    content={({ payload }) => {
+                      const p = payload?.[0]?.payload as Row | undefined
+                      if (!p) return null
+                      return (
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
+                          <p className="font-semibold text-slate-800">{p.label}</p>
+                          {p.valence != null ? (
+                            <>
+                              <p className="text-slate-600">{p.valenceClass ?? '—'}</p>
+                              <p className="font-mono text-slate-500">Humor: {p.valence > 0 ? '+' : ''}{p.valence.toFixed(2)}</p>
+                            </>
+                          ) : (
+                            <p className="text-slate-400">Sem humor</p>
+                          )}
+                          {p.forecasted && (
+                            <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{p.forecastConfidence != null ? ` · conf ${p.forecastConfidence.toFixed(2)}` : ''}</p>
+                          )}
+                          {p.interpolated && !p.forecasted && (
+                            <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">⚠ estimado</p>
+                          )}
+                        </div>
+                      )
+                    }}
+                  />
+                  <ReferenceLine yAxisId="mood" y={0} stroke="rgba(100,116,139,0.4)" strokeDasharray="4 3" />
+                  {forecastStartDate && (
+                    <ReferenceLine yAxisId="mood" x={forecastStartDate} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />
+                  )}
+                  <Line
+                    yAxisId="mood"
+                    dataKey="trend"
+                    type="monotone"
+                    stroke="#0f172a"
+                    strokeWidth={2.5}
+                    dot={false}
+                    connectNulls={false}
+                    activeDot={false}
+                  />
+                  <Line
+                    yAxisId="mood"
+                    dataKey="valence"
+                    type="monotone"
+                    stroke="transparent"
+                    strokeWidth={0}
+                    dot={(dotProps) => <ValenceDot {...dotProps} payload={dotProps.payload as Row} />}
+                    activeDot={false}
+                    connectNulls={false}
+                    legendType="none"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400">Sem registros de humor na janela atual.</p>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white/70 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Janela 2</p>
+              <p className="text-sm font-semibold text-slate-800">
+                {isMoodMode ? 'Concentração farmacológica' : `${activeMed?.label} · concentração (escala real)`}
+              </p>
+              <p className="text-xs text-slate-500">
+                {isMoodMode
+                  ? 'Selecione uma medicação para abrir a janela interativa de concentração.'
+                  : range
+                    ? `Escala real com faixa terapêutica ${fmtConc(range.min)}–${fmtConc(range.max)} ${range.unit}.`
+                    : 'Escala real sem faixa terapêutica definida para esta substância.'}
+              </p>
+            </div>
+            {!isMoodMode && (
+              <div className="flex items-center gap-1">
+                <span className="mr-1 text-xs text-slate-400">MM concentração</span>
+                {CONC_SMA_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setConcSmaWindow(opt.value)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                      concSmaWindow === opt.value ? 'bg-slate-950 text-white' : 'border border-slate-900/10 bg-white text-slate-600'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {isMoodMode ? (
+            <p className="text-sm text-slate-500">Use os botões de substância acima para trocar da visão de Humor para uma janela de concentração dedicada.</p>
+          ) : (
+            <div className="relative" style={{ height: CHART_HEIGHT - 40 }}>
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={0}
+                minHeight={0}
+                initialDimension={{ width: 1, height: 1 }}
+                onResize={(width) => setContainerWidth(width)}
+              >
+                <ComposedChart data={visibleRows} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
+                  <CartesianGrid stroke="rgba(100,116,139,0.1)" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: '#475569', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={28}
+                  />
                   <YAxis
                     yAxisId="conc"
-                    orientation="right"
                     domain={[0, concTop]}
                     tick={{ fill: activeColor, fontSize: 10 }}
                     tickLine={false}
@@ -405,48 +549,40 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
                     width={44}
                     tickFormatter={(v: number) => fmtConc(v)}
                   />
-                )}
-                <Tooltip
-                  contentStyle={{ borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', fontSize: 12 }}
-                  content={({ payload }) => {
-                    const p = payload?.[0]?.payload as Row | undefined
-                    if (!p) return null
-                    return (
-                      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
-                        <p className="font-semibold text-slate-800">{p.label}</p>
-                        {p.valence != null ? (
-                          <>
-                            <p className="text-slate-600">{p.valenceClass ?? '—'}</p>
-                            <p className="font-mono text-slate-500">Humor: {p.valence > 0 ? '+' : ''}{p.valence.toFixed(2)}</p>
-                          </>
-                        ) : (
-                          <p className="text-slate-400">Sem humor</p>
-                        )}
-                        {!isMoodMode && p.conc != null && (
-                          <p className="font-mono" style={{ color: activeColor }}>
-                            {activeMed?.label}: {fmtConc(p.conc)} {range?.unit ?? 'ng/mL'}
-                          </p>
-                        )}
-                        {p.forecasted && (
-                          <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{p.forecastConfidence != null ? ` · conf ${p.forecastConfidence.toFixed(2)}` : ''}</p>
-                        )}
-                        {p.interpolated && !p.forecasted && (
-                          <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">⚠ estimado</p>
-                        )}
-                      </div>
-                    )
-                  }}
-                />
-
-                {!isMoodMode && range && (
-                  <ReferenceArea yAxisId="conc" y1={range.min} y2={range.max} ifOverflow="extendDomain" fill={activeColor} fillOpacity={0.07} strokeOpacity={0} />
-                )}
-                <ReferenceLine yAxisId="mood" y={0} stroke="rgba(100,116,139,0.4)" strokeDasharray="4 3" />
-                {forecastStartDate && (
-                  <ReferenceLine yAxisId="mood" x={forecastStartDate} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />
-                )}
-
-                {!isMoodMode && (
+                  <Tooltip
+                    contentStyle={{ borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', fontSize: 12 }}
+                    content={({ payload }) => {
+                      const p = payload?.[0]?.payload as Row | undefined
+                      if (!p) return null
+                      return (
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
+                          <p className="font-semibold text-slate-800">{p.label}</p>
+                          {p.conc != null ? (
+                            <p className="font-mono" style={{ color: activeColor }}>
+                              {activeMed?.label}: {fmtConc(p.conc)} {range?.unit ?? 'ng/mL'}
+                            </p>
+                          ) : (
+                            <p className="text-slate-400">Sem concentração calculável</p>
+                          )}
+                          {p.concTrend != null && (
+                            <p className="font-mono text-slate-500">MM {concSmaWindow}d: {fmtConc(p.concTrend)} {range?.unit ?? 'ng/mL'}</p>
+                          )}
+                          {p.forecasted && (
+                            <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{p.forecastConfidence != null ? ` · conf ${p.forecastConfidence.toFixed(2)}` : ''}</p>
+                          )}
+                          {p.interpolated && !p.forecasted && (
+                            <p className="mt-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">⚠ estimado</p>
+                          )}
+                        </div>
+                      )
+                    }}
+                  />
+                  {range && (
+                    <ReferenceArea yAxisId="conc" y1={range.min} y2={range.max} ifOverflow="extendDomain" fill={activeColor} fillOpacity={0.07} strokeOpacity={0} />
+                  )}
+                  {forecastStartDate && (
+                    <ReferenceLine yAxisId="conc" x={forecastStartDate} stroke="#7c3aed" strokeDasharray="4 3" strokeWidth={1.5} />
+                  )}
                   <Area
                     yAxisId="conc"
                     type="monotone"
@@ -454,74 +590,63 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
                     stroke={activeColor}
                     strokeWidth={2}
                     fill={activeColor}
-                    fillOpacity={0.08}
+                    fillOpacity={0.1}
                     connectNulls
                     isAnimationActive={false}
                     activeDot={false}
                   />
-                )}
+                  <Line
+                    yAxisId="conc"
+                    dataKey="concTrend"
+                    type="monotone"
+                    stroke="#0f172a"
+                    strokeDasharray="5 3"
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls={false}
+                    activeDot={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
 
-                <Line
-                  yAxisId="mood"
-                  dataKey="trend"
-                  type="monotone"
-                  stroke="#0f172a"
-                  strokeWidth={2.5}
-                  dot={false}
-                  connectNulls={false}
-                  activeDot={false}
-                />
-                <Line
-                  yAxisId="mood"
-                  dataKey="valence"
-                  type="monotone"
-                  stroke="transparent"
-                  strokeWidth={0}
-                  dot={(dotProps) => <ValenceDot {...dotProps} payload={dotProps.payload as Row} />}
-                  activeDot={false}
-                  connectNulls={false}
-                  legendType="none"
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+        <div className="relative" style={{ height: BRUSH_HEIGHT }}>
+          <ChartBrushOverlay
+            width={containerWidth}
+            height={BRUSH_HEIGHT}
+            marginLeft={PLOT_MARGIN_LEFT}
+            marginRight={PLOT_MARGIN_RIGHT}
+            dataLength={allRows.length}
+            selection={selection}
+            onChange={handleBrushChange}
+            position="top"
+          />
+        </div>
 
-          <div className="relative mt-1" style={{ height: BRUSH_HEIGHT }}>
-            <ChartBrushOverlay
-              width={containerWidth}
-              height={BRUSH_HEIGHT}
-              marginLeft={PLOT_MARGIN_LEFT}
-              marginRight={isMoodMode ? PLOT_MARGIN_LEFT : PLOT_MARGIN_RIGHT}
-              dataLength={allRows.length}
-              selection={selection}
-              onChange={handleBrushChange}
-              position="top"
-            />
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-            {isMoodMode ? (
-              <>
-                <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-full bg-rose-700" /> Desagradável</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-full bg-amber-400" /> Neutro</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-full bg-green-700" /> Agradável</span>
-              </>
-            ) : (
-              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: activeColor }} /> {activeMed?.label} (concentração)</span>
-            )}
-            <span className="flex items-center gap-1.5"><span className="inline-block h-1 w-6 rounded-full bg-slate-800" /> Humor (média {smaWindow}d)</span>
-            {selection && (
-              <button
-                type="button"
-                onClick={() => setSelection(null)}
-                className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-600 hover:border-slate-300"
-              >
-                Limpar zoom
-              </button>
-            )}
-          </div>
-        </>
-      )}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-full bg-rose-700" /> Desagradável</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-full bg-amber-400" /> Neutro</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-3 rounded-full bg-green-700" /> Agradável</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block h-1 w-6 rounded-full bg-slate-800" /> Humor (média {smaWindow}d)</span>
+          {!isMoodMode && (
+            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: activeColor }} /> {activeMed?.label} (concentração)</span>
+          )}
+          {!isMoodMode && (
+            <span className="flex items-center gap-1.5"><span className="inline-block h-[2px] w-6 rounded-full bg-slate-800" /> Concentração MM {concSmaWindow}d</span>
+          )}
+          {selection && (
+            <button
+              type="button"
+              onClick={() => setSelection(null)}
+              className="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-600 hover:border-slate-300"
+            >
+              Limpar zoom
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

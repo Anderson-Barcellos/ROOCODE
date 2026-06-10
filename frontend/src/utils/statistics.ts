@@ -57,7 +57,7 @@ function correlationStrength(r: number): CorrelationResult['strength'] {
   return 'negligible'
 }
 
-function pValueFromCorrelation(r: number, n: number): number {
+export function pearsonPValueFromR(r: number, n: number): number {
   if (!Number.isFinite(r) || n < 4) return Number.NaN
 
   // Aproximação de Fisher z (bilateral).
@@ -92,7 +92,7 @@ export function pearson(
   if (!Number.isFinite(r)) return null
 
   const n = pairs.length
-  const pValue = pValueFromCorrelation(r, n)
+  const pValue = pearsonPValueFromR(r, n)
 
   return {
     r,

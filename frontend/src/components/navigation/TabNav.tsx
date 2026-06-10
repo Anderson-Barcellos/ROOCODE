@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { Activity, HeartPulse, LayoutDashboard, Pill, Sparkles, Telescope } from 'lucide-react'
+import { useState } from 'react'
+import { Activity, HeartPulse, LayoutDashboard, Pill, SlidersHorizontal, Sparkles, Telescope } from 'lucide-react'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
 export type TabKey = 'panorama' | 'recuperacao' | 'capacidade' | 'farmaco' | 'insights'
@@ -79,10 +80,13 @@ export function TabNav({
   onReducedMotionChange,
   onAnalyzeClick,
 }: TabNavProps) {
+  const [showSettings, setShowSettings] = useState(false)
+
   return (
-    <nav className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-slate-900/10 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-6 pt-3 pb-2">
-        <div className="flex flex-wrap gap-1">
+    <nav className="sticky top-0 z-10 border-b border-slate-900/10 bg-white/92 shadow-sm backdrop-blur">
+      <div className="px-3 py-2 sm:px-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map(({ key, label, icon: Icon }) => {
             const blocked = blockedTabs.includes(key)
             const active = activeTab === key && !blocked
@@ -97,7 +101,7 @@ export function TabNav({
                 disabled={blocked}
                 aria-disabled={blocked}
                 title={blocked ? 'Aba temporariamente bloqueada' : undefined}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all ${
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-all ${
                   active
                     ? 'bg-slate-950 text-white shadow-sm'
                     : blocked
@@ -115,117 +119,142 @@ export function TabNav({
               </button>
             )
           })}
-        </div>
+          </div>
 
-        <div className="flex max-w-full flex-wrap items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Período</span>
-          {rangeOptions.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onRangeChange(option)}
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                range === option
-                  ? 'bg-slate-950 text-white'
-                  : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <label className="sr-only" htmlFor="range-select">Período</label>
+            <select
+              id="range-select"
+              value={range}
+              onChange={(event) => onRangeChange(event.target.value as RangeOption)}
+              className="h-8 rounded-full border border-slate-900/15 bg-white px-2.5 text-xs font-semibold text-slate-700"
             >
-              {option}
-            </button>
-          ))}
+              {rangeOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+
           <button
             type="button"
             onClick={onAnalyzeClick}
-            className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:ml-3"
+            className="inline-flex h-8 items-center gap-1 rounded-full bg-violet-600 px-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
           >
             <Sparkles className="h-3 w-3" />
-            Análise IA
+            IA
           </button>
-        </div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 sm:px-6 pb-2.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1 inline-flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            Interpolação
-          </span>
-          {interpolationOptions.map(({ key, label }) => {
-            const active = interpolation === key
-            const showSpinner = active && key === 'claude' && interpolationLoading
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onInterpolationChange(key)}
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition inline-flex items-center gap-1.5 ${
-                  active
-                    ? key === 'claude'
-                      ? 'bg-teal-700 text-white'
-                      : key === 'linear'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-slate-950 text-white'
-                    : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {label}
-                {showSpinner && (
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" aria-label="loading" />
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Tema</span>
-          {themeOptions.map(({ key, label }) => (
             <button
-              key={key}
               type="button"
-              onClick={() => onThemeChange(key)}
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                theme === key
-                  ? 'bg-slate-900 text-white'
-                  : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+              onClick={() => setShowSettings((prev) => !prev)}
+              aria-expanded={showSettings}
+              className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition ${
+                showSettings
+                  ? 'border-slate-900/25 bg-slate-900 text-white'
+                  : 'border-slate-900/15 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {label}
+              <SlidersHorizontal className="h-3 w-3" />
+              Ajustes
             </button>
-          ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">Densidade</span>
-          {densityOptions.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onDensityChange(key)}
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                density === key
-                  ? 'bg-slate-900 text-white'
-                  : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {showSettings && (
+          <div className="mt-2 rounded-xl border border-slate-900/10 bg-white/85 p-2.5 shadow-[0_8px_20px_rgba(17,35,30,0.08)] backdrop-blur">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-1.5">
+                <span className="inline-flex items-center gap-1 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <Sparkles className="h-3 w-3" />
+                  Interpolação
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {interpolationOptions.map(({ key, label }) => {
+                    const active = interpolation === key
+                    const showSpinner = active && key === 'claude' && interpolationLoading
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => onInterpolationChange(key)}
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+                          active
+                            ? key === 'claude'
+                              ? 'bg-teal-700 text-white'
+                              : key === 'linear'
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-slate-950 text-white'
+                            : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {label}
+                        {showSpinner && (
+                          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" aria-label="loading" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
 
-        <button
-          type="button"
-          onClick={() => onReducedMotionChange(!reducedMotion)}
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-            reducedMotion
-              ? 'bg-slate-900 text-white'
-              : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
-          }`}
-          title="Reduz animações e transições visuais"
-        >
-          Movimento reduzido
-        </button>
+              <div className="space-y-1.5">
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Tema</span>
+                <div className="flex flex-wrap gap-1">
+                  {themeOptions.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onThemeChange(key)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                        theme === key
+                          ? 'bg-slate-900 text-white'
+                          : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
+              <div className="space-y-1.5">
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Densidade</span>
+                <div className="flex flex-wrap gap-1">
+                  {densityOptions.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onDensityChange(key)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                        density === key
+                          ? 'bg-slate-900 text-white'
+                          : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Acessibilidade</span>
+                <button
+                  type="button"
+                  onClick={() => onReducedMotionChange(!reducedMotion)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                    reducedMotion
+                      ? 'bg-slate-900 text-white'
+                      : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title="Reduz animações e transições visuais"
+                >
+                  Movimento reduzido
+                </button>
+                <p className="text-[0.68rem] text-slate-500">Atalhos: T (tema) · D (densidade)</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   )

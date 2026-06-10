@@ -17,13 +17,8 @@ import { Fragment, useMemo, useState } from 'react'
 import type { DailySnapshot } from '@/types/apple-health'
 import { FULL_HISTORY_DOSE_HOURS, useDoses, useSubstances } from '@/lib/api'
 import {
-  calculateConcentration,
   DEFAULT_PK_BODY_WEIGHT_KG,
   formatMoodCorrelationWindowLabel,
-  getMoodCorrelationWindowMs,
-  PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML,
-  type PKDose,
-  type PKMedication,
 } from '@/utils/pharmacokinetics'
 import {
   benjaminiHochbergFdr,
@@ -32,63 +27,17 @@ import {
   substanceToPKMedication,
   toPKDoses,
 } from '@/utils/intraday-correlation'
+import {
+  buildDailyEmaSamples,
+  LAG_DAYS_SWEEP,
+  MIN_TOTAL_SAMPLES,
+  MIN_VALID_PAIRS,
+  pairAtLag,
+} from '@/utils/pk-humor-correlation-daily'
 import { pearsonPValueFromR } from '@/utils/statistics'
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 import { HeatmapCell, type HeatmapCellEstimate } from '@/components/charts/shared/heatmap-cell'
 import { formatCi, formatP, formatR } from '@/components/charts/shared/heatmap-helpers'
-
-interface DailyEmaSample {
-  date: string
-  ema: number
-  valence: number | null
-}
-
-function buildDailyEmaSamples(
-  med: PKMedication,
-  doses: PKDose[],
-  snapshots: DailySnapshot[],
-  weightKg: number,
-): DailyEmaSample[] {
-  const windowMs = getMoodCorrelationWindowMs(med)
-  const hourMs = 60 * 60 * 1000
-  const numPoints = Math.max(6, Math.round(windowMs / hourMs))
-
-  const samples: DailyEmaSample[] = []
-  for (const snap of snapshots) {
-    const eod = new Date(`${snap.date}T23:59:59`).getTime()
-    if (!Number.isFinite(eod)) continue
-
-    let weightedSum = 0
-    let weightSum = 0
-    for (let i = 0; i < numPoints; i++) {
-      const t = eod - i * hourMs
-      const conc = calculateConcentration(med, doses, t, weightKg)
-      if (Number.isFinite(conc) && conc > PK_MIN_ANALYTICAL_CONCENTRATION_NG_ML) {
-        const ageMs = i * hourMs
-        const weight = Math.exp(-ageMs / Math.max(windowMs, hourMs))
-        weightedSum += conc * weight
-        weightSum += weight
-      }
-    }
-
-    if (weightSum > 0) {
-      samples.push({
-        date: snap.date,
-        ema: weightedSum / weightSum,
-        valence: snap.mood?.valence ?? null,
-      })
-    }
-  }
-  return samples
-}
-
-function shiftIsoDate(dateIso: string, lagDays: number): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return null
-  const base = new Date(`${dateIso}T00:00:00Z`)
-  if (!Number.isFinite(base.getTime())) return null
-  base.setUTCDate(base.getUTCDate() + lagDays)
-  return base.toISOString().slice(0, 10)
-}
 
 function pValueFromR(r: number, n: number): number {
   return pearsonPValueFromR(r, n)
@@ -119,33 +68,6 @@ interface FutureImpactRow {
   r: number
   n: number
   significant: boolean
-}
-
-const LAG_DAYS_SWEEP = [-3, -2, -1, 0, 1, 2, 3] as const
-const MIN_VALID_PAIRS = 10
-const MAX_LAG_ABS = 3
-const MIN_TOTAL_SAMPLES = MIN_VALID_PAIRS + MAX_LAG_ABS
-
-function pairAtLag(
-  samples: DailyEmaSample[],
-  lagDays: number,
-): { xs: number[]; ys: number[] } {
-  const byDate = new Map(samples.map((sample) => [sample.date, sample]))
-  const xs: number[] = []
-  const ys: number[] = []
-  for (const sample of samples) {
-    const shiftedDate = shiftIsoDate(sample.date, lagDays)
-    if (!shiftedDate) continue
-    const paired = byDate.get(shiftedDate)
-    if (!paired) continue
-    const ema = sample.ema
-    const valence = paired.valence
-    if (Number.isFinite(ema) && valence != null) {
-      xs.push(ema)
-      ys.push(valence)
-    }
-  }
-  return { xs, ys }
 }
 
 interface Props {

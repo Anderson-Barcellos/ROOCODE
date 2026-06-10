@@ -1,5 +1,4 @@
 import {
-  cumulativeStdNormalProbability,
   linearRegression,
   linearRegressionLine,
   sampleCorrelation,
@@ -49,6 +48,98 @@ export interface AnomalyResult {
   severity: 'mild' | 'moderate' | 'severe'
 }
 
+const LANCZOS_G = 7
+const LANCZOS_COEFFICIENTS = [
+  0.9999999999998099,
+  676.5203681218851,
+  -1259.1392167224028,
+  771.3234287776531,
+  -176.6150291621406,
+  12.507343278686905,
+  -0.13857109526572012,
+  9.984369578019572e-6,
+  1.5056327351493116e-7,
+]
+
+function logGamma(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return Number.NaN
+  if (value < 0.5) {
+    return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * value)) - logGamma(1 - value)
+  }
+
+  const z = value - 1
+  let x = LANCZOS_COEFFICIENTS[0]
+  for (let i = 1; i < LANCZOS_COEFFICIENTS.length; i++) {
+    x += LANCZOS_COEFFICIENTS[i] / (z + i)
+  }
+
+  const t = z + LANCZOS_G + 0.5
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x)
+}
+
+function betaContinuedFraction(a: number, b: number, x: number): number {
+  const maxIterations = 200
+  const epsilon = 3e-14
+  const minDenominator = 1e-300
+
+  const sumAB = a + b
+  const aPlus1 = a + 1
+  const aMinus1 = a - 1
+
+  let c = 1
+  let d = 1 - (sumAB * x) / aPlus1
+  if (Math.abs(d) < minDenominator) d = minDenominator
+  d = 1 / d
+  let h = d
+
+  for (let m = 1; m <= maxIterations; m++) {
+    const m2 = 2 * m
+
+    let aa = (m * (b - m) * x) / ((aMinus1 + m2) * (a + m2))
+    d = 1 + aa * d
+    if (Math.abs(d) < minDenominator) d = minDenominator
+    c = 1 + aa / c
+    if (Math.abs(c) < minDenominator) c = minDenominator
+    d = 1 / d
+    h *= d * c
+
+    aa = (-(a + m) * (sumAB + m) * x) / ((a + m2) * (aPlus1 + m2))
+    d = 1 + aa * d
+    if (Math.abs(d) < minDenominator) d = minDenominator
+    c = 1 + aa / c
+    if (Math.abs(c) < minDenominator) c = minDenominator
+    d = 1 / d
+
+    const step = d * c
+    h *= step
+    if (Math.abs(step - 1) < epsilon) break
+  }
+
+  return h
+}
+
+function regularizedIncompleteBeta(x: number, a: number, b: number): number {
+  if (!Number.isFinite(x) || !Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b <= 0) {
+    return Number.NaN
+  }
+  if (x <= 0) return 0
+  if (x >= 1) return 1
+
+  const logBeta = logGamma(a) + logGamma(b) - logGamma(a + b)
+  if (!Number.isFinite(logBeta)) return Number.NaN
+
+  const logFront = a * Math.log(x) + b * Math.log1p(-x) - logBeta
+  const front = Math.exp(logFront)
+  if (!Number.isFinite(front)) return Number.NaN
+
+  const pivot = (a + 1) / (a + b + 2)
+  if (x < pivot) {
+    return (front * betaContinuedFraction(a, b, x)) / a
+  }
+
+  return 1 - (front * betaContinuedFraction(b, a, 1 - x)) / b
+}
+
 function correlationStrength(r: number): CorrelationResult['strength'] {
   const abs = Math.abs(r)
   if (abs > 0.7) return 'strong'
@@ -58,16 +149,22 @@ function correlationStrength(r: number): CorrelationResult['strength'] {
 }
 
 export function pearsonPValueFromR(r: number, n: number): number {
-  if (!Number.isFinite(r) || n < 4) return Number.NaN
+  if (!Number.isFinite(r) || n < 3) return Number.NaN
 
-  // Aproximação de Fisher z (bilateral).
-  // Mais estável que usar distribuição normal diretamente no estatístico t.
-  const clampedR = Math.max(-0.999999, Math.min(0.999999, r))
-  const z = 0.5 * Math.log((1 + clampedR) / (1 - clampedR))
-  const se = 1 / Math.sqrt(n - 3)
-  const zScore = Math.abs(z / se)
-  const raw = 2 * (1 - cumulativeStdNormalProbability(zScore))
-  return Math.max(0, Math.min(1, raw))
+  const absR = Math.abs(Math.max(-1, Math.min(1, r)))
+  if (absR >= 1) return 0
+
+  const degreesOfFreedom = n - 2
+  const denominator = 1 - absR * absR
+  if (denominator <= 0) return 0
+
+  // p exato bilateral via distribuição t de Student:
+  // t = r * sqrt((n-2)/(1-r^2)), p = I_x(df/2, 1/2), x = df/(df+t^2).
+  const tAbs = absR * Math.sqrt(degreesOfFreedom / denominator)
+  const x = degreesOfFreedom / (degreesOfFreedom + tAbs * tAbs)
+  const p = regularizedIncompleteBeta(x, degreesOfFreedom / 2, 0.5)
+  if (!Number.isFinite(p)) return Number.NaN
+  return Math.max(0, Math.min(1, p))
 }
 
 export function pearson(

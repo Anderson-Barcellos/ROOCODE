@@ -169,6 +169,22 @@ code {
   max-width: 72ch;
 }
 
+.hero-panel--condensed {
+  padding: 1.25rem 1.45rem;
+}
+
+.hero-panel--condensed h1 {
+  margin: 0.6rem 0 0.4rem;
+  max-width: 24ch;
+  font-size: clamp(1.4rem, 2.7vw, 2rem);
+}
+
+.hero-panel--condensed p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 72ch;
+}
+
 .panel h2 {
   margin: 0.9rem 0 0.65rem;
   font-family: 'Fraunces', serif;

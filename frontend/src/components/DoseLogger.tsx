@@ -4,6 +4,8 @@ import { Pill, CheckCircle, AlertCircle, Sparkles, Zap } from 'lucide-react'
 
 import { useSubstances, useLogDose, useRegimen } from '../lib/api'
 
+const LOGGABLE_MEDICATION_IDS = new Set(['lexapro', 'venvanse', 'lamictal', 'clonazepam', 'rivotril'])
+
 const localNow = () => format(new Date(), "yyyy-MM-dd'T'HH:mm")
 
 const buildScheduledDateTime = (timeHHMM: string): string => {
@@ -40,17 +42,24 @@ export default function DoseLogger() {
   const [doseFromRegimen, setDoseFromRegimen] = useState(false)
   const [timeFromRegimen, setTimeFromRegimen] = useState(false)
 
-  const selectedSub = substances.find((s) => s.id === substance)
-  const activeRegimen = useMemo(() => regimen.filter((e) => e.active), [regimen])
-  const substanceById = useMemo(
-    () => new Map(substances.map((s) => [s.id, s])),
+  const loggableSubstances = useMemo(
+    () => substances.filter((substanceItem) => LOGGABLE_MEDICATION_IDS.has(substanceItem.id)),
     [substances],
+  )
+  const selectedSub = loggableSubstances.find((s) => s.id === substance)
+  const activeRegimen = useMemo(
+    () => regimen.filter((entry) => entry.active && LOGGABLE_MEDICATION_IDS.has(entry.substance)),
+    [regimen],
+  )
+  const substanceById = useMemo(
+    () => new Map(loggableSubstances.map((s) => [s.id, s])),
+    [loggableSubstances],
   )
 
   const handleSubstanceChange = (value: string) => {
     setSubstance(value)
 
-    const entry = regimen.find((e) => e.active && e.substance === value)
+    const entry = activeRegimen.find((e) => e.substance === value)
     if (value && entry) {
       setDoseMg(String(entry.dose_mg))
       setDoseFromRegimen(true)
@@ -66,7 +75,7 @@ export default function DoseLogger() {
     }
 
     // Substância PRN/manual — usa typical_dose_mg como sugestão se disponível
-    const sub = substances.find((s) => s.id === value)
+    const sub = loggableSubstances.find((s) => s.id === value)
     if (sub?.typical_dose_mg != null) {
       setDoseMg(String(sub.typical_dose_mg))
       setDoseFromRegimen(true)
@@ -251,8 +260,8 @@ export default function DoseLogger() {
             required
           >
             <option value="">selecionar...</option>
-            {substances.map((s) => {
-              const inRegimen = regimen.some((e) => e.active && e.substance === s.id)
+            {loggableSubstances.map((s) => {
+              const inRegimen = activeRegimen.some((e) => e.substance === s.id)
               return (
                 <option key={s.id} value={s.id}>
                   {s.display_name.split(' ')[0]}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { format, getDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Activity, Compass, FlaskConical, HeartPulse, Pill, Telescope } from 'lucide-react'
+import { Activity, Compass, HeartPulse, Pill, Telescope } from 'lucide-react'
 import { TabNav, type TabKey, type RangeOption } from '@/components/navigation/TabNav'
 import type { ForecastMode } from '@/hooks/useForecast'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
@@ -10,7 +10,6 @@ import { ForecastReportModal } from '@/components/charts/ForecastReportModal'
 import { SurfaceFrame, EmptyAnalyticsState } from '@/components/analytics/shared'
 import DoseLogger from '@/components/DoseLogger'
 import DoseCalendarView from '@/components/DoseCalendarView'
-import MedicationCatalogEditor from '@/components/MedicationCatalogEditor'
 import { CorrelationHeatmap } from '@/components/charts/correlation-heatmap'
 import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-chart'
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
@@ -213,7 +212,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('farmaco')
   const [range, setRange] = useState<RangeOption>('30d')
   const [hash, setHash] = useState(() => window.location.hash)
-  const [catalogOpen, setCatalogOpen] = useState(false)
   const [interpolation, setInterpolationState] = useState<InterpolationMode>(() => {
     const saved = localStorage.getItem('roocode-interpolation')
     if (saved === 'off' || saved === 'linear') return saved
@@ -312,6 +310,9 @@ export default function App() {
     : activeTab === 'panorama'
     ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
     : 'Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.'
+  const heroPanelClass = activeTab === 'panorama'
+    ? 'hero-panel hero-panel--compact'
+    : 'hero-panel hero-panel--condensed'
 
   return (
     <>
@@ -330,7 +331,7 @@ export default function App() {
 
       <main className="app-shell">
         {/* Hero panel */}
-        <section className={`hero-panel ${activeTab === 'panorama' ? 'hero-panel--compact' : ''}`}>
+        <section className={heroPanelClass}>
           <span className="eyebrow">{heroEyebrow}</span>
           <h1>{heroTitle}</h1>
           <p>
@@ -644,19 +645,6 @@ export default function App() {
                 <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-700">
                   <span className="font-semibold">Nota importante:</span> as concentrações exibidas são estimativas de um modelo farmacocinético baseado no regime registrado, não medições laboratoriais.
                 </p>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setCatalogOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-900/15 bg-white/80 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-white hover:shadow-md"
-                    type="button"
-                  >
-                    <FlaskConical className="h-3.5 w-3.5" />
-                    Catálogo de substâncias
-                  </button>
-                </div>
-                <MedicationCatalogEditor open={catalogOpen} onOpenChange={setCatalogOpen} />
-
                 <PKMoodConcentrationChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                 <details className="group">

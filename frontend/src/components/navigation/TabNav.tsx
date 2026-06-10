@@ -83,7 +83,7 @@ export function TabNav({
   const [showSettings, setShowSettings] = useState(false)
 
   return (
-    <nav className="sticky top-0 z-10 border-b border-slate-900/10 bg-white/92 shadow-sm backdrop-blur">
+    <nav className="sticky top-0 z-10 border-b border-[color:var(--border)] bg-[color:var(--card-strong)] shadow-sm backdrop-blur">
       <div className="px-3 py-2 sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -127,7 +127,7 @@ export function TabNav({
               id="range-select"
               value={range}
               onChange={(event) => onRangeChange(event.target.value as RangeOption)}
-              className="h-8 rounded-full border border-slate-900/15 bg-white px-2.5 text-xs font-semibold text-slate-700"
+              className="h-8 rounded-full border border-[color:var(--border)] bg-[color:var(--card-strong)] px-2.5 text-xs font-semibold text-[color:var(--foreground)]"
             >
               {rangeOptions.map((option) => (
                 <option key={option} value={option}>{option}</option>
@@ -150,7 +150,7 @@ export function TabNav({
               className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition ${
                 showSettings
                   ? 'border-slate-900/25 bg-slate-900 text-white'
-                  : 'border-slate-900/15 bg-white text-slate-700 hover:bg-slate-50'
+                  : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--foreground)] hover:bg-[color:var(--card)]'
               }`}
             >
               <SlidersHorizontal className="h-3 w-3" />
@@ -160,7 +160,7 @@ export function TabNav({
         </div>
 
         {showSettings && (
-          <div className="mt-2 rounded-xl border border-slate-900/10 bg-white/85 p-2.5 shadow-[0_8px_20px_rgba(17,35,30,0.08)] backdrop-blur">
+          <div className="mt-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-2.5 shadow-[0_8px_20px_rgba(17,35,30,0.08)] backdrop-blur">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               <div className="space-y-1.5">
                 <span className="inline-flex items-center gap-1 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -183,7 +183,7 @@ export function TabNav({
                               : key === 'linear'
                               ? 'bg-amber-600 text-white'
                               : 'bg-slate-950 text-white'
-                            : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                            : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                         }`}
                       >
                         {label}
@@ -207,7 +207,7 @@ export function TabNav({
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                         theme === key
                           ? 'bg-slate-900 text-white'
-                          : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                          : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                       }`}
                     >
                       {label}
@@ -227,7 +227,7 @@ export function TabNav({
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                         density === key
                           ? 'bg-slate-900 text-white'
-                          : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                          : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                       }`}
                     >
                       {label}
@@ -244,7 +244,7 @@ export function TabNav({
                   className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                     reducedMotion
                       ? 'bg-slate-900 text-white'
-                      : 'border border-slate-900/10 bg-white text-slate-600 hover:bg-slate-50'
+                      : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                   }`}
                   title="Reduz animações e transições visuais"
                 >

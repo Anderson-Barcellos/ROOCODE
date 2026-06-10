@@ -240,23 +240,23 @@ function DataQualityStrip({
 }: DataQualityStripProps) {
   const moodCoveragePct = realDays > 0 ? Math.round((pairedMoodDays / realDays) * 100) : 0
   return (
-    <section className="mb-4 rounded-[1.1rem] border border-slate-900/10 bg-white/75 p-3 shadow-[0_10px_24px_rgba(17,35,30,0.08)] backdrop-blur">
+    <section className="mb-4 rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--card)] p-3 shadow-[0_10px_24px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Janela atual</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">{realDays} reais · {totalDays} totais</p>
+        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">Janela atual</p>
+          <p className="mt-1 text-sm font-semibold text-[color:var(--foreground)]">{realDays} reais · {totalDays} totais</p>
         </div>
-        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Cobertura de humor</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">{moodCoveragePct}% ({pairedMoodDays}/{realDays || 0})</p>
+        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">Cobertura de humor</p>
+          <p className="mt-1 text-sm font-semibold text-[color:var(--foreground)]">{moodCoveragePct}% ({pairedMoodDays}/{realDays || 0})</p>
         </div>
-        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Dias estimados</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">{interpolatedDays} interpolados · {forecastDays} projetados</p>
+        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">Dias estimados</p>
+          <p className="mt-1 text-sm font-semibold text-[color:var(--foreground)]">{interpolatedDays} interpolados · {forecastDays} projetados</p>
         </div>
-        <div className="rounded-xl border border-slate-900/10 bg-white/80 px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500">Readiness global</p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">{readinessRealDays} fisiologia · {readinessMoodDays} humor</p>
+        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-2">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">Readiness global</p>
+          <p className="mt-1 text-sm font-semibold text-[color:var(--foreground)]">{readinessRealDays} fisiologia · {readinessMoodDays} humor</p>
         </div>
       </div>
     </section>

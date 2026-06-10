@@ -25,11 +25,11 @@ import type {
 } from '@/components/analytics/types'
 
 const SURFACE_CLASS =
-  'panel rounded-[1.7rem] border border-slate-900/10 bg-[linear-gradient(180deg,rgba(255,252,246,0.98),rgba(246,241,232,0.86))] p-5 shadow-[0_22px_55px_rgba(17,35,30,0.10)]'
+  'panel rounded-[1.7rem] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]'
 const CARD_CLASS =
-  'rounded-[1.35rem] border border-slate-900/10 bg-white/80 p-4 shadow-[0_16px_34px_rgba(17,35,30,0.06)] backdrop-blur'
+  'rounded-[1.35rem] border border-[color:var(--border)] bg-[color:var(--card-strong)] p-4 shadow-[0_16px_34px_rgba(17,35,30,0.06)] backdrop-blur'
 const LABEL_CLASS =
-  'inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600'
+  'inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]'
 
 const toneBadge: Record<AnalyticsTone, string> = {
   positive: 'border-emerald-200 bg-emerald-50 text-emerald-700',

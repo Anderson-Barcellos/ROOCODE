@@ -78,6 +78,8 @@ function buildHealthMetrics(date: string, rows: HealthAutoExportRow[]): DailyHea
     heartRateMax: maxFields(rows, 'heartRateMax'),
     heartRateMean: meanFields(rows, 'heartRateMean'),
     restingHeartRate: meanFields(rows, 'restingHeartRate'),
+    systolicMmHg: meanFields(rows, 'systolicMmHg'),
+    diastolicMmHg: meanFields(rows, 'diastolicMmHg'),
     spo2: meanFields(rows, 'spo2'),
     respiratoryRate: meanFields(rows, 'respiratoryRate'),
     pulseTemperatureC: meanFields(rows, 'pulseTemperatureC'),

@@ -49,6 +49,9 @@ export interface HealthAutoExportRow {
   vo2Max: number | null
   sixMinuteWalkMeters: number | null
   cardioRecoveryBpm: number | null
+  // Pressão arterial (captura 2026-06-11; índices ficam pra seção Coração)
+  systolicMmHg?: number | null
+  diastolicMmHg?: number | null
   isPlaceholderRestingEnergy: boolean
 }
 
@@ -117,6 +120,9 @@ export interface DailyHealthMetrics {
   vo2Max: number | null
   sixMinuteWalkMeters: number | null
   cardioRecoveryBpm: number | null
+  // Pressão arterial (captura 2026-06-11; índices ficam pra seção Coração)
+  systolicMmHg?: number | null
+  diastolicMmHg?: number | null
   recordCount: number
   placeholderRestingEnergyRows: number
 }

@@ -48,6 +48,8 @@ const HEALTH_POLICIES: Record<keyof DailyHealthMetrics, FieldPolicy> = {
   heartRateMax: 'interpolate',
   heartRateMean: 'interpolate',
   restingHeartRate: 'interpolate',
+  systolicMmHg: 'skip', // pressão arterial — medição pontual, não se inventa
+  diastolicMmHg: 'skip',
   hrvSdnn: 'interpolate',
   spo2: 'interpolate',
   respiratoryRate: 'interpolate',
@@ -235,6 +237,8 @@ function interpolateHealth(
     heartRateMax: null,
     heartRateMean: null,
     restingHeartRate: null,
+    systolicMmHg: null,
+    diastolicMmHg: null,
     hrvSdnn: null,
     spo2: null,
     respiratoryRate: null,

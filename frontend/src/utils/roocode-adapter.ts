@@ -144,6 +144,8 @@ function metricsRecordToHealthRow(record: MetricsRecord): HealthAutoExportRow | 
     heartRateMax: record['Frequência Cardíaca [Máx] (bpm)'] ?? record['Frequência Cardíaca [Max] (bpm)'] ?? null,
     heartRateMean: record['Frequência Cardíaca [Média] (bpm)'] ?? record['Frequência Cardíaca [Avg] (bpm)'] ?? null,
     restingHeartRate: record['Frequência Cardíaca em Repouso (bpm)'] ?? null,
+    systolicMmHg: record['Pressão Arterial [Systolic] (mmHg)'] ?? null,
+    diastolicMmHg: record['Pressão Arterial [Diastolic] (mmHg)'] ?? null,
     spo2: record['Saturação de Oxigênio no Sangue (%)'] ?? null,
     respiratoryRate: record['Taxa Respiratória (contagem/min)'] ?? null,
     pulseTemperatureC: record['Temperatura do Pulso ao Dormir Apple (ºC)'] ?? null,

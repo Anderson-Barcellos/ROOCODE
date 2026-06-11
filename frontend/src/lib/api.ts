@@ -110,6 +110,8 @@ export interface MetricsRecord {
   'Frequência Cardíaca [Máx] (bpm)'?: number
   'Frequência Cardíaca [Média] (bpm)'?: number
   'Frequência Cardíaca em Repouso (bpm)'?: number
+  'Pressão Arterial [Systolic] (mmHg)'?: number
+  'Pressão Arterial [Diastolic] (mmHg)'?: number
   'Média de Frequência Cardíaca ao Caminhar (bpm)'?: number
   'Porcentagem de Assimetria ao Andar (%)'?: number
   'Porcentagem de Suporte Duplo ao Caminhar (%)'?: number

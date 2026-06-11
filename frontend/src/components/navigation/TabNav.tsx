@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Activity, HeartPulse, LayoutDashboard, Pill, SlidersHorizontal, Sparkles, Telescope } from 'lucide-react'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
@@ -81,12 +81,19 @@ export function TabNav({
   onAnalyzeClick,
 }: TabNavProps) {
   const [showSettings, setShowSettings] = useState(false)
+  const tabScrollRef = useRef<HTMLDivElement | null>(null)
+  const activeTabRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!tabScrollRef.current || !activeTabRef.current) return
+    activeTabRef.current.scrollIntoView({ block: 'nearest', inline: 'center' })
+  }, [activeTab])
 
   return (
     <nav className="sticky top-0 z-10 border-b border-[color:var(--border)] bg-[color:var(--card-strong)] shadow-sm backdrop-blur">
       <div className="px-3 py-2 sm:px-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap items-center gap-2">
+          <div ref={tabScrollRef} className="order-1 flex min-w-0 w-full items-center gap-1 overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:flex-1">
           {tabs.map(({ key, label, icon: Icon }) => {
             const blocked = blockedTabs.includes(key)
             const active = activeTab === key && !blocked
@@ -101,18 +108,19 @@ export function TabNav({
                 disabled={blocked}
                 aria-disabled={blocked}
                 title={blocked ? 'Aba temporariamente bloqueada' : undefined}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-all ${
+                ref={active ? activeTabRef : null}
+                className={`inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-all ${
                   active
-                    ? 'bg-slate-950 text-white shadow-sm'
+                    ? 'bg-[color:var(--foreground)] text-[color:var(--card-strong)] shadow-sm'
                     : blocked
-                    ? 'cursor-not-allowed border border-slate-200 bg-slate-100/80 text-slate-400'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'cursor-not-allowed border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--muted)] opacity-70'
+                    : 'text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--card)]'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
                 {label}
                 {blocked && blockReasonLabel && (
-                  <span className="rounded-full border border-slate-300/80 bg-white/70 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  <span className="hidden rounded-full border border-[color:var(--border)] bg-[color:var(--card-strong)] px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.08em] text-[color:var(--muted)] sm:inline-flex">
                     {blockReasonLabel}
                   </span>
                 )}
@@ -121,7 +129,7 @@ export function TabNav({
           })}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="order-2 ml-auto flex w-full items-center justify-end gap-1.5 sm:w-auto">
             <label className="sr-only" htmlFor="range-select">Período</label>
             <select
               id="range-select"
@@ -134,14 +142,14 @@ export function TabNav({
               ))}
             </select>
 
-          <button
-            type="button"
-            onClick={onAnalyzeClick}
-            className="inline-flex h-8 items-center gap-1 rounded-full bg-violet-600 px-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-          >
-            <Sparkles className="h-3 w-3" />
-            IA
-          </button>
+            <button
+              type="button"
+              onClick={onAnalyzeClick}
+              className="inline-flex h-8 items-center gap-1 rounded-full bg-violet-600 px-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+            >
+              <Sparkles className="h-3 w-3" />
+              IA
+            </button>
 
             <button
               type="button"
@@ -149,7 +157,7 @@ export function TabNav({
               aria-expanded={showSettings}
               className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition ${
                 showSettings
-                  ? 'border-slate-900/25 bg-slate-900 text-white'
+                  ? 'border-[color:var(--foreground)] bg-[color:var(--foreground)] text-[color:var(--card-strong)]'
                   : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--foreground)] hover:bg-[color:var(--card)]'
               }`}
             >
@@ -163,7 +171,7 @@ export function TabNav({
           <div className="mt-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--card)] p-2.5 shadow-[0_8px_20px_rgba(17,35,30,0.08)] backdrop-blur">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               <div className="space-y-1.5">
-                <span className="inline-flex items-center gap-1 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <span className="inline-flex items-center gap-1 text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">
                   <Sparkles className="h-3 w-3" />
                   Interpolação
                 </span>
@@ -181,8 +189,8 @@ export function TabNav({
                             ? key === 'claude'
                               ? 'bg-teal-700 text-white'
                               : key === 'linear'
-                              ? 'bg-amber-600 text-white'
-                              : 'bg-slate-950 text-white'
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-[color:var(--foreground)] text-[color:var(--card-strong)]'
                             : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                         }`}
                       >
@@ -197,7 +205,7 @@ export function TabNav({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Tema</span>
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">Tema</span>
                 <div className="flex flex-wrap gap-1">
                   {themeOptions.map(({ key, label }) => (
                     <button
@@ -206,7 +214,7 @@ export function TabNav({
                       onClick={() => onThemeChange(key)}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                         theme === key
-                          ? 'bg-slate-900 text-white'
+                          ? 'bg-[color:var(--foreground)] text-[color:var(--card-strong)]'
                           : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                       }`}
                     >
@@ -217,7 +225,7 @@ export function TabNav({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Densidade</span>
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">Densidade</span>
                 <div className="flex flex-wrap gap-1">
                   {densityOptions.map(({ key, label }) => (
                     <button
@@ -226,7 +234,7 @@ export function TabNav({
                       onClick={() => onDensityChange(key)}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                         density === key
-                          ? 'bg-slate-900 text-white'
+                          ? 'bg-[color:var(--foreground)] text-[color:var(--card-strong)]'
                           : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                       }`}
                     >
@@ -237,20 +245,20 @@ export function TabNav({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-slate-500">Acessibilidade</span>
+                <span className="text-[0.64rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">Acessibilidade</span>
                 <button
                   type="button"
                   onClick={() => onReducedMotionChange(!reducedMotion)}
                   className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
                     reducedMotion
-                      ? 'bg-slate-900 text-white'
+                      ? 'bg-[color:var(--foreground)] text-[color:var(--card-strong)]'
                       : 'border border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
                   }`}
                   title="Reduz animações e transições visuais"
                 >
                   Movimento reduzido
                 </button>
-                <p className="text-[0.68rem] text-slate-500">Atalhos: T (tema) · D (densidade)</p>
+                <p className="text-[0.68rem] text-[color:var(--muted)]">Atalhos: T (tema) · D (densidade)</p>
               </div>
             </div>
           </div>

@@ -242,9 +242,9 @@ export function PKVariabilityReportCard({ snapshots, weightKg = DEFAULT_PK_BODY_
   if (robustSignals.length === 0 && watchSignals.length === 0) return null
 
   return (
-    <section className="rounded-[1.5rem] border border-teal-300/60 bg-gradient-to-br from-teal-50 via-white to-violet-50 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+    <section className="rounded-[1.5rem] border border-teal-300/60 dark:border-teal-400/30 bg-gradient-to-br from-teal-50 via-white to-violet-50 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-300 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-teal-700">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-300 dark:border-teal-400/30 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
           <Sparkles className="h-3 w-3" />
           Sinais de variabilidade (com replicação)
         </span>
@@ -277,7 +277,7 @@ export function PKVariabilityReportCard({ snapshots, weightKg = DEFAULT_PK_BODY_
         ))}
       </ul>
       {watchSignals.length > 0 && (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+        <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">
           <p className="font-semibold uppercase tracking-[0.12em]">A vigiar (não promover como hipótese principal)</p>
           <ul className="mt-1 space-y-1">
             {watchSignals.map((sig) => (

@@ -534,19 +534,19 @@ export default function App() {
                     const { decision, triad, moodBridge, pkBridge, weeklyComparison, history, socialJetLagHours } = panoramaModel
                     const palette = {
                       green: {
-                        shell: 'border-emerald-900/10 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,252,246,0.78))] text-emerald-950',
+                        shell: 'border-emerald-900/10 bg-[linear-gradient(135deg,rgba(236,253,245,0.96),rgba(255,252,246,0.78))] text-emerald-950 dark:text-emerald-200',
                         dot: 'bg-emerald-500',
-                        chip: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                        chip: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
                       },
                       yellow: {
-                        shell: 'border-amber-900/10 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,252,246,0.78))] text-amber-950',
+                        shell: 'border-amber-900/10 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,252,246,0.78))] text-amber-950 dark:text-amber-200',
                         dot: 'bg-amber-500',
-                        chip: 'border-amber-200 bg-amber-50 text-amber-800',
+                        chip: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200',
                       },
                       red: {
-                        shell: 'border-rose-900/10 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,252,246,0.78))] text-rose-950',
+                        shell: 'border-rose-900/10 bg-[linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,252,246,0.78))] text-rose-950 dark:text-rose-200',
                         dot: 'bg-rose-500',
-                        chip: 'border-rose-200 bg-rose-50 text-rose-800',
+                        chip: 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-800 dark:text-rose-200',
                       },
                       neutral: {
                         shell: 'border-slate-900/10 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,252,246,0.78))] text-slate-950',
@@ -556,9 +556,9 @@ export default function App() {
                     }[decision.status]
 
                     const pkTone = {
-                      green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-                      yellow: 'border-amber-200 bg-amber-50 text-amber-700',
-                      red: 'border-rose-200 bg-rose-50 text-rose-700',
+                      green: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+                      yellow: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+                      red: 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300',
                       white: 'border-slate-200 bg-slate-50 text-slate-700',
                     } as const
 
@@ -833,7 +833,7 @@ export default function App() {
                 <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
               ) : (
                 <div className="space-y-6">
-                  <p className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm leading-6 text-indigo-900">
+                  <p className="rounded-2xl border border-indigo-200 dark:border-indigo-400/30 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-3 text-sm leading-6 text-indigo-900 dark:text-indigo-200">
                     <span className="font-semibold">Leitura rápida:</span> {sleepSummaryLine}
                   </p>
 

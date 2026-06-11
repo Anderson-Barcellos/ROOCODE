@@ -34,10 +34,10 @@ const TOOLTIP_STYLE = {
 }
 
 const TONE_COLORS: Record<string, string> = {
-  positive: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  positive: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   neutral: 'border-slate-200 bg-slate-50 text-slate-700',
-  watch: 'border-amber-200 bg-amber-50 text-amber-700',
-  negative: 'border-rose-200 bg-rose-50 text-rose-700',
+  watch: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  negative: 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300',
 }
 
 // Meta usada como ReferenceLine: 10k passos/dia (Tudor-Locke "ativo")
@@ -97,11 +97,11 @@ export function StepsChart({ snapshots, forecastStartDate }: StepsChartProps) {
 
   const verdictClass =
     verdict?.tone === 'good'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
       : verdict?.tone === 'alert'
-        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        ? 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200'
         : verdict?.tone === 'watch'
-          ? 'border-amber-200 bg-amber-50 text-amber-900'
+          ? 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
           : 'border-slate-200 bg-slate-50 text-slate-800'
 
   if (!data.length) {

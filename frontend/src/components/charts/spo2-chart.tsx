@@ -77,7 +77,7 @@ export function Spo2Chart({ snapshots, forecastStartDate }: Spo2ChartProps) {
       <div className="mt-3 flex items-center gap-3">
         <h3 className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">SpO2</h3>
         {hasAlert && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">
+          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 dark:bg-rose-500/15 px-2.5 py-1 text-xs font-bold text-rose-700 dark:text-rose-300">
             ⚠ Dias abaixo de 94%
           </span>
         )}

@@ -30,9 +30,9 @@ const CLASS_META: Record<SleepQualityClass, ClassMeta> = {
   reparadora: {
     headline: 'Noite reparadora — boa recuperação',
     badge: 'Reparadora',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-    scoreBg: 'text-emerald-700',
+    badgeBg: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-400/30',
+    badgeText: 'text-emerald-700 dark:text-emerald-300',
+    scoreBg: 'text-emerald-700 dark:text-emerald-300',
   },
   regular: {
     headline: 'Noite mediana — nem reparou, nem prejudicou',
@@ -44,23 +44,23 @@ const CLASS_META: Record<SleepQualityClass, ClassMeta> = {
   fragmentada: {
     headline: 'Sono fragmentado pesou hoje',
     badge: 'Fragmentada',
-    badgeBg: 'bg-amber-50 border-amber-200',
-    badgeText: 'text-amber-700',
-    scoreBg: 'text-amber-700',
+    badgeBg: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-400/30',
+    badgeText: 'text-amber-700 dark:text-amber-300',
+    scoreBg: 'text-amber-700 dark:text-amber-300',
   },
   respiratoria: {
     headline: 'Qualidade respiratória ruim',
     badge: 'Respiratória',
-    badgeBg: 'bg-rose-50 border-rose-200',
-    badgeText: 'text-rose-700',
-    scoreBg: 'text-rose-700',
+    badgeBg: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-400/30',
+    badgeText: 'text-rose-700 dark:text-rose-300',
+    scoreBg: 'text-rose-700 dark:text-rose-300',
   },
   autonomica: {
     headline: 'Sinal autonômico em alerta',
     badge: 'Autonômica',
-    badgeBg: 'bg-fuchsia-50 border-fuchsia-200',
-    badgeText: 'text-fuchsia-700',
-    scoreBg: 'text-fuchsia-700',
+    badgeBg: 'bg-fuchsia-50 dark:bg-fuchsia-500/10 border-fuchsia-200 dark:border-fuchsia-400/30',
+    badgeText: 'text-fuchsia-700 dark:text-fuchsia-300',
+    scoreBg: 'text-fuchsia-700 dark:text-fuchsia-300',
   },
 }
 
@@ -213,17 +213,17 @@ export function NightQualityCard({ snapshots, variant = 'full', windowLabel }: N
               {meta.badge}
             </span>
             {point.flags.respiratoria && point.klass !== 'respiratoria' && (
-              <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[0.7rem] font-medium text-rose-700">
+              <span className="inline-flex items-center rounded-full border border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 px-2 py-0.5 text-[0.7rem] font-medium text-rose-700 dark:text-rose-300">
                 ⚠ resp.
               </span>
             )}
             {point.flags.autonomica && point.klass !== 'autonomica' && (
-              <span className="inline-flex items-center rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2 py-0.5 text-[0.7rem] font-medium text-fuchsia-700">
+              <span className="inline-flex items-center rounded-full border border-fuchsia-200 dark:border-fuchsia-400/30 bg-fuchsia-50 dark:bg-fuchsia-500/10 px-2 py-0.5 text-[0.7rem] font-medium text-fuchsia-700 dark:text-fuchsia-300">
                 ⚠ autonômico
               </span>
             )}
             {point.derivedFromInterpolated && (
-              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[0.7rem] font-medium text-amber-700">
+              <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 text-[0.7rem] font-medium text-amber-700 dark:text-amber-300">
                 ⚠ interp
               </span>
             )}

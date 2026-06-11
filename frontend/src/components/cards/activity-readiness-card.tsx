@@ -17,9 +17,9 @@ interface ActivityReadinessCardProps {
 }
 
 const TONE_COLORS: Record<ActivityReadinessTone, string> = {
-  positive: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  watch: 'border-amber-200 bg-amber-50 text-amber-700',
-  negative: 'border-rose-200 bg-rose-50 text-rose-700',
+  positive: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  watch: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  negative: 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300',
   neutral: 'border-slate-200 bg-slate-50 text-slate-600',
 }
 
@@ -89,7 +89,7 @@ export function ActivityReadinessCard({ snapshots, baselineSnapshots = snapshots
       </div>
 
       {showContradiction && (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+        <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-800 dark:text-amber-200">
           <span className="font-semibold">Atenção contradição:</span> readiness sugere usar energia (
           {result.score!.toFixed(0)}/100), mas Recovery Score do mesmo dia está em{' '}
           {recoveryAtSameDate!.toFixed(0)}/100. Sono/HRV/débito podem estar pesando contra —
@@ -118,7 +118,7 @@ export function ActivityReadinessCard({ snapshots, baselineSnapshots = snapshots
               <span className="font-medium text-slate-700">{factor.label}</span>
               <span>Hoje: {formatValue(factor.value, factor.unit)}</span>
               <span>Base: {formatValue(factor.baseline, factor.unit)}</span>
-              <span className={factor.tone === 'negative' ? 'text-rose-700' : factor.tone === 'watch' ? 'text-amber-700' : 'text-slate-500'}>
+              <span className={factor.tone === 'negative' ? 'text-rose-700 dark:text-rose-300' : factor.tone === 'watch' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500'}>
                 {factor.message}
               </span>
             </div>

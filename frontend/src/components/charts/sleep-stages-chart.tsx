@@ -100,7 +100,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
           <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-800">
             Eficiência: {summary.avgEfficiency != null ? `${Math.round(summary.avgEfficiency)}%` : '—'}
           </span>
-          <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800">
+          <span className="inline-flex items-center rounded-full border border-violet-200 dark:border-violet-400/30 bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-800 dark:text-violet-200">
             REM: {summary.avgRemPct != null ? `${Math.round(summary.avgRemPct)}%` : '—'}
           </span>
         </div>

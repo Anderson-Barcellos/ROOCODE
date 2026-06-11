@@ -36,18 +36,18 @@ function confidenceMeta(point: RecoveryIndexPoint | null) {
   if (point.exploratory) {
     return {
       label: 'Exploratório',
-      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      className: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
     }
   }
   if (point.completeness < 1 || point.confidence < 0.9) {
     return {
       label: 'Parcial',
-      className: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+      className: 'border-indigo-200 dark:border-indigo-400/30 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
     }
   }
   return {
     label: 'Robusto',
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    className: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
   }
 }
 
@@ -95,7 +95,7 @@ export function RecoveryIndexCard({
               {badge.label}
             </span>
             {point?.derivedFromInterpolated && (
-              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[0.72rem] font-semibold text-amber-700">
+              <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-0.5 text-[0.72rem] font-semibold text-amber-700 dark:text-amber-300">
                 Dia estimado
               </span>
             )}
@@ -107,7 +107,7 @@ export function RecoveryIndexCard({
           value={point?.score != null ? point.score.toFixed(0) : '--'}
           band={point?.score != null ? '/100' : 'sem índice'}
           hint={dateLabel}
-          valueColorClass={point?.score != null && point.score >= 70 ? 'text-emerald-700' : point?.score != null && point.score < 40 ? 'text-rose-700' : 'text-slate-900'}
+          valueColorClass={point?.score != null && point.score >= 70 ? 'text-emerald-700 dark:text-emerald-300' : point?.score != null && point.score < 40 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900'}
         />
       </div>
 

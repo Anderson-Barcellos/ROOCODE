@@ -19,7 +19,7 @@ function formatDelta(value: number | null): string {
 function deltaTone(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return 'text-slate-500'
   if (Math.abs(value) < 1) return 'text-slate-500'
-  return value > 0 ? 'text-emerald-700' : 'text-rose-700'
+  return value > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'
 }
 
 function socialJetLagLabel(hours: number | null): string {

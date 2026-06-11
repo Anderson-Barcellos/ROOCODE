@@ -105,7 +105,7 @@ export function WeekdayWeekendCard({ snapshots }: WeekdayWeekendCardProps) {
       </header>
 
       {clinicalCallout && (
-        <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
+        <p className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs leading-5 text-emerald-900 dark:text-emerald-200">
           <span className="font-semibold">
             {clinicalCallout.improvedOnWeekend
               ? 'Seu corpo descansa de verdade no fim de semana.'
@@ -138,7 +138,7 @@ export function WeekdayWeekendCard({ snapshots }: WeekdayWeekendCardProps) {
       )}
 
       {error && (
-        <p className="text-sm text-rose-700">
+        <p className="text-sm text-rose-700 dark:text-rose-300">
           Erro ao carregar resumo semanal.
         </p>
       )}
@@ -156,9 +156,9 @@ export function WeekdayWeekendCard({ snapshots }: WeekdayWeekendCardProps) {
             const tone = deltaTone(delta, 'lowerIsBetter' in field ? field.lowerIsBetter : false)
             const deltaColor =
               tone === 'positive'
-                ? 'text-emerald-700'
+                ? 'text-emerald-700 dark:text-emerald-300'
                 : tone === 'negative'
-                ? 'text-rose-700'
+                ? 'text-rose-700 dark:text-rose-300'
                 : 'text-slate-500'
 
             return (

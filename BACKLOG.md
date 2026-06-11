@@ -7,54 +7,30 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Pendentes
 
-### #5 — Completar o dark mode (tema Graphite) nas superfícies ainda claras
-
-**Contexto:** em 2026-06-11 o tema Graphite virou dark mode real (commits
-`1423a03`, `a3e4ea7`). O dark **visível** da Farmaco está limpo, mas restam
-~50 arquivos com cores Tailwind pastel fixas (`bg-X-50 border-X-200
-text-X-900`) que viram ilhas claras no escuro. Todas estão **fora do campo de
-visão atual** — atrás do accordion fechado "Remédio × Humor" (callouts do
-`pk-humor-correlation`: Veredito/Impacto em emerald/amber/sky/violet) ou nas
-abas **"Em revisão" desabilitadas** (Panorama/Recuperação/Capacidade/Insights).
-Precisam virar dark-aware **antes** de reativar essas abas.
-
-**Infra já pronta:** `@custom-variant dark` configurado em `index.css`,
-atrelado a `[data-theme='graphite']`. Basta acrescentar variants `dark:` a
-cada callout — não precisa configurar nada.
-
-**Abordagem decidida — script de transformação, NÃO agentes pra editar:**
-a mudança é mecânica e regular; um script regex (sed/Python) aplica o padrão
-em lote, consistente por construção. Padrão por família de cor:
-
-- `bg-{cor}-50`            → acrescentar ` dark:bg-{cor}-500/10`
-- `border-{cor}-200|300`   → acrescentar ` dark:border-{cor}-400/30`
-- `text-{cor}-800|900`     → acrescentar ` dark:text-{cor}-200`
-- `text-{cor}-700/NN` (soft) → acrescentar ` dark:text-{cor}-300/NN`
-
-Famílias em jogo: amber, violet, indigo, emerald, rose, sky, teal, red, green,
-fuchsia. **Cuidados:** (1) opacity modifiers tipo `text-amber-700/80` — a
-classe gerada inclui o `/80`, casar o regex com isso; (2) pular classes que já
-têm `dark:`; (3) nem todo `bg-X-50` é callout — gerar **dry-run** e revisar
-antes de aplicar; (4) heatmaps com `text-slate-900` sobre células coloridas
-são caso à parte (escala de cor fixa, não temática) — não mexer.
-
-**Verificação obrigatória:** após o script, `npx tsc --noEmit` + `npm run
-build` + `npm run test:unit`; depois QA visual por aba no browser em Graphite.
-A varredura de ilhas claras precisa parsear **`oklch()`**, não só `rgba()` —
-Tailwind v4 emite cores em oklch e foi o que escondeu 3 ilhas no primeiro QA
-desta sessão.
-
-**Por que não agentes pra esta tarefa:** editar arquivo existente fere a regra
-de `~/.claude/rules/subagents.md`, e fan-out de edição mecânica multiplica
-inconsistências (um agente esquece o `border`, outro erra a família). Agentes
-Claude valem aqui **só pra explorar em paralelo (read-only)** — ex.: 4 agentes
-mapeando as 4 abas e devolvendo o patch plan, que o orquestrador aplica via
-script. O gargalo real é a conferência visual por aba (serial, no browser),
-que agente não resolve.
+_(nenhum ticket aberto)_
 
 ---
 
 ## Concluídos recentes
+
+- **2026-06-11** — **Ticket #5** (dark mode completo) fechado. Script Python
+  de transformação (`dark_transform.py`, regex por família) injetou **458
+  variants `dark:` em 48 arquivos**, consistente por construção. Padrões:
+  `bg-X-50→dark:bg-X-500/10`, `bg-X-100→/15`, `border-X-200|300→dark:border-X-400/30`,
+  `text-X-600|700→dark:text-X-300`, `text-X-800|900|950→dark:text-X-200`
+  (opacity preservada). Skip automático de classes já-dark (evita duplicata).
+  Heatmaps com escala fixa (`heatmap-cell.tsx`, cor via `style` inline) **não
+  tocados** — só células callout viraram dark. Gate verde: `tsc`/`build`/`lint`/
+  `test:unit`. CSS bundle emitiu 36 seletores `.dark:` atrelados a
+  `[data-theme=graphite]` (nenhuma classe morta). QA visual no browser
+  (Playwright + detector de ilhas parseando `oklch()`): callouts pastel agora
+  com fundo translúcido escuro + texto `-200/-300` (contraste bom), zero ilhas
+  das famílias-alvo. Os badges var-based (`var(--card)` = `#1a1f27`) já eram
+  dark; chip de aba ativa claro é design intencional.
+
+- **2026-06-10/11 (validado por Anders em 2026-06-11)** — Tickets **#1**
+  (suplementos fora do `DoseLogger`), **#3** (hero condensado) e **#4**
+  (auditoria matemática Remédio×Humor) confirmados em validação manual.
 
 - **2026-06-11** — Sessão Claude pós-opencode (5 commits). Cockpit da Farmácia
   finalizado e commitado (`a8013bc`); **bug do tema travado resolvido**

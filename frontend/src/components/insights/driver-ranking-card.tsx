@@ -11,8 +11,8 @@ interface Props {
 }
 
 const toneClass: Record<RankedDriver['tone'], string> = {
-  positive: 'border-teal-200 bg-teal-50/80 text-teal-900',
-  watch: 'border-amber-200 bg-amber-50/80 text-amber-900',
+  positive: 'border-teal-200 dark:border-teal-400/30 bg-teal-50/80 dark:bg-teal-500/10 text-teal-900 dark:text-teal-200',
+  watch: 'border-amber-200 dark:border-amber-400/30 bg-amber-50/80 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200',
   neutral: 'border-slate-200 bg-white/85 text-slate-800',
 }
 

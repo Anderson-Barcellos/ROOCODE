@@ -183,7 +183,7 @@ export function RecoveryIndexChart({
           value={latest?.score != null ? latest.score.toFixed(0) : '--'}
           band={latest?.exploratory ? 'exploratório' : 'baseline madura'}
           hint={latest ? `${Math.round(latest.confidence * 100)}% confiança` : 'sem série'}
-          valueColorClass={latest?.score != null && latest.score >= 70 ? 'text-emerald-700' : latest?.score != null && latest.score < 40 ? 'text-rose-700' : 'text-slate-900'}
+          valueColorClass={latest?.score != null && latest.score >= 70 ? 'text-emerald-700 dark:text-emerald-300' : latest?.score != null && latest.score < 40 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900'}
         />
       </div>
 

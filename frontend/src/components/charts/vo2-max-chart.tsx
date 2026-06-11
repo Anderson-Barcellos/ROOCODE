@@ -92,10 +92,10 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
 
   const verdictClass =
     verdict?.tone === 'good'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
       : verdict?.tone === 'alert'
-        ? 'border-rose-200 bg-rose-50 text-rose-900'
-        : 'border-amber-200 bg-amber-50 text-amber-900'
+        ? 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200'
+        : 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
 
   if (!data.length) {
     return (
@@ -129,7 +129,7 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
           <span className="font-semibold">Veredito:</span> {verdict.text}
         </p>
       )}
-      <p className="mt-1 text-xs text-amber-700">Estimativa a partir de FC de repouso — menos precisa que teste cardiopulmonar/ergométrico com medida direta.</p>
+      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Estimativa a partir de FC de repouso — menos precisa que teste cardiopulmonar/ergométrico com medida direta.</p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">Contexto clínico</summary>
         <p className="mt-1 text-xs leading-5 text-slate-500">

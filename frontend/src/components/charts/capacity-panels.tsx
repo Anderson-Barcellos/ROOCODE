@@ -53,9 +53,9 @@ const TOOLTIP_STYLE = {
 }
 
 const TONE_CLASS = {
-  positive: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  watch: 'border-amber-200 bg-amber-50 text-amber-900',
-  negative: 'border-rose-200 bg-rose-50 text-rose-900',
+  positive: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200',
+  watch: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200',
+  negative: 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200',
   neutral: 'border-slate-200 bg-slate-50 text-slate-800',
 } as const
 
@@ -96,7 +96,7 @@ export function FunctionalCapacityIndexCard({ snapshots, baselineSnapshots = sna
             <span className="font-semibold">Veredito:</span> {result.verdict}
           </p>
           {result.vo2Divergence != null && Math.abs(result.vo2Divergence) >= 5 && (
-            <p className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900">
+            <p className="mt-2 rounded-xl border border-sky-200 dark:border-sky-400/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-xs leading-5 text-sky-900 dark:text-sky-200">
               <span className="font-semibold">Cross-check VO2:</span> 6MWT difere {result.vo2Divergence >= 0 ? '+' : ''}
               {result.vo2Divergence.toFixed(1)} ml/kg/min do estimado. Isso é informação clínica, não erro de tela.
             </p>

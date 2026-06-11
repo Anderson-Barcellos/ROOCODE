@@ -195,7 +195,7 @@ export function PkRemSuppression() {
           Cmax estimado × REM da noite seguinte
         </h3>
         {inference && (
-          <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700">
+          <span className="inline-flex items-center rounded-full border border-teal-200 dark:border-teal-400/30 bg-teal-50 dark:bg-teal-500/10 px-2.5 py-0.5 text-xs font-semibold text-teal-700 dark:text-teal-300">
             Pearson r = {inference.r.toFixed(2)} · p_perm = {formatPValue(inference.pValuePermutation)} · n = {inference.n}
           </span>
         )}

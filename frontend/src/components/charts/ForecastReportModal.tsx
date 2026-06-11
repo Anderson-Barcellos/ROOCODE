@@ -44,8 +44,8 @@ const FORECAST_TABLE_FIELDS: Array<{ key: keyof NonNullable<DailySnapshot['healt
 ]
 
 const IMPACT_STYLES: Record<ForecastDriverImpact, string> = {
-  alto: 'bg-violet-100 text-violet-800 border-violet-200',
-  medio: 'bg-amber-100 text-amber-800 border-amber-200',
+  alto: 'bg-violet-100 dark:bg-violet-500/15 text-violet-800 dark:text-violet-200 border-violet-200 dark:border-violet-400/30',
+  medio: 'bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-400/30',
   baixo: 'bg-slate-100 text-slate-700 border-slate-200',
 }
 
@@ -56,8 +56,8 @@ const DIRECTION_GLYPHS: Record<ForecastDriverDirection, string> = {
 }
 
 const DIRECTION_COLORS: Record<ForecastDriverDirection, string> = {
-  positivo: 'text-emerald-600',
-  negativo: 'text-rose-600',
+  positivo: 'text-emerald-600 dark:text-emerald-300',
+  negativo: 'text-rose-600 dark:text-rose-300',
   neutro: 'text-slate-500',
 }
 
@@ -140,11 +140,11 @@ function HistoryList({
               onClick={() => onSelect(item.report_id)}
               className={`block w-full rounded-lg px-3 py-2 text-left transition-colors ${
                 isSelected
-                  ? 'bg-violet-100 text-violet-900'
+                  ? 'bg-violet-100 dark:bg-violet-500/15 text-violet-900 dark:text-violet-200'
                   : 'bg-white text-slate-700 hover:bg-violet-50'
               }`}
             >
-              <div className="text-[0.7rem] font-semibold uppercase tracking-wider text-violet-700">
+              <div className="text-[0.7rem] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
                 {formatGeneratedAtShort(item.generated_at)}
               </div>
               {item.preview && (
@@ -210,7 +210,7 @@ function IdleState({
 function LoadingState({ contextLabel }: { contextLabel: string }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-violet-200 dark:border-violet-400/30 border-t-violet-600 animate-spin" />
       <h3 className="font-['Fraunces'] text-xl tracking-[-0.03em] text-slate-900">
         {contextLabel}
       </h3>
@@ -225,17 +225,17 @@ function LoadingState({ contextLabel }: { contextLabel: string }) {
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-2xl text-rose-600">
+      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/15 text-2xl text-rose-600 dark:text-rose-300">
         ⚠
       </div>
       <h3 className="font-['Fraunces'] text-xl tracking-[-0.03em] text-slate-900">
         Não foi possível carregar análise
       </h3>
-      <p className="mt-2 max-w-md text-sm leading-6 text-rose-700">{message}</p>
+      <p className="mt-2 max-w-md text-sm leading-6 text-rose-700 dark:text-rose-300">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-6 inline-flex items-center gap-2 rounded-full border border-violet-300 bg-white px-5 py-2.5 text-sm font-semibold text-violet-700 transition-colors hover:bg-violet-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+        className="mt-6 inline-flex items-center gap-2 rounded-full border border-violet-300 dark:border-violet-400/30 bg-white px-5 py-2.5 text-sm font-semibold text-violet-700 dark:text-violet-300 transition-colors hover:bg-violet-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
       >
         <RefreshCw className="h-4 w-4" strokeWidth={2} />
         Tentar de novo
@@ -309,7 +309,7 @@ function ForecastTable({ snapshots }: { snapshots: DailySnapshot[] }) {
                 <td className="px-3 py-2 text-right font-mono text-xs">
                   {formatValence(snap.mood?.valence)}
                 </td>
-                <td className="px-3 py-2 text-right text-xs font-semibold text-violet-700">
+                <td className="px-3 py-2 text-right text-xs font-semibold text-violet-700 dark:text-violet-300">
                   {(conf * 100).toFixed(0)}%
                 </td>
               </tr>
@@ -366,7 +366,7 @@ function SuccessState({
             <p className="text-[0.6rem] font-semibold uppercase tracking-wider text-slate-500">
               Confiança máx.
             </p>
-            <p className="mt-1 font-['Fraunces'] text-2xl tracking-[-0.04em] text-violet-700">
+            <p className="mt-1 font-['Fraunces'] text-2xl tracking-[-0.04em] text-violet-700 dark:text-violet-300">
               {(report.max_confidence * 100).toFixed(0)}%
             </p>
           </div>
@@ -398,7 +398,7 @@ function SuccessState({
               type="button"
               onClick={onRegenerate}
               disabled={isRegenerating}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-violet-300 dark:border-violet-400/30 bg-white px-3 py-2 text-xs font-semibold text-violet-700 dark:text-violet-300 transition-colors hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw className={`h-3 w-3 ${isRegenerating ? 'animate-spin' : ''}`} strokeWidth={2} />
               Gerar nova
@@ -450,9 +450,9 @@ function SuccessState({
                 {report.signals.map((signal, idx) => (
                   <li
                     key={`${signal.field}-${idx}`}
-                    className="flex items-start gap-3 rounded-xl bg-violet-50/60 px-3 py-2.5"
+                    className="flex items-start gap-3 rounded-xl bg-violet-50/60 dark:bg-violet-500/10 px-3 py-2.5"
                   >
-                    <span className="mt-0.5 shrink-0 text-xs font-bold uppercase tracking-wider text-violet-600">
+                    <span className="mt-0.5 shrink-0 text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300">
                       {signal.field}
                     </span>
                     <span className="text-sm leading-5 text-slate-700">{signal.observation}</span>

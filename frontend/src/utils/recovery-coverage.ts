@@ -97,9 +97,9 @@ const BADGE_LABEL: Record<RecoveryCoverageBadge, string> = {
 }
 
 const BADGE_COLOR: Record<RecoveryCoverageBadge, { bg: string; text: string }> = {
-  robusto: { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  aceitavel: { bg: 'bg-sky-50', text: 'text-sky-700' },
-  preliminar: { bg: 'bg-amber-50', text: 'text-amber-700' },
+  robusto: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-300' },
+  aceitavel: { bg: 'bg-sky-50 dark:bg-sky-500/10', text: 'text-sky-700 dark:text-sky-300' },
+  preliminar: { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-300' },
   insuficiente: { bg: 'bg-slate-50', text: 'text-slate-600' },
 }
 

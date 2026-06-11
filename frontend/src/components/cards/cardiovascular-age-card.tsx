@@ -103,10 +103,10 @@ export function CardiovascularAgeCard({ snapshots }: CardiovascularAgeCardProps)
           !summary?.cardiovascularAge
             ? 'border-slate-200 bg-slate-100 text-slate-700'
             : summary.cardiovascularAge <= USER_PROFILE.age
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
               : summary.cardiovascularAge <= USER_PROFILE.age + 5
-                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                : 'border-rose-200 bg-rose-50 text-rose-700'
+                ? 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                : 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300'
         }`}>
           {!summary?.cardiovascularAge ? 'Coletando' : summary.cardiovascularAge <= USER_PROFILE.age ? 'Compatível' : summary.cardiovascularAge <= USER_PROFILE.age + 5 ? 'A vigiar' : 'Desfavorável'}
         </span>

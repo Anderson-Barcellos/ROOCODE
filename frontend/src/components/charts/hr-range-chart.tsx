@@ -104,10 +104,10 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
 
   const verdictClass =
     verdict?.mood === 'good'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
       : verdict?.mood === 'alert'
-        ? 'border-rose-200 bg-rose-50 text-rose-900'
-        : 'border-amber-200 bg-amber-50 text-amber-900'
+        ? 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200'
+        : 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
 
   const readiness = useMemo(
     () => evaluateReadiness(snapshots, CHART_REQUIREMENTS.hrRangeChart, 'FC Range'),
@@ -151,7 +151,7 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
           </span>
         )}
         {avgMin != null && avgMax != null && (
-          <span className="inline-flex items-center rounded-full border border-rose-100 bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+          <span className="inline-flex items-center rounded-full border border-rose-100 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-0.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
             range {Math.round(avgMin)}–{Math.round(avgMax)} bpm
           </span>
         )}

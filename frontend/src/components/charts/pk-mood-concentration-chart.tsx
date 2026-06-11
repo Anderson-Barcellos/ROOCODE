@@ -488,9 +488,9 @@ export function PKMoodConcentrationChart({
 
   const verdictClass =
     moodVerdict?.tone === 'good'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
       : moodVerdict?.tone === 'watch'
-        ? 'border-amber-200 bg-amber-50 text-amber-900'
+        ? 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
         : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--foreground)]'
 
   const hasMood = allRows.some((row) => row.valence != null)
@@ -635,7 +635,7 @@ export function PKMoodConcentrationChart({
           )}
           <span className="text-[color:var(--muted)]">{formatDoseWindow(activeStatus)}</span>
           {activeStatus.hoursUntilBelowMin != null && activeStatus.klass !== 'vulnerabilidade' && (
-            <span className="text-amber-700">cobre ~{activeStatus.hoursUntilBelowMin}h</span>
+            <span className="text-amber-700 dark:text-amber-300">cobre ~{activeStatus.hoursUntilBelowMin}h</span>
           )}
           {backendConcentrationSeries?.source === 'regimen_fallback' && (
             <span className="text-[color:var(--muted)]">curva: fallback do regime</span>
@@ -718,10 +718,10 @@ export function PKMoodConcentrationChart({
                             <p className="text-[color:var(--muted)]">Sem humor</p>
                           )}
                           {row.forecasted && (
-                            <p className="mt-1 border-t border-[color:var(--border)] pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{row.forecastConfidence != null ? ` · conf ${row.forecastConfidence.toFixed(2)}` : ''}</p>
+                            <p className="mt-1 border-t border-[color:var(--border)] pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">🔮 projetado{row.forecastConfidence != null ? ` · conf ${row.forecastConfidence.toFixed(2)}` : ''}</p>
                           )}
                           {row.interpolated && !row.forecasted && (
-                            <p className="mt-1 border-t border-[color:var(--border)] pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">⚠ estimado</p>
+                            <p className="mt-1 border-t border-[color:var(--border)] pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">⚠ estimado</p>
                           )}
                         </div>
                       )
@@ -865,7 +865,7 @@ export function PKMoodConcentrationChart({
                             <p className="mt-2 text-[color:var(--muted)]">Fonte: regime estimado</p>
                           )}
                           {row.forecasted && (
-                            <p className="mt-1 border-t border-[color:var(--border)] pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">🔮 projetado{row.forecastConfidence != null ? ` · conf ${row.forecastConfidence.toFixed(2)}` : ''}</p>
+                            <p className="mt-1 border-t border-[color:var(--border)] pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">🔮 projetado{row.forecastConfidence != null ? ` · conf ${row.forecastConfidence.toFixed(2)}` : ''}</p>
                           )}
                         </div>
                       )

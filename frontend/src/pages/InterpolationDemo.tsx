@@ -275,10 +275,10 @@ function MetricsCard({
               r2Val == null
                 ? { label: '—', color: 'text-slate-400' }
                 : r2Val > 0.7
-                ? { label: 'Boa', color: 'text-emerald-700' }
+                ? { label: 'Boa', color: 'text-emerald-700 dark:text-emerald-300' }
                 : r2Val > 0.4
-                ? { label: 'Aceitável', color: 'text-amber-700' }
-                : { label: 'Ruim', color: 'text-rose-700' }
+                ? { label: 'Aceitável', color: 'text-amber-700 dark:text-amber-300' }
+                : { label: 'Ruim', color: 'text-rose-700 dark:text-rose-300' }
             return (
               <tr key={String(field)} className="border-b border-slate-100 last:border-b-0">
                 <td className="py-2 font-medium text-slate-700">{label}</td>
@@ -337,12 +337,12 @@ function ClaudeMetricsCard({
 
   if (state.status === 'error') {
     return (
-      <section className="rounded-[1.5rem] border border-rose-200 bg-rose-50/60 p-5">
-        <h2 className="font-serif text-xl text-rose-900">Claude (erro)</h2>
-        <p className="mt-2 text-sm text-rose-800">{state.message}</p>
+      <section className="rounded-[1.5rem] border border-rose-200 dark:border-rose-400/30 bg-rose-50/60 dark:bg-rose-500/10 p-5">
+        <h2 className="font-serif text-xl text-rose-900 dark:text-rose-200">Claude (erro)</h2>
+        <p className="mt-2 text-sm text-rose-800 dark:text-rose-200">{state.message}</p>
         <button
           onClick={onValidate}
-          className="mt-3 rounded-full border border-rose-300 bg-white px-4 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+          className="mt-3 rounded-full border border-rose-300 dark:border-rose-400/30 bg-white px-4 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300 transition hover:bg-rose-100"
         >
           Tentar novamente
         </button>

@@ -77,7 +77,7 @@ export function computePanoramaConfidence({
       tier: 'baixa',
       label: 'Confiança baixa',
       detail: compactReason(),
-      className: 'border-rose-200 bg-rose-50 text-rose-800',
+      className: 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-800 dark:text-rose-200',
     }
   }
 
@@ -86,7 +86,7 @@ export function computePanoramaConfidence({
       tier: 'parcial',
       label: 'Confiança parcial',
       detail: compactReason(),
-      className: 'border-amber-200 bg-amber-50 text-amber-800',
+      className: 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-200',
     }
   }
 
@@ -94,6 +94,6 @@ export function computePanoramaConfidence({
     tier: 'robusta',
     label: 'Confiança robusta',
     detail: `${coverage.label} · sem interpolação`,
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    className: 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-200',
   }
 }

@@ -96,7 +96,7 @@ export function TempHumorCorrelation({ snapshots }: Props) {
           </span>
         </p>
         <p className="mt-2 text-[0.68rem] leading-5 text-slate-500">
-          <span className="font-semibold text-amber-700">Hipótese pré-registrada:</span>{' '}
+          <span className="font-semibold text-amber-700 dark:text-amber-300">Hipótese pré-registrada:</span>{' '}
           aumento de temperatura noturna precede queda de valência com lag de +1d
           (mecanismo candidato: inflamação subclínica / disautonomia / fragmentação
           circadiana).
@@ -107,8 +107,8 @@ export function TempHumorCorrelation({ snapshots }: Props) {
         </p>
         {preregistered.observedDirection !== 'missing' && (
           <div className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${preregistered.contradicted
-            ? 'border-amber-300 bg-amber-50 text-amber-900'
-            : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            ? 'border-amber-300 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
+            : 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
           }`}>
             <span className="font-semibold">Hipótese pré-registrada (+1d):</span>{' '}
             <span>{preregistered.note}</span>
@@ -118,16 +118,16 @@ export function TempHumorCorrelation({ snapshots }: Props) {
           </div>
         )}
         {futureImpact.length > 0 && (
-          <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
+          <div className="mt-2 rounded-xl border border-sky-200 dark:border-sky-400/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-xs leading-5 text-sky-950 dark:text-sky-200">
             <span className="font-semibold">Impacto para frente (+1d…+3d):</span>
             <div className="mt-1 space-y-1">
               {futureImpact.map((item) => (
                 <div key={item.lagDays} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className={item.r >= 0 ? 'text-teal-700' : 'text-red-600'}>
+                  <span className={item.r >= 0 ? 'text-teal-700 dark:text-teal-300' : 'text-red-600 dark:text-red-300'}>
                     {item.r >= 0 ? 'tendência de melhora' : 'tendência de piora'} em +{item.lagDays}d
                   </span>
                   <span className="text-slate-600">(r={item.r.toFixed(2)}, n={item.n})</span>
-                  <span className={item.qFdr != null && item.qFdr < 0.05 ? 'text-amber-700' : 'text-slate-500'}>
+                  <span className={item.qFdr != null && item.qFdr < 0.05 ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500'}>
                     {item.qFdr != null && item.qFdr < 0.05 ? 'q<0.05' : 'exploratório'}
                   </span>
                 </div>
@@ -154,7 +154,7 @@ export function TempHumorCorrelation({ snapshots }: Props) {
             <div
               key={lag}
               className={`text-center text-[0.65rem] font-semibold uppercase tracking-wider ${
-                lag < 0 ? 'text-slate-400' : lag === 0 ? 'text-teal-700' : 'text-slate-700'
+                lag < 0 ? 'text-slate-400' : lag === 0 ? 'text-teal-700 dark:text-teal-300' : 'text-slate-700'
               }`}
             >
               {lag === 0 ? 'lag 0' : lag > 0 ? `+${lag}d` : `${lag}d`}
@@ -197,13 +197,13 @@ export function TempHumorCorrelation({ snapshots }: Props) {
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
           <li>
-            <span className="font-semibold text-teal-700">Verde/↑</span> = Δtemp ↑ associado a humor melhor ·{' '}
+            <span className="font-semibold text-teal-700 dark:text-teal-300">Verde/↑</span> = Δtemp ↑ associado a humor melhor ·{' '}
             <span className="font-semibold text-red-500">Vermelho/↓</span> = Δtemp ↑ associado a humor pior
           </li>
           <li>
-            <span className="font-semibold text-amber-600">★</span> = q &lt; 0.05 (FDR sobre 7 lags) ·{' '}
-            <span className="font-semibold text-amber-600">borda âmbar</span> = lag de pico ·{' '}
-            <span className="font-semibold text-amber-700">tag &ldquo;pré&rdquo;</span> = hipótese pré-registrada
+            <span className="font-semibold text-amber-600 dark:text-amber-300">★</span> = q &lt; 0.05 (FDR sobre 7 lags) ·{' '}
+            <span className="font-semibold text-amber-600 dark:text-amber-300">borda âmbar</span> = lag de pico ·{' '}
+            <span className="font-semibold text-amber-700 dark:text-amber-300">tag &ldquo;pré&rdquo;</span> = hipótese pré-registrada
           </li>
           <li>
             <span className="font-semibold text-slate-400">Lags negativos (esmaecidos)</span> = controles de causalidade. Pico aqui ou sinal forte em ambos os lados (positivo e negativo) sugere <span className="italic">confundidor comum</span>, não relação causal direcional.
@@ -283,19 +283,19 @@ function HeatmapCell({
   const content = (
     <>
       {isPreregistered && (
-        <span className="absolute left-0.5 top-0.5 rounded bg-amber-100 px-1 text-[0.55rem] font-semibold text-amber-700">
+        <span className="absolute left-0.5 top-0.5 rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[0.55rem] font-semibold text-amber-700 dark:text-amber-300">
           pré
         </span>
       )}
       {estimate.r > 0.05 && (
-        <span className="absolute right-0.5 bottom-0.5 text-[0.55rem] text-teal-700">↑</span>
+        <span className="absolute right-0.5 bottom-0.5 text-[0.55rem] text-teal-700 dark:text-teal-300">↑</span>
       )}
       {estimate.r < -0.05 && (
         <span className="absolute right-0.5 bottom-0.5 text-[0.55rem] text-red-500">↓</span>
       )}
       <span className="text-slate-900 mix-blend-luminosity">{formatR(estimate.r)}</span>
       {significant && (
-        <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>
+        <span className="absolute right-0.5 top-0.5 text-amber-600 dark:text-amber-300">★</span>
       )}
     </>
   )

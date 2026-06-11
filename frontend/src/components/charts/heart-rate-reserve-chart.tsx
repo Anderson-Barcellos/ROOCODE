@@ -123,7 +123,7 @@ function HrrTooltip({ active, payload }: HrrTooltipProps) {
     <div className="rounded-2xl bg-white px-3 py-2 text-xs shadow-[0_18px_42px_rgba(17,35,30,0.12)]" style={TOOLTIP_STYLE}>
       <div className="mb-1 font-semibold text-slate-700">{row.label}</div>
       {row.derivedFromInterpolated && (
-        <div className="mb-1 text-[0.62rem] font-medium text-amber-600">
+        <div className="mb-1 text-[0.62rem] font-medium text-amber-600 dark:text-amber-300">
           ⚠ estimado a partir de dia interp
         </div>
       )}
@@ -350,10 +350,10 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
   const verdict = latest ? buildHrrVerdict(latest) : null
   const verdictClass =
     verdict?.mood === 'good'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
       : verdict?.mood === 'alert'
-        ? 'border-rose-200 bg-rose-50 text-rose-900'
-        : 'border-amber-200 bg-amber-50 text-amber-900'
+        ? 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200'
+        : 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">

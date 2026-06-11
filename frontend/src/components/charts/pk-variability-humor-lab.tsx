@@ -168,7 +168,7 @@ function SwingTirCrossTabCard({ crossTab }: { crossTab: SwingTirCrossTab | null 
                   <div
                     key={`cell-${swingBin}-${tirBin}`}
                     className={`rounded-md border px-2 py-2 text-center text-xs ${
-                      cell?.lowPower ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50/70'
+                      cell?.lowPower ? 'border-amber-300 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10' : 'border-slate-200 bg-slate-50/70'
                     }`}
                   >
                     <div className="font-mono text-slate-800">{cell?.moodMedian == null ? '—' : cell.moodMedian.toFixed(2)}</div>
@@ -321,7 +321,7 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
   if (subs.length === 0) {
     return (
       <section className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
-        <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700">
+        <span className="inline-flex rounded-full border border-violet-200 dark:border-violet-400/30 bg-violet-50 dark:bg-violet-500/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
           PK Variability Lab
         </span>
         <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">Concentrações irregulares afetam humor?</h3>
@@ -353,7 +353,7 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
     <section className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700">
+          <span className="inline-flex rounded-full border border-violet-200 dark:border-violet-400/30 bg-violet-50 dark:bg-violet-500/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
             PK Variability Lab
           </span>
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">Variabilidade da concentração × humor</h3>
@@ -387,13 +387,13 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
       </div>
 
       {inversionCount > 0 && (
-        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+        <div className="mt-3 rounded-xl border border-amber-300 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">
           <span className="font-semibold">⚠ Inversão de sinal entre janelas detectada:</span> {inversionCount} célula(s) mudaram direção entre 30/60/90d. Tratado como sinal frágil.
         </div>
       )}
 
       {censorship && (
-        <div className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${censorship.censoredForPlateau ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+        <div className={`mt-3 rounded-xl border px-3 py-2 text-xs leading-5 ${censorship.censoredForPlateau ? 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200' : 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'}`}>
           <span className="font-semibold">Censura amostral:</span>{' '}
           plateau_baixo={censorship.lowPlateauDays} · vale_breve={censorship.briefValleyDays}.{' '}
           {censorship.censoredForPlateau
@@ -403,7 +403,7 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
       )}
 
       {coherenceWarnings.length > 0 && (
-        <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+        <div className="mt-3 rounded-xl border border-amber-300 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900 dark:text-amber-200">
           <span className="font-semibold">⚠ Coerência front↔back:</span>{' '}
           {coherenceWarnings.map((warning, index) => (
             <span key={warning}>
@@ -453,7 +453,7 @@ export function PKVariabilityHumorLab({ snapshots, weightKg = DEFAULT_PK_BODY_WE
                               }) : undefined}
                             />
                             {row && row.n > 0 && row.n < PK_VARIABILITY_LOW_POWER_CELL_N && (
-                              <span className="absolute bottom-0.5 right-0.5 rounded bg-amber-100 px-1 text-[0.55rem] font-semibold text-amber-700">n&lt;5</span>
+                              <span className="absolute bottom-0.5 right-0.5 rounded bg-amber-100 dark:bg-amber-500/15 px-1 text-[0.55rem] font-semibold text-amber-700 dark:text-amber-300">n&lt;5</span>
                             )}
                           </div>
                         )

@@ -161,12 +161,12 @@ function RecoveryTooltip({ active, payload }: TooltipProps) {
     >
       <div className="mb-1 font-semibold text-slate-700">{row.label}</div>
       {row.derivedFromInterpolated && (
-        <div className="mb-1 text-[0.62rem] font-medium text-amber-600">
+        <div className="mb-1 text-[0.62rem] font-medium text-amber-600 dark:text-amber-300">
           ⚠ estimado a partir de dia interp
         </div>
       )}
       {!row.derivedFromInterpolated && isPartial && (
-        <div className="mb-1 text-[0.62rem] font-medium text-indigo-600">
+        <div className="mb-1 text-[0.62rem] font-medium text-indigo-600 dark:text-indigo-300">
           ◔ parcial · {row.inputsUsed.length}/5 inputs · {missingCount} ausente{missingCount > 1 ? 's' : ''}
         </div>
       )}

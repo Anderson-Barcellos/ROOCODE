@@ -212,9 +212,9 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
 
   const verdictClass =
     summaryVerdict.tone === 'good'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
       : summaryVerdict.tone === 'watch'
-        ? 'border-amber-200 bg-amber-50 text-amber-900'
+        ? 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
         : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--foreground)]'
 
   const futureImpact = useMemo<FutureImpactRow[]>(() => {
@@ -279,7 +279,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
             onClick={() => setShowRaw((prev) => !prev)}
             className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
               showRaw
-                ? 'border-violet-300 bg-violet-50 text-violet-700'
+                ? 'border-violet-300 dark:border-violet-400/30 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300'
                 : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
             }`}
           >
@@ -294,17 +294,17 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
           <span className="font-semibold">Veredito:</span> {summaryVerdict.text}
         </p>
         {futureImpact.length > 0 && (
-          <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
+          <div className="mt-2 rounded-xl border border-sky-200 dark:border-sky-400/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-xs leading-5 text-sky-950 dark:text-sky-200">
             <span className="font-semibold">Impacto para frente (+1d…+3d):</span>
             <div className="mt-1 space-y-1">
               {futureImpact.map((item) => (
                 <div key={item.subId} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="font-semibold">{item.subName}:</span>
-                  <span className={item.r >= 0 ? 'text-teal-700' : 'text-red-600'}>
+                  <span className={item.r >= 0 ? 'text-teal-700 dark:text-teal-300' : 'text-red-600 dark:text-red-300'}>
                     {item.r >= 0 ? 'tendência de melhora' : 'tendência de piora'} em +{item.lagDays}d
                   </span>
                   <span className="text-[color:var(--muted)]">(r={item.r.toFixed(2)}, n={item.n})</span>
-                  <span className={item.significant ? 'text-amber-700' : 'text-[color:var(--muted)]'}>
+                  <span className={item.significant ? 'text-amber-700 dark:text-amber-300' : 'text-[color:var(--muted)]'}>
                     {item.significant ? 'q<0.05' : 'exploratório'}
                   </span>
                 </div>
@@ -358,7 +358,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
               <div
                 key={lag}
                 className={`text-center text-[0.65rem] font-semibold uppercase tracking-wider ${
-                  lag < 0 ? 'text-[color:var(--muted)]' : lag === 0 ? 'text-teal-700' : 'text-[color:var(--foreground)]'
+                  lag < 0 ? 'text-[color:var(--muted)]' : lag === 0 ? 'text-teal-700 dark:text-teal-300' : 'text-[color:var(--foreground)]'
                 }`}
               >
               {lag === 0 ? 'lag 0' : lag > 0 ? `+${lag}d` : `${lag}d`}
@@ -422,13 +422,13 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-[color:var(--muted)]">
           <li>
-            <span className="font-semibold text-teal-700">Verde/↑</span> = mais concentração → humor melhor ·{' '}
+            <span className="font-semibold text-teal-700 dark:text-teal-300">Verde/↑</span> = mais concentração → humor melhor ·{' '}
             <span className="font-semibold text-red-500">Vermelho/↓</span> = mais concentração → humor pior ·{' '}
             <span className="font-semibold text-[color:var(--muted)]">cinza</span> = sem significância após FDR
           </li>
           <li>
-            <span className="font-semibold text-amber-600">★</span> = resultado com q &lt; 0.05 (controle de falsos positivos entre todas as substâncias × lags) ·{' '}
-            <span className="font-semibold text-amber-600">borda âmbar</span> = lag de pico da substância
+            <span className="font-semibold text-amber-600 dark:text-amber-300">★</span> = resultado com q &lt; 0.05 (controle de falsos positivos entre todas as substâncias × lags) ·{' '}
+            <span className="font-semibold text-amber-600 dark:text-amber-300">borda âmbar</span> = lag de pico da substância
           </li>
           <li>
             <span className="font-semibold text-[color:var(--muted)]">Lags negativos (esmaecidos)</span> = controles de causalidade — pico neles indica correlação espúria (concentração futura não causa humor passado)

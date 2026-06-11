@@ -113,7 +113,7 @@ export function RespiratoryDisturbancesChart({
         Proxy de eventos respiratórios noturnos (wearable) · não é IAH de polissonografia ·
         faixas operacionais (&lt;5, 5-15, 15-30, &gt;30) usadas só para tendência · SMA 7d em linha sólida
       </p>
-      <p className="mt-1 text-xs text-amber-700">
+      <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
         Este painel não fecha diagnóstico de apneia e não substitui PSG/laudo médico.
       </p>
       <details className="mt-2">

@@ -146,13 +146,13 @@ function TimelineTooltip({ active, payload, label, labels }: any) {
         </div>
       ))}
       {isForecast && (
-        <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700">
+        <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
           <span>🔮</span>
           <span>projetado</span>
         </div>
       )}
       {isInterp && !isForecast && (
-        <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700">
+        <div className="mt-1 flex items-center gap-1 border-t border-slate-100 pt-1 text-[0.68rem] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
           <span>⚠</span>
           <span>estimado</span>
         </div>

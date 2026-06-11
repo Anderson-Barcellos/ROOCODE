@@ -81,13 +81,13 @@ export function HeatmapCell({
   const content = (
     <>
       {estimate.r > 0.05 && (
-        <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-teal-700">↑</span>
+        <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-teal-700 dark:text-teal-300">↑</span>
       )}
       {estimate.r < -0.05 && (
         <span className="absolute left-0.5 top-0.5 text-[0.55rem] text-red-500">↓</span>
       )}
       <span className="text-slate-900 mix-blend-luminosity">{formatR(estimate.r)}</span>
-      {significant && <span className="absolute right-0.5 top-0.5 text-amber-600">★</span>}
+      {significant && <span className="absolute right-0.5 top-0.5 text-amber-600 dark:text-amber-300">★</span>}
     </>
   )
 

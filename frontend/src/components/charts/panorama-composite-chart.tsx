@@ -156,7 +156,7 @@ function CompositeTooltip({ active, payload, showMood }: CompositeTooltipProps) 
           </p>
         )}
         {showMood && row.valence != null && (
-          <p className="text-xs text-emerald-700">
+          <p className="text-xs text-emerald-700 dark:text-emerald-300">
             Humor: {row.valence > 0 ? '+' : ''}{row.valence.toFixed(2)}
           </p>
         )}
@@ -255,7 +255,7 @@ export function PanoramaCompositeChart({
         <button
           type="button"
           onClick={() => setShowMood((prev) => !prev)}
-          className={`rounded-full border px-2.5 py-1 font-semibold ${showMood ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600'}`}
+          className={`rounded-full border px-2.5 py-1 font-semibold ${showMood ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-600'}`}
         >
           {showMood ? 'Ocultar humor' : 'Sobrepor humor'}
         </button>

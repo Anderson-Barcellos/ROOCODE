@@ -60,13 +60,13 @@ function AccuracyTile({ field, acc }: AccuracyTileProps) {
         MAE {formatNumber(acc.mae)} · RMSE {formatNumber(acc.rmse)} · n={acc.n}
       </p>
       {excluded > 0 && (
-        <p className={`mt-1 text-[0.65rem] ${excludedRatio >= 0.3 ? 'text-amber-700 font-semibold' : 'text-slate-400'}`}>
+        <p className={`mt-1 text-[0.65rem] ${excludedRatio >= 0.3 ? 'text-amber-700 dark:text-amber-300 font-semibold' : 'text-slate-400'}`}>
           {excluded}/{acc.n} par(es) excluído(s) do MAPE (actual ≈ 0)
           {excludedRatio >= 0.3 ? ' — MAPE pouco confiável' : ''}
         </p>
       )}
       {nonPredictive && (
-        <p className="mt-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[0.65rem] font-semibold text-amber-900">
+        <p className="mt-1 rounded-md border border-amber-300 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 text-[0.65rem] font-semibold text-amber-900 dark:text-amber-200">
           ⚠ Modelo não preditivo neste período (MAPE &gt; 100%).
         </p>
       )}
@@ -120,15 +120,15 @@ export function ForecastAccuracyCard({ snapshots }: ForecastAccuracyCardProps) {
       )}
 
       {error && (
-        <p className="mt-4 text-sm text-rose-600">
+        <p className="mt-4 text-sm text-rose-600 dark:text-rose-300">
           Falha ao carregar accuracy: {error instanceof Error ? error.message : 'erro desconhecido'}
         </p>
       )}
 
       {data && data.warning && (
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+        <div className="mt-4 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-2.5 text-sm text-amber-800 dark:text-amber-200">
           <span className="font-semibold">⚠ Coleta inicial.</span>{' '}
-          <span className="text-amber-700/90">
+          <span className="text-amber-700/90 dark:text-amber-300/90">
             Histórico de previsões começa hoje — MAPE estará confiável após ~14 dias de coleta. {data.history_size}{' '}
             entries registradas até agora.
           </span>

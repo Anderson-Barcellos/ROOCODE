@@ -24,7 +24,7 @@ export function InsightsCockpit({ snapshots }: Props) {
   return (
     <section className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <header className="flex flex-col gap-3">
-        <span className="inline-flex w-fit rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-teal-700">
+        <span className="inline-flex w-fit rounded-full border border-teal-200 dark:border-teal-400/30 bg-teal-50 dark:bg-teal-500/10 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
           Quem mexeu no humor essa janela
         </span>
         <p className="font-['Fraunces'] text-xl tracking-[-0.03em] text-slate-900">{headline}</p>
@@ -45,7 +45,7 @@ export function InsightsCockpit({ snapshots }: Props) {
           ))}
         </div>
       ) : (
-        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="mt-5 rounded-xl border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
           Nenhum driver atingiu n≥10 nesta janela. Aumenta a janela ou aguarda mais logs de humor pra ativar o ranking.
         </div>
       )}

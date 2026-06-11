@@ -196,7 +196,7 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
         Lag 0 = mesmo dia, Lag +1 = métrica hoje / humor amanhã.
       </p>
       {(interpolatedCount > 0 || forecastedCount > 0) && (
-        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
           <span>⚠</span>
           <span>
             excluiu {interpolatedCount} {interpolatedCount === 1 ? 'dia interpolado' : 'dias interpolados'} e {forecastedCount}{' '}
@@ -216,7 +216,7 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
               </p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <div className="rounded-lg bg-white/80 px-3 py-2">
-                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-teal-700">
+                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-teal-700 dark:text-teal-300">
                     Maior associação positiva
                   </span>
                   <span className="mt-1 block font-medium text-slate-800">
@@ -226,7 +226,7 @@ export function CorrelationHeatmap({ snapshots, extraMetrics = {} }: Correlation
                   </span>
                 </div>
                 <div className="rounded-lg bg-white/80 px-3 py-2">
-                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-red-600">
+                  <span className="block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-red-600 dark:text-red-300">
                     Maior associação negativa
                   </span>
                   <span className="mt-1 block font-medium text-slate-800">

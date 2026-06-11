@@ -247,18 +247,18 @@ export function PKVariabilityHeatmap({ snapshots, weightKg = DEFAULT_PK_BODY_WEI
 
         <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
           <li>
-            <span className="font-semibold text-teal-700">Verde/↑</span> = mais variabilidade → humor melhor ·{' '}
+            <span className="font-semibold text-teal-700 dark:text-teal-300">Verde/↑</span> = mais variabilidade → humor melhor ·{' '}
             <span className="font-semibold text-red-500">Vermelho/↓</span> = mais variabilidade → humor pior
           </li>
           <li>
-            <span className="font-semibold text-amber-600">★</span> = q FDR &lt; 0.05 cross 9 testes ·{' '}
-            <span className="font-semibold text-amber-600">borda âmbar</span> = métrica de maior |r| da substância
+            <span className="font-semibold text-amber-600 dark:text-amber-300">★</span> = q FDR &lt; 0.05 cross 9 testes ·{' '}
+            <span className="font-semibold text-amber-600 dark:text-amber-300">borda âmbar</span> = métrica de maior |r| da substância
           </li>
           <li>
             <span className="font-semibold">Cuidado interpretativo:</span> compare apenas DENTRO da mesma substância. LHL drugs (Lexapro/Lamictal) têm swing baixo natural; Venvanse (t½=11h) tem swing alto fisiológico — não são equivalentes em absoluto.
           </li>
           {isFetching && (
-            <li className="text-violet-600">Carregando séries de concentração…</li>
+            <li className="text-violet-600 dark:text-violet-300">Carregando séries de concentração…</li>
           )}
         </ul>
       </div>

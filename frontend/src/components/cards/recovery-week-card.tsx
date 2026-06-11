@@ -64,14 +64,14 @@ export function RecoveryWeekCard({ snapshots }: RecoveryWeekCardProps) {
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Melhor noite</p>
-              <p className="mt-2 font-['Fraunces'] text-4xl tracking-[-0.06em] text-emerald-700">
+              <p className="mt-2 font-['Fraunces'] text-4xl tracking-[-0.06em] text-emerald-700 dark:text-emerald-300">
                 {summary.best?.score != null ? summary.best.score.toFixed(0) : '--'}
               </p>
               <p className="text-xs text-slate-500">{summary.best?.date ?? '—'}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Pior noite</p>
-              <p className="mt-2 font-['Fraunces'] text-4xl tracking-[-0.06em] text-rose-700">
+              <p className="mt-2 font-['Fraunces'] text-4xl tracking-[-0.06em] text-rose-700 dark:text-rose-300">
                 {summary.worst?.score != null ? summary.worst.score.toFixed(0) : '--'}
               </p>
               <p className="text-xs text-slate-500">{summary.worst?.date ?? '—'}</p>

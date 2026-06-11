@@ -69,8 +69,8 @@ const COMPONENT_LABEL_PT: Record<RecoveryComponentKey, string> = {
 }
 
 const CHIP_COLORS = [
-  { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', dot: 'bg-rose-500' },
-  { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' },
+  { bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'border-rose-200 dark:border-rose-400/30', text: 'text-rose-700 dark:text-rose-300', dot: 'bg-rose-500' },
+  { bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-400/30', text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
 ]
 
 interface LatestState {
@@ -206,7 +206,7 @@ export function LimitingFactorCard({ snapshots, variant = 'full' }: LimitingFact
             {headline}
           </h3>
           {interpBadge && (
-            <p className="mt-1 text-[0.7rem] font-medium text-amber-600">
+            <p className="mt-1 text-[0.7rem] font-medium text-amber-600 dark:text-amber-300">
               ⚠ baseado em dia com interpolação — confiança reduzida
             </p>
           )}

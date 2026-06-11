@@ -218,7 +218,7 @@ export function LagCorrelationChart() {
           Correlação PK×humor por lag horário
         </h3>
         {bestLag != null && (
-          <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+          <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
             pico em {bestLag > 0 ? `+${bestLag}h` : `${bestLag}h`}
           </span>
         )}
@@ -235,24 +235,24 @@ export function LagCorrelationChart() {
         Pontos dourados: {`q_fdr < ${FDR_SIGNIFICANCE_THRESHOLD.toFixed(2)}`} · lags significativos: {significantLagCount}
       </p>
       <p className="mt-1 text-xs text-slate-500">
-        Cor do ponto: <span className="font-semibold text-teal-700">verde</span> = associação positiva, <span className="font-semibold text-red-700">vermelho</span> = negativa (intensidade proporcional a |r|).
+        Cor do ponto: <span className="font-semibold text-teal-700 dark:text-teal-300">verde</span> = associação positiva, <span className="font-semibold text-red-700 dark:text-red-300">vermelho</span> = negativa (intensidade proporcional a |r|).
         Associação positiva significa valência subindo; isso inclui melhora de negativa para menos negativa.
       </p>
       {futureImprovements.length > 0 && (
-        <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-950">
+        <div className="mt-2 rounded-xl border border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-2 text-xs leading-5 text-emerald-950 dark:text-emerald-200">
           <span className="font-semibold">Melhoras de valência detectadas:</span>{' '}
-          <span className="text-emerald-800/90">
+          <span className="text-emerald-800/90 dark:text-emerald-200/90">
             aqui melhora quer dizer valência mais alta, inclusive quando ela segue negativa mas fica menos negativa.
           </span>
           <div className="mt-1 space-y-1">
             {futureImprovements.map((item) => (
               <div key={item.lag} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span className="text-emerald-700">melhora em +{item.lag}h</span>
+                <span className="text-emerald-700 dark:text-emerald-300">melhora em +{item.lag}h</span>
                 <span className="text-slate-600">(r={item.r?.toFixed(2) ?? '—'}, n={item.n})</span>
                 <span
                   className={
                     typeof item.qValueFdr === 'number' && item.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
-                      ? 'text-amber-700'
+                      ? 'text-amber-700 dark:text-amber-300'
                       : 'text-slate-500'
                   }
                 >
@@ -266,19 +266,19 @@ export function LagCorrelationChart() {
         </div>
       )}
       {futureImpact.length > 0 && (
-        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-950">
+        <div className="mt-2 rounded-xl border border-sky-200 dark:border-sky-400/30 bg-sky-50 dark:bg-sky-500/10 px-3 py-2 text-xs leading-5 text-sky-950 dark:text-sky-200">
           <span className="font-semibold">Impacto para frente (+1h…+12h):</span>
           <div className="mt-1 space-y-1">
             {futureImpact.map((item) => (
               <div key={item.lag} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span className={item.r != null && item.r >= 0 ? 'text-teal-700' : 'text-red-600'}>
+                <span className={item.r != null && item.r >= 0 ? 'text-teal-700 dark:text-teal-300' : 'text-red-600 dark:text-red-300'}>
                   {item.r != null && item.r >= 0 ? 'tendência de melhora' : 'tendência de piora'} em +{item.lag}h
                 </span>
                 <span className="text-slate-600">(r={item.r?.toFixed(2) ?? '—'}, n={item.n})</span>
                 <span
                   className={
                     typeof item.qValueFdr === 'number' && item.qValueFdr < FDR_SIGNIFICANCE_THRESHOLD
-                      ? 'text-amber-700'
+                      ? 'text-amber-700 dark:text-amber-300'
                       : 'text-slate-500'
                   }
                 >

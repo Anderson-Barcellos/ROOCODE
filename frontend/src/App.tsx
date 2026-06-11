@@ -794,13 +794,13 @@ export default function App() {
                     <span className="font-semibold">Modo foco:</span> as abas Panorama, Recuperação, Capacidade e Insights estão bloqueadas temporariamente enquanto refinamos esta seção.
                   </p>
                 )}
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-700">
-                  <span className="font-semibold">Nota importante:</span> as concentrações exibidas são estimativas de um modelo farmacocinético baseado no regime registrado, não medições laboratoriais.
+                <p className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-4 py-3 text-xs leading-5 text-[color:var(--muted)]">
+                  <span className="font-semibold text-[color:var(--foreground)]">Nota importante:</span> as concentrações exibidas são estimativas de um modelo farmacocinético baseado no regime registrado, não medições laboratoriais.
                 </p>
                 <PKMoodConcentrationChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
 
                 <details className="group">
-                  <summary className="cursor-pointer rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300">
+                  <summary className="cursor-pointer rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-4 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:bg-[color:var(--card)]">
                     Remédio × Humor — análise estatística (7 lags, correção FDR)
                   </summary>
                   <div className="mt-3">
@@ -809,10 +809,10 @@ export default function App() {
                 </details>
 
                 <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.25fr)]">
-                  <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+                  <div className="min-w-0 rounded-[1.25rem] border border-[color:var(--border)] bg-[color:var(--card)] p-4 shadow-[var(--shadow)] backdrop-blur">
                     <DoseLogger />
                   </div>
-                  <div className="min-w-0 rounded-[1.25rem] border border-slate-900/10 bg-white/85 p-4 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur" style={{ minHeight: 420 }}>
+                  <div className="min-w-0 rounded-[1.25rem] border border-[color:var(--border)] bg-[color:var(--card)] p-4 shadow-[var(--shadow)] backdrop-blur" style={{ minHeight: 420 }}>
                     <DoseCalendarView />
                   </div>
                 </div>

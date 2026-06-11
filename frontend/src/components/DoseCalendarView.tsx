@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   format,
   parseISO,
@@ -83,6 +83,19 @@ export default function DoseCalendarView() {
   })
   const [addDoseFromRegimen, setAddDoseFromRegimen] = useState(false)
   const [addTimeFromRegimen, setAddTimeFromRegimen] = useState(false)
+  const [isNarrowLayout, setIsNarrowLayout] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(max-width: 980px)').matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 980px)')
+    const sync = () => setIsNarrowLayout(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
 
   const { data: doses = [], isLoading } = useDoses(HOURS_WINDOW)
   const { data: substances = [] } = useSubstances()
@@ -355,8 +368,10 @@ export default function DoseCalendarView() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.45fr) minmax(220px, 0.55fr)',
-          gap: 18,
+          gridTemplateColumns: isNarrowLayout
+            ? 'minmax(0, 1fr)'
+            : 'minmax(0, 1.45fr) minmax(220px, 0.55fr)',
+          gap: isNarrowLayout ? 14 : 18,
           flex: 1,
           minHeight: 0,
         }}
@@ -538,8 +553,10 @@ export default function DoseCalendarView() {
         <div
           style={{
             minWidth: 0,
-            borderLeft: '1px dashed var(--border)',
-            paddingLeft: 16,
+            borderLeft: isNarrowLayout ? 'none' : '1px dashed var(--border)',
+            borderTop: isNarrowLayout ? '1px dashed var(--border)' : 'none',
+            paddingLeft: isNarrowLayout ? 0 : 16,
+            paddingTop: isNarrowLayout ? 12 : 0,
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0,

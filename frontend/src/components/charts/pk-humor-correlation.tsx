@@ -81,6 +81,11 @@ interface SelectedHeatmapCell {
   detail: string
 }
 
+const SURFACE_CLASS =
+  'rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)] backdrop-blur'
+const KICKER_CLASS =
+  'inline-flex rounded-full border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]'
+
 function describeEstimate(estimate: HeatmapCellEstimate): string {
   return `r ${formatR(estimate.r)} · IC95% ${formatCi(estimate.ciLower, estimate.ciUpper)} · p ${formatP(estimate.p)} · q ${formatP(estimate.qFdr)} · n ${estimate.n}`
 }
@@ -210,7 +215,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
       ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
       : summaryVerdict.tone === 'watch'
         ? 'border-amber-200 bg-amber-50 text-amber-900'
-        : 'border-slate-200 bg-slate-50 text-slate-800'
+        : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--foreground)]'
 
   const futureImpact = useMemo<FutureImpactRow[]>(() => {
     return rows
@@ -237,14 +242,14 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
-        <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+      <div className={SURFACE_CLASS}>
+        <span className={KICKER_CLASS}>
           Remédio × Humor
         </span>
-        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
+        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-[color:var(--foreground)]">
           Esta medicação muda meu humor? (teste em 7 lags)
         </h3>
-        <p className="mt-4 text-sm text-slate-500">
+        <p className="mt-4 text-sm text-[color:var(--muted)]">
           Sem substâncias com ≥3 doses + ≥{MIN_TOTAL_SAMPLES} dias de snapshots no período. Aumente a janela de visualização ou logue mais doses.
         </p>
       </div>
@@ -252,20 +257,20 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
   }
 
   return (
-    <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+    <div className={SURFACE_CLASS}>
       <div>
-        <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+        <span className={KICKER_CLASS}>
           Remédio × Humor
         </span>
-        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
+        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-[color:var(--foreground)]">
           Esta medicação muda meu humor? (teste em 7 lags)
         </h3>
-        <p className="mt-1 text-xs text-slate-500 leading-5">
+        <p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
           {showRaw
             ? 'Modo bruto ativo: verde/vermelho em gradiente (intensidade = |r|, sinal = direção), mesmo sem significância estatística.'
             : 'Modo conservador: só achados com q < 0.05 ficam coloridos. Não significativos aparecem em cinza para reduzir falso padrão visual.'}
         </p>
-        <p className="mt-2 text-[0.72rem] leading-5 text-slate-500">
+        <p className="mt-2 text-[0.72rem] leading-5 text-[color:var(--muted)]">
           Exposição suavizada por janela pré-fixada por substância: Lexapro/Lamictal usam 48h; Rivotril usa 72h. Evitamos 2 meias-vidas universal para não defasar sinais clínicos.
         </p>
         <div className="mt-2">
@@ -275,13 +280,13 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
             className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
               showRaw
                 ? 'border-violet-300 bg-violet-50 text-violet-700'
-                : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                : 'border-[color:var(--border)] bg-[color:var(--card-strong)] text-[color:var(--muted)] hover:bg-[color:var(--card)]'
             }`}
           >
             {showRaw ? 'Filtrar só significativos' : 'Mostrar gradiente completo'}
           </button>
         </div>
-        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+        <p className="mt-2 inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] bg-[color:var(--card-strong)] px-2.5 py-0.5 text-xs font-semibold text-[color:var(--muted)]">
           <span>Sinais significativos (q &lt; 0.05):</span>
           <span>{significantCount}</span>
         </p>
@@ -298,8 +303,8 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
                   <span className={item.r >= 0 ? 'text-teal-700' : 'text-red-600'}>
                     {item.r >= 0 ? 'tendência de melhora' : 'tendência de piora'} em +{item.lagDays}d
                   </span>
-                  <span className="text-slate-600">(r={item.r.toFixed(2)}, n={item.n})</span>
-                  <span className={item.significant ? 'text-amber-700' : 'text-slate-500'}>
+                  <span className="text-[color:var(--muted)]">(r={item.r.toFixed(2)}, n={item.n})</span>
+                  <span className={item.significant ? 'text-amber-700' : 'text-[color:var(--muted)]'}>
                     {item.significant ? 'q<0.05' : 'exploratório'}
                   </span>
                 </div>
@@ -326,7 +331,7 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
               return (
                 <div
                   key={row.subId}
-                  className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-700"
+                  className="flex items-center gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-1.5 text-xs text-[color:var(--foreground)]"
                 >
                   <span
                     className="inline-block h-2 w-2 shrink-0 rounded-full"
@@ -350,25 +355,25 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
         >
           <div />
           {LAG_DAYS_SWEEP.map((lag) => (
-            <div
-              key={lag}
-              className={`text-center text-[0.65rem] font-semibold uppercase tracking-wider ${
-                lag < 0 ? 'text-slate-400' : lag === 0 ? 'text-teal-700' : 'text-slate-700'
-              }`}
-            >
+              <div
+                key={lag}
+                className={`text-center text-[0.65rem] font-semibold uppercase tracking-wider ${
+                  lag < 0 ? 'text-[color:var(--muted)]' : lag === 0 ? 'text-teal-700' : 'text-[color:var(--foreground)]'
+                }`}
+              >
               {lag === 0 ? 'lag 0' : lag > 0 ? `+${lag}d` : `${lag}d`}
             </div>
           ))}
 
           {rows.map((row) => (
             <Fragment key={row.subId}>
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--foreground)]">
                 <span
                   className="inline-block h-2 w-2 rounded-full"
                   style={{ background: SUBSTANCE_COLORS[row.subId] ?? '#8b5cf6' }}
                 />
                 <span>{row.subName}</span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[0.62rem] font-medium uppercase tracking-wide text-slate-500">
+                <span className="rounded-full border border-[color:var(--border)] bg-[color:var(--card-strong)] px-1.5 py-0.5 text-[0.62rem] font-medium uppercase tracking-wide text-[color:var(--muted)]">
                   {row.windowLabel}
                 </span>
               </div>
@@ -408,25 +413,25 @@ export function PKHumorCorrelation({ snapshots, weightKg = DEFAULT_PK_BODY_WEIGH
         </div>
 
         {selectedHeatmapCell && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white/85 px-3 py-2 text-xs leading-5 text-slate-600">
-            <p className="font-semibold uppercase tracking-[0.14em] text-slate-400">Detalhe selecionado</p>
-            <p className="mt-1 font-semibold text-slate-800">{selectedHeatmapCell.label}</p>
+          <div className="mt-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-3 py-2 text-xs leading-5 text-[color:var(--muted)]">
+            <p className="font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">Detalhe selecionado</p>
+            <p className="mt-1 font-semibold text-[color:var(--foreground)]">{selectedHeatmapCell.label}</p>
             <p>{selectedHeatmapCell.detail}</p>
           </div>
         )}
 
-        <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-slate-500">
+        <ul className="mt-3 space-y-0.5 text-[0.68rem] leading-5 text-[color:var(--muted)]">
           <li>
             <span className="font-semibold text-teal-700">Verde/↑</span> = mais concentração → humor melhor ·{' '}
             <span className="font-semibold text-red-500">Vermelho/↓</span> = mais concentração → humor pior ·{' '}
-            <span className="font-semibold text-slate-500">cinza</span> = sem significância após FDR
+            <span className="font-semibold text-[color:var(--muted)]">cinza</span> = sem significância após FDR
           </li>
           <li>
             <span className="font-semibold text-amber-600">★</span> = resultado com q &lt; 0.05 (controle de falsos positivos entre todas as substâncias × lags) ·{' '}
             <span className="font-semibold text-amber-600">borda âmbar</span> = lag de pico da substância
           </li>
           <li>
-            <span className="font-semibold text-slate-400">Lags negativos (esmaecidos)</span> = controles de causalidade — pico neles indica correlação espúria (concentração futura não causa humor passado)
+            <span className="font-semibold text-[color:var(--muted)]">Lags negativos (esmaecidos)</span> = controles de causalidade — pico neles indica correlação espúria (concentração futura não causa humor passado)
           </li>
         </ul>
       </div>

@@ -130,9 +130,9 @@ function computeSleepSummaryLine(snapshots: DailySnapshot[]): string {
 
 function MockBanner() {
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+    <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">
       <span className="font-semibold">Dados simulados</span>
-      <span className="text-amber-700/80">
+      <span className="text-amber-700/80 dark:text-amber-300/80">
         — 14 dias mock (VITE_USE_MOCK=true). Configure AutoExport para dados reais.
       </span>
     </div>
@@ -174,8 +174,8 @@ function InterpolationBanner({ mode, loading, error, filledCount }: Interpolatio
 
   const palette =
     mode === 'claude'
-      ? { border: 'border-teal-200', bg: 'bg-teal-50', strong: 'text-teal-900', soft: 'text-teal-700/80' }
-      : { border: 'border-amber-200', bg: 'bg-amber-50', strong: 'text-amber-900', soft: 'text-amber-700/80' }
+      ? { border: 'border-teal-200 dark:border-teal-400/30', bg: 'bg-teal-50 dark:bg-teal-500/10', strong: 'text-teal-900 dark:text-teal-200', soft: 'text-teal-700/80 dark:text-teal-300/80' }
+      : { border: 'border-amber-200 dark:border-amber-400/30', bg: 'bg-amber-50 dark:bg-amber-500/10', strong: 'text-amber-900 dark:text-amber-200', soft: 'text-amber-700/80 dark:text-amber-300/80' }
 
   const label = mode === 'claude' ? 'Interpolação IA' : 'Interpolação linear'
   const status = loading
@@ -212,9 +212,9 @@ function ForecastBanner({ mode, loading, error, errorMessage, forecastedCount }:
     ? ` — ${forecastedCount} dias projetados. Pontos pontilhados indicam estimativas futuras.`
     : ' — Aguardando dados suficientes (≥7 dias reais).'
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm text-violet-900">
+    <div className="mb-4 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm text-violet-900 dark:border-violet-400/30 dark:bg-violet-500/10 dark:text-violet-200">
       <span className="font-semibold">🔮 Projeção IA</span>
-      <span className="text-violet-700/80">{status}</span>
+      <span className="text-violet-700/80 dark:text-violet-300/80">{status}</span>
     </div>
   )
 }
@@ -790,7 +790,7 @@ export default function App() {
             >
               <div className="min-w-0 space-y-4">
                 {FARMACO_ONLY_MODE && (
-                  <p className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-900">
+                  <p className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-5 text-indigo-900 dark:border-indigo-400/30 dark:bg-indigo-500/10 dark:text-indigo-200">
                     <span className="font-semibold">Modo foco:</span> as abas Panorama, Recuperação, Capacidade e Insights estão bloqueadas temporariamente enquanto refinamos esta seção.
                   </p>
                 )}
@@ -1016,9 +1016,9 @@ export default function App() {
               )}
             >
               <div className="space-y-4">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">
                   <span className="font-semibold">⚠ Análise exploratória.</span>{' '}
-                  <span className="text-amber-700/90">
+                  <span className="text-amber-700/90 dark:text-amber-300/90">
                     Correlação ≠ causalidade. n pequeno = r ruidoso. Emoções momentâneas têm sampling bias
                     (tu loga quando a emoção é forte). Use como hipótese, não evidência. Precisa ~60 dias de
                     dados pra conclusão robusta.

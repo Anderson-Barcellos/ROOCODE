@@ -11,6 +11,9 @@
 @source "./types/*.ts";
 @source "./hooks/*.ts";
 
+/* Dark variant atrelado ao tema manual (data-theme), nao ao prefers-color-scheme. */
+@custom-variant dark (&:where([data-theme='graphite'], [data-theme='graphite'] *));
+
 :root {
   color-scheme: light;
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;

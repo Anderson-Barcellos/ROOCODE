@@ -78,36 +78,48 @@
 }
 
 :root[data-theme='graphite'] {
-  --background: #e8edf4;
-  --foreground: #102331;
-  --muted: #2f4b60;
-  --border: rgba(16, 33, 48, 0.2);
-  --card: rgba(248, 252, 255, 0.93);
-  --card-strong: rgba(255, 255, 255, 0.98);
-  --accent: #0369a1;
-  --accent-soft: rgba(3, 105, 161, 0.14);
-  --warm: #c2410c;
-  --rose: #be123c;
-  --shadow: 0 24px 60px rgba(16, 33, 48, 0.16);
-  --accent-violet: #7c3aed;
-  --accent-violet-dim: rgba(124, 58, 237, 0.14);
+  color-scheme: dark;
 
-  --bg-gradient-start: #edf4fb;
-  --bg-gradient-mid: #e2edf8;
-  --bg-gradient-end: #d7e6f3;
-  --bg-glow-left: rgba(14, 116, 144, 0.18);
-  --bg-glow-right: rgba(6, 182, 212, 0.17);
-  --hero-orb: rgba(3, 105, 161, 0.26);
-  --panel-wide-start: rgba(255, 255, 255, 0.96);
-  --panel-wide-end: rgba(226, 237, 248, 0.9);
+  --background: #14181f;
+  --foreground: #e6ebf2;
+  --muted: #93a1b0;
+  --border: rgba(231, 238, 247, 0.13);
+  --card: #1a1f27;
+  --card-strong: #232a34;
+  --accent: #38bdf8;
+  --accent-soft: rgba(56, 189, 248, 0.16);
+  --warm: #fbbf24;
+  --rose: #fb7185;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --accent-violet: #a78bfa;
+  --accent-violet-dim: rgba(167, 139, 250, 0.2);
 
-  --chart-series-capacity: #0369a1;
-  --chart-series-venvanse: #d97706;
-  --chart-fill-area: rgba(14, 116, 110, 0.16);
-  --chart-ui-grid: rgba(47, 75, 96, 0.16);
-  --chart-ui-axis: #38556a;
-  --chart-ui-border: rgba(16, 33, 48, 0.24);
-  --chart-ui-muted: #2f4b60;
+  --bg-gradient-start: #171c24;
+  --bg-gradient-mid: #12161d;
+  --bg-gradient-end: #0d1014;
+  --bg-glow-left: rgba(56, 189, 248, 0.1);
+  --bg-glow-right: rgba(45, 212, 191, 0.08);
+  --hero-orb: rgba(56, 189, 248, 0.18);
+  --panel-wide-start: rgba(255, 255, 255, 0.05);
+  --panel-wide-end: rgba(255, 255, 255, 0.02);
+
+  --chart-series-lexapro: #2dd4bf;
+  --chart-series-venvanse: #fbbf24;
+  --chart-series-lamictal: #60a5fa;
+  --chart-series-clonazepam: #c4b5fd;
+  --chart-series-capacity: #38bdf8;
+  --chart-series-mood: #34d399;
+  --chart-series-forecast: #64748b;
+  --chart-fill-area: rgba(56, 189, 248, 0.18);
+  --chart-fill-optimal: rgba(16, 185, 129, 0.16);
+  --chart-fill-attention: rgba(245, 158, 11, 0.16);
+  --chart-fill-critical: rgba(239, 68, 68, 0.16);
+  --chart-ui-grid: rgba(231, 238, 247, 0.09);
+  --chart-ui-axis: #93a1b0;
+  --chart-ui-border: rgba(231, 238, 247, 0.16);
+  --chart-ui-foreground: #e6ebf2;
+  --chart-ui-muted: #93a1b0;
+  --chart-ui-card-bg: #1c222b;
 }
 
 :root[data-theme='contrast'] {
@@ -261,8 +273,8 @@ code {
   gap: 0.45rem;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
-  background: rgba(255, 252, 246, 0.95);
-  border: 1px solid rgba(17, 35, 30, 0.08);
+  background: var(--card-strong);
+  border: 1px solid var(--border);
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.14em;

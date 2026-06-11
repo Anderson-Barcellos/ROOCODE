@@ -16,7 +16,7 @@ import {
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
-import { FULL_HISTORY_DOSE_HOURS, useDoses, useRegimen } from '@/lib/api'
+import { FULL_HISTORY_DOSE_HOURS, useConcentrationSeries, useDoses, useRegimen } from '@/lib/api'
 import type { DoseRecord } from '@/lib/api'
 import {
   PK_PRESETS,
@@ -84,6 +84,10 @@ function fmtConc(value: number): string {
   if (value >= 100) return value.toFixed(0)
   if (value >= 10) return value.toFixed(1)
   return value.toFixed(2)
+}
+
+function dayLabel(dateIso: string): string {
+  return format(parseISO(dateIso), 'd MMM', { locale: ptBR })
 }
 
 interface Props {
@@ -184,14 +188,33 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
   const activeMed = isMoodMode ? null : trackedMeds.find((m) => m.presetKey === activeKey) ?? null
   const activeStatus = activeMed?.status ?? null
   const activeColor = activeMed?.color ?? 'var(--foreground)'
+  const activeSubstanceId = !isMoodMode ? PRESET_TO_COLOR_ID[activeKey] ?? null : null
+  const seriesFrom = snapshots[0]?.date ?? ''
+  const seriesTo = snapshots[snapshots.length - 1]?.date ?? ''
+
+  const { data: backendConcentrationSeries } = useConcentrationSeries(activeSubstanceId, seriesFrom, seriesTo, weightKg)
+  const forecastLabel = useMemo(() => {
+    if (!forecastStartDate) return null
+    return dayLabel(forecastStartDate)
+  }, [forecastStartDate])
 
   const allRows = useMemo<Row[]>(() => {
     const med = isMoodMode ? null : presetMedication(activeKey)
     const doses = med ? dosesForPreset(allDoses, activeKey) : []
+    const backendConcByDate = new Map<string, number>()
+    if (!isMoodMode && backendConcentrationSeries?.series?.length) {
+      for (const point of backendConcentrationSeries.series) {
+        if (Number.isFinite(point.cmax_est)) {
+          backendConcByDate.set(point.date, point.cmax_est)
+        }
+      }
+    }
     const rawValence = snapshots.map((s) => s.mood?.valence ?? null)
     const trend = sma(rawValence, smaWindow)
     const rawConc = snapshots.map((snap) => {
       if (!med) return null
+      const backendConc = backendConcByDate.get(snap.date)
+      if (backendConc != null) return backendConc
       const eod = new Date(`${snap.date}T23:59:59`).getTime()
       if (!Number.isFinite(eod)) return null
       return calculateConcentration(med, doses, eod, weightKg)
@@ -202,7 +225,7 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
       const valence = snap.mood?.valence ?? null
       return {
         date: snap.date,
-        label: format(parseISO(snap.date), 'd MMM', { locale: ptBR }),
+        label: dayLabel(snap.date),
         valence,
         valenceClass: snap.mood?.valenceClass ?? null,
         color: valence != null ? moodColor(valence) : 'var(--chart-series-forecast)',
@@ -214,7 +237,7 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
         concTrend: concTrend[i],
       }
     })
-  }, [isMoodMode, activeKey, allDoses, snapshots, smaWindow, concSmaWindow, weightKg])
+  }, [isMoodMode, activeKey, allDoses, backendConcentrationSeries, snapshots, smaWindow, concSmaWindow, weightKg])
 
   const visibleRows = useMemo(() => {
     if (!selection) return allRows
@@ -381,6 +404,9 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
           {activeStatus.hoursUntilBelowMin != null && activeStatus.klass !== 'vulnerabilidade' && (
             <span className="text-amber-700">cobre ~{activeStatus.hoursUntilBelowMin}h</span>
           )}
+          {backendConcentrationSeries?.source === 'regimen_fallback' && (
+            <span className="text-[color:var(--muted)]">curva: fallback do regime</span>
+          )}
         </div>
       )}
 
@@ -466,8 +492,8 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
                     }}
                   />
                   <ReferenceLine yAxisId="mood" y={0} stroke="var(--chart-reference-mean)" strokeDasharray="4 3" />
-                  {forecastStartDate && (
-                    <ReferenceLine yAxisId="mood" x={forecastStartDate} stroke="var(--accent-violet)" strokeDasharray="4 3" strokeWidth={1.5} />
+                  {forecastLabel && (
+                    <ReferenceLine yAxisId="mood" x={forecastLabel} stroke="var(--accent-violet)" strokeDasharray="4 3" strokeWidth={1.5} />
                   )}
                   <Line
                     yAxisId="mood"
@@ -512,6 +538,9 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
                     ? `Escala real com faixa terapêutica ${fmtConc(range.min)}–${fmtConc(range.max)} ${range.unit}.`
                     : 'Escala real sem faixa terapêutica definida para esta substância.'}
               </p>
+              {!isMoodMode && backendConcentrationSeries?.source === 'regimen_fallback' && (
+                <p className="text-xs text-[color:var(--muted)]">Fonte de concentração: fallback do regime (sem dose log suficiente na janela).</p>
+              )}
             </div>
             {!isMoodMode && (
               <div className="flex items-center gap-1">
@@ -595,8 +624,8 @@ export function PKMoodConcentrationChart({ snapshots, forecastStartDate, weightK
                   {range && (
                     <ReferenceArea yAxisId="conc" y1={range.min} y2={range.max} ifOverflow="extendDomain" fill={activeColor} fillOpacity={0.07} strokeOpacity={0} />
                   )}
-                  {forecastStartDate && (
-                    <ReferenceLine yAxisId="conc" x={forecastStartDate} stroke="var(--accent-violet)" strokeDasharray="4 3" strokeWidth={1.5} />
+                  {forecastLabel && (
+                    <ReferenceLine yAxisId="conc" x={forecastLabel} stroke="var(--accent-violet)" strokeDasharray="4 3" strokeWidth={1.5} />
                   )}
                   <Area
                     yAxisId="conc"

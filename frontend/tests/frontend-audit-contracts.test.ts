@@ -104,6 +104,10 @@ function runAssertions(): void {
     'Card unificado da Farmaco deve fundir o status de cobertura e usar escala real de concentração por droga.',
   )
   assert(
+    farmacoTimeline.includes('point.cmax_est') && !farmacoTimeline.includes('point.cmin_est'),
+    'Serie diaria de concentração no card unificado deve usar cmax_est (nao cmin_est) para evitar achatamento visual da curva.',
+  )
+  assert(
     farmacoTimeline.includes('MOOD_KEY') && farmacoTimeline.includes('Humor'),
     'Card unificado deve oferecer o modo Humor além das drogas no mesmo seletor.',
   )

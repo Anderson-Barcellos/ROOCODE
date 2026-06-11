@@ -62,15 +62,15 @@ export function SleepDebtChart({ snapshots, baselineSnapshots, target = TARGET_H
   const readiness = evaluateReadiness(snapshots, CHART_REQUIREMENTS.sleepStagesChart, 'Débito de sono')
 
   return (
-    <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+    <div className="rounded-[1.5rem] border border-slate-900/10 dark:border-slate-100/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="mb-5">
-        <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+        <span className="inline-flex rounded-full border border-slate-900/10 dark:border-slate-100/10 bg-slate-50 dark:bg-slate-800/40 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
           Sono
         </span>
-        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
+        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900 dark:text-slate-100">
           Débito de sono cumulativo
         </h3>
-        <p className="mt-1 text-sm leading-6 text-slate-500">
+        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
           Quanto você deve em horas vs meta de {target.toFixed(1)}h. Janela móvel 7d (rose) e 30d (amber). Acima de zero = falta sono. Faixa rosada acima de {DANGER_THRESHOLD}h = zona crítica.
         </p>
       </div>

@@ -37,9 +37,9 @@ const CLASS_META: Record<SleepQualityClass, ClassMeta> = {
   regular: {
     headline: 'Noite mediana — nem reparou, nem prejudicou',
     badge: 'Regular',
-    badgeBg: 'bg-slate-50 border-slate-200',
-    badgeText: 'text-slate-700',
-    scoreBg: 'text-slate-700',
+    badgeBg: 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/50',
+    badgeText: 'text-slate-700 dark:text-slate-300',
+    scoreBg: 'text-slate-700 dark:text-slate-300',
   },
   fragmentada: {
     headline: 'Sono fragmentado pesou hoje',
@@ -151,15 +151,15 @@ export function NightQualityCard({ snapshots, variant = 'full', windowLabel }: N
   if (point.score == null || !point.components || !point.klass) {
     const missing = missingKeys.map((k) => RAW_FIELDS_LABEL_PT[k]).join(', ')
     return (
-      <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
-        <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+      <div className="rounded-[1.5rem] border border-slate-900/10 dark:border-slate-100/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+        <span className="inline-flex rounded-full border border-slate-900/10 dark:border-slate-100/10 bg-slate-50 dark:bg-slate-800/40 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
           Qualidade da noite · {dayLabel(snapshot.date)}
           {windowLabel ? ` · janela ${windowLabel}` : ''}
         </span>
-        <h3 className="mt-3 font-['Fraunces'] text-xl tracking-[-0.04em] text-slate-900">
+        <h3 className="mt-3 font-['Fraunces'] text-xl tracking-[-0.04em] text-slate-900 dark:text-slate-100">
           Score parcial em construção
         </h3>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
           {missing.length > 0
             ? `Faltam dados pra montar o score completo: ${missing}.`
             : 'Inputs insuficientes nesta noite.'}
@@ -187,10 +187,10 @@ export function NightQualityCard({ snapshots, variant = 'full', windowLabel }: N
   ]
 
   return (
-    <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+    <div className="rounded-[1.5rem] border border-slate-900/10 dark:border-slate-100/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+          <span className="inline-flex rounded-full border border-slate-900/10 dark:border-slate-100/10 bg-slate-50 dark:bg-slate-800/40 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
             Qualidade da noite · {dateLabel}
             {windowLabel ? (
               <span className="ml-1.5 text-[0.6rem] font-normal opacity-70">
@@ -203,7 +203,7 @@ export function NightQualityCard({ snapshots, variant = 'full', windowLabel }: N
               </span>
             )}
           </span>
-          <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
+          <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900 dark:text-slate-100">
             {meta.headline}
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -238,25 +238,25 @@ export function NightQualityCard({ snapshots, variant = 'full', windowLabel }: N
 
       {!isSummary && (
         <details className="mt-4">
-          <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600">
+          <summary className="cursor-pointer text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600">
             Detalhe médico
           </summary>
-          <div className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600">
+          <div className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600 dark:text-slate-400">
             {componentRows.map(({ key, label, weight }) => {
               const compValue = point.components![key]
               const rawValue = raw[key]
               return (
                 <div key={key} className="flex items-center gap-2">
                   <span className="flex-1">{label}</span>
-                  <span className="text-[0.7rem] text-slate-400">{Math.round(weight * 100)}%</span>
-                  <span className="w-14 text-right text-slate-500">{formatRaw(key, rawValue)}</span>
-                  <span className="w-12 text-right font-semibold text-slate-800">
+                  <span className="text-[0.7rem] text-slate-400 dark:text-slate-500">{Math.round(weight * 100)}%</span>
+                  <span className="w-14 text-right text-slate-500 dark:text-slate-400">{formatRaw(key, rawValue)}</span>
+                  <span className="w-12 text-right font-semibold text-slate-800 dark:text-slate-200">
                     {Math.round(compValue)}/100
                   </span>
                 </div>
               )
             })}
-            <p className="mt-2 text-[0.7rem] leading-4 text-slate-400">
+            <p className="mt-2 text-[0.7rem] leading-4 text-slate-400 dark:text-slate-500">
               Classes: respiratória &gt; autonômica &gt; fragmentada &gt; reparadora ≥75 &gt;
               regular. Pesos preliminares.
             </p>

@@ -85,16 +85,16 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
   })()
 
   return (
-    <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
+    <div className="rounded-[1.5rem] border border-slate-900/10 dark:border-slate-100/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
       <div className="mb-5">
-        <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
+        <span className="inline-flex rounded-full border border-slate-900/10 dark:border-slate-100/10 bg-slate-50 dark:bg-slate-800/40 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
           Sono
         </span>
-        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
+        <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900 dark:text-slate-100">
           Eficiência e arquitetura
         </h3>
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+          <span className="inline-flex items-center rounded-full border border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300">
             Média: {summary.avgHours != null ? `${summary.avgHours.toFixed(1).replace('.', ',')}h` : '—'}
           </span>
           <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-800">
@@ -104,7 +104,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
             REM: {summary.avgRemPct != null ? `${Math.round(summary.avgRemPct)}%` : '—'}
           </span>
         </div>
-        <p className="mt-1 text-sm leading-6 text-slate-500">
+        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
           {hasStages
             ? 'Profundo + Núcleo + REM + Acordado (eixo esquerdo, h). Linha de eficiência (eixo direito, %) com alvo de 85%.'
             : 'Total de sono e REM disponíveis. Estágios detalhados aparecem quando o Apple Watch registra.'}

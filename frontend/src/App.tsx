@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { format, getDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Activity, Compass, HeartPulse, Pill, Telescope } from 'lucide-react'
+import { Activity, Compass, HeartPulse, Moon, Pill, Telescope } from 'lucide-react'
 import {
   TabNav,
   type DensityMode,
@@ -311,7 +311,7 @@ export default function App() {
   const [panoramaBrushRange, setPanoramaBrushRange] = useState<PanoramaBrushRange | null>(null)
   const pendingCapacityAnchorRef = useRef<string | null>(null)
   const navigateToTab = (tab: TabKey) => {
-    if (FARMACO_ONLY_MODE && tab !== 'farmaco') return
+    if (FARMACO_ONLY_MODE && tab !== 'farmaco' && tab !== 'sono') return
     setActiveTab(tab)
   }
   const data = useRooCodeData(interpolation, 'on')
@@ -911,6 +911,47 @@ export default function App() {
                         showSleepDebt
                       />
                     </div>
+                  </DecisionSection>
+                </div>
+              )}
+            </SurfaceFrame>
+          )}
+
+          {activeTab === 'sono' && (
+            <SurfaceFrame
+              icon={<Moon className="h-4 w-4" />}
+              kicker="Sono"
+              title="Como anda meu sono?"
+              description="Arquitetura noturna, regularidade circadiana e dívida acumulada — a fatia do sono em casa própria."
+              window={{ label: range, coveredDays: ranged.length }}
+              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
+            >
+              {ranged.length === 0 ? (
+                <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
+              ) : (
+                <div className="space-y-6">
+                  <p className="rounded-2xl border border-indigo-200 dark:border-indigo-400/30 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-3 text-sm leading-6 text-indigo-900 dark:text-indigo-200">
+                    <span className="font-semibold">Leitura rápida:</span> {sleepSummaryLine}
+                  </p>
+
+                  <DecisionSection
+                    eyebrow="Painel 1"
+                    title="Como foi minha última noite?"
+                    description="Headline noturna como leitura clínica imediata."
+                  >
+                    <NightQualityCard snapshots={ranged} windowLabel={range} />
+                  </DecisionSection>
+
+                  <DecisionSection
+                    eyebrow="Painel 2"
+                    title="Como dormi?"
+                    description="Arquitetura da noite, regularidade circadiana e dívida acumulada no mesmo capítulo."
+                  >
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+                      <SleepStagesChart snapshots={ranged} />
+                      <SleepRegularityCard snapshots={ranged} />
+                    </div>
+                    <SleepDebtChart snapshots={ranged} baselineSnapshots={data.snapshots} />
                   </DecisionSection>
                 </div>
               )}

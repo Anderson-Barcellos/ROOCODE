@@ -1,10 +1,30 @@
 <!doctype html>
-<html lang="pt-BR" style="background: radial-gradient(circle at top left, rgba(217, 119, 6, 0.18), transparent 26%), radial-gradient(circle at top right, rgba(15, 118, 110, 0.22), transparent 24%), linear-gradient(180deg, #f7f3ec 0%, #f4efe5 45%, #efe8d8 100%);">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RooCode — Dashboard de Saúde</title>
+    <script>
+      (function () {
+        try {
+          var root = document.documentElement
+          var theme = localStorage.getItem('roocode-theme')
+          root.dataset.theme =
+            theme === 'graphite' || theme === 'contrast' ? theme : 'clinical'
+          root.dataset.density =
+            localStorage.getItem('roocode-density') === 'compact' ? 'compact' : 'cozy'
+          var motion = localStorage.getItem('roocode-reduced-motion')
+          var reduced =
+            motion === '1' ||
+            (motion !== '0' &&
+              window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+          root.dataset.motion = reduced ? 'reduced' : 'full'
+        } catch (err) {
+          document.documentElement.dataset.theme = 'clinical'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,8 +1,8 @@
 export const SUBSTANCE_COLORS: Record<string, string> = {
-  lexapro: '#14b8a6',
-  venvanse: '#8b5cf6',
-  lamictal: '#3b82f6',
-  clonazepam: '#f59e0b',
+  lexapro: '#0f9f8f',
+  venvanse: '#d97706',
+  lamictal: '#2563eb',
+  clonazepam: '#7c3aed',
   bacopa_monnieri: '#84cc16',
   magnesio_treonato: '#0891b2',
   vitamina_d3_10000_ui: '#eab308',

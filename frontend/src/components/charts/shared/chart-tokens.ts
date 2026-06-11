@@ -14,6 +14,7 @@ export const CHART_TOKENS = {
     lexapro: 'var(--chart-series-lexapro)',
     venvanse: 'var(--chart-series-venvanse)',
     lamictal: 'var(--chart-series-lamictal)',
+    clonazepam: 'var(--chart-series-clonazepam)',
     forecast: 'var(--chart-series-forecast)',
   },
   fill: {

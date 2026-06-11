@@ -56,9 +56,10 @@
   --chart-series-capacity: #0284c7;
   --chart-series-chronobiology: #d97706;
   --chart-series-mood: #059669;
-  --chart-series-lexapro: #7c3aed;
-  --chart-series-venvanse: #0284c7;
-  --chart-series-lamictal: #b45309;
+  --chart-series-lexapro: #0f9f8f;
+  --chart-series-venvanse: #d97706;
+  --chart-series-lamictal: #2563eb;
+  --chart-series-clonazepam: #7c3aed;
   --chart-series-forecast: #94a3b8;
   --chart-fill-optimal: rgba(16, 185, 129, 0.08);
   --chart-fill-attention: rgba(245, 158, 11, 0.08);
@@ -101,7 +102,7 @@
   --panel-wide-end: rgba(226, 237, 248, 0.9);
 
   --chart-series-capacity: #0369a1;
-  --chart-series-venvanse: #0369a1;
+  --chart-series-venvanse: #d97706;
   --chart-fill-area: rgba(14, 116, 110, 0.16);
   --chart-ui-grid: rgba(47, 75, 96, 0.16);
   --chart-ui-axis: #38556a;

@@ -100,16 +100,16 @@ function runAssertions(): void {
     'NightQualityCard deve deixar explicita a janela quando receber snapshots filtrados.',
   )
   assert(
-    farmacoTimeline.includes('computeCoverageStatus') && farmacoTimeline.includes('escala real'),
-    'Card unificado da Farmaco deve fundir o status de cobertura e usar escala real de concentração por droga.',
+    farmacoTimeline.includes('computeCoverageStatus') && farmacoTimeline.includes('Mapa de cobertura'),
+    'Cockpit da Farmaco deve fundir status de cobertura e expor um mapa de cobertura clicavel no topo.',
   )
   assert(
-    farmacoTimeline.includes('point.cmax_est') && !farmacoTimeline.includes('point.cmin_est'),
-    'Serie diaria de concentração no card unificado deve usar cmax_est (nao cmin_est) para evitar achatamento visual da curva.',
+    farmacoTimeline.includes('point.cmax_est') && farmacoTimeline.includes('point.cmin_est') && farmacoTimeline.includes('point.auc_est') && farmacoTimeline.includes('concBand'),
+    'Cockpit PK deve consumir cmax/cmin/auc do backend e renderizar banda diaria de concentração.',
   )
   assert(
-    farmacoTimeline.includes('MOOD_KEY') && farmacoTimeline.includes('Humor'),
-    'Card unificado deve oferecer o modo Humor além das drogas no mesmo seletor.',
+    farmacoTimeline.includes('ReferenceDot') && farmacoTimeline.includes('doseCount') && farmacoTimeline.includes('Dose registrada'),
+    'Cockpit PK deve marcar dias com dose registrada no gráfico de concentração.',
   )
   assert(
     app.includes('<PKMoodConcentrationChart') &&

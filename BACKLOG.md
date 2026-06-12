@@ -13,6 +13,20 @@ _(nenhum ticket aberto)_
 
 ## Concluídos recentes
 
+- **2026-06-11** — **Frente "Sono" (6 commits)**: dashboard fatiado por sistema
+  fisiológico, começando pelo sono. (0) `d41ba7b` captura de **pressão
+  arterial** no pipeline (já vinha no metrics.csv, era descartada; índices ficam
+  pra futura seção Coração). (1) `1361d32` aba **Sono** própria + tratamento das
+  ilhas claras white/slate que o #5 deixou de fora (cards + `SurfaceFrame`).
+  (enxuga `254f3d5` por feedback: aba focada em Eficiência+Arquitetura). (2)
+  `5a98829` índice **Arquitetura de estágios** (% deep/REM vs referência, score
+  reparador) + card + governança (`domain: 'sono'` novo na matriz). (3)
+  `5b0f069` gráfico **Venvanse × atraso do sono** — confound farmacocinético
+  detectado nos dados reais (concentração ao deitar acoplada ao horário de
+  deitar, r=-0.55 espúrio) e corrigido via âncora fixa no baseline de onset →
+  r=-0.04 p=0.89 (sem associação real). (4) `0c8a7f7` hero sensível à aba.
+  Gate verde em todas as fases; QA visual desktop+mobile dark, zero ilhas.
+
 - **2026-06-11** — **Ticket #5** (dark mode completo) fechado. Script Python
   de transformação (`dark_transform.py`, regex por família) injetou **458
   variants `dark:` em 48 arquivos**, consistente por construção. Padrões:

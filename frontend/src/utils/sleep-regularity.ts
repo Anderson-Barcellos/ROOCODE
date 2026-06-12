@@ -46,7 +46,7 @@ function clamp(value: number, min: number, max: number): number {
   return value
 }
 
-function localMinutesSinceMidnight(input: string): number | null {
+export function localMinutesSinceMidnight(input: string): number | null {
   const date = new Date(input)
   if (Number.isNaN(date.getTime())) return null
   return date.getHours() * 60 + date.getMinutes()
@@ -57,14 +57,14 @@ function circularDistanceMinutes(a: number, b: number): number {
   return Math.min(diff, 1440 - diff)
 }
 
-function signedCircularDeltaMinutes(from: number, to: number): number {
+export function signedCircularDeltaMinutes(from: number, to: number): number {
   let diff = (to - from) % 1440
   if (diff > 720) diff -= 1440
   if (diff < -720) diff += 1440
   return diff
 }
 
-function circularMeanMinutes(values: number[]): number {
+export function circularMeanMinutes(values: number[]): number {
   const vectors = values.map((value) => {
     const angle = (value / 1440) * 2 * Math.PI
     return { x: Math.cos(angle), y: Math.sin(angle) }

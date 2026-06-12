@@ -22,6 +22,7 @@ import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { SleepArchitectureCard } from '@/components/cards/sleep-architecture-card'
+import { VenvanseSleepOnsetChart } from '@/components/charts/venvanse-sleep-onset-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { InsightsCockpit } from '@/components/insights/insights-cockpit'
 import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
@@ -944,6 +945,14 @@ export default function App() {
                       <SleepStagesChart snapshots={ranged} />
                       <SleepArchitectureCard snapshots={ranged} />
                     </div>
+                  </DecisionSection>
+
+                  <DecisionSection
+                    eyebrow="Estimulante × sono"
+                    title="O Venvanse atrasou meu sono?"
+                    description="Concentração estimada de Venvanse ao deitar contra o atraso do início do sono."
+                  >
+                    <VenvanseSleepOnsetChart snapshots={ranged} />
                   </DecisionSection>
                 </div>
               )}

@@ -21,6 +21,7 @@ import { AutonomicBalanceChart } from '@/components/charts/autonomic-balance-cha
 import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
+import { SleepArchitectureCard } from '@/components/cards/sleep-architecture-card'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { InsightsCockpit } from '@/components/insights/insights-cockpit'
 import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
@@ -937,9 +938,12 @@ export default function App() {
                   <DecisionSection
                     eyebrow="Arquitetura da noite"
                     title="Como dormi?"
-                    description="Estrutura dos estágios e eficiência ao longo da janela."
+                    description="Estrutura dos estágios e eficiência ao longo da janela, com a leitura de quão reparadora foi a noite."
                   >
-                    <SleepStagesChart snapshots={ranged} />
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+                      <SleepStagesChart snapshots={ranged} />
+                      <SleepArchitectureCard snapshots={ranged} />
+                    </div>
                   </DecisionSection>
                 </div>
               )}

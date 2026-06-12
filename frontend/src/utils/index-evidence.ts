@@ -7,6 +7,7 @@ export type IndexEvidenceId =
   | 'NightQuality'
   | 'RecoveryIndex'
   | 'SleepRegularity'
+  | 'SleepArchitecture'
   | 'AutonomicBalance'
   | 'HRVVariability'
   | 'HRRange'
@@ -30,7 +31,7 @@ export interface IndexEvidenceSource {
 
 export interface IndexEvidenceSpec {
   id: IndexEvidenceId
-  domain: 'recuperacao' | 'capacidade'
+  domain: 'recuperacao' | 'capacidade' | 'sono'
   interpolationPolicy: InterpolationPolicy
   minimumInputs: number
   readinessKey: string
@@ -133,6 +134,25 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
     derivedSources: [
       { field: 'SRI_proxy', kind: 'derived', note: 'consistencia de onset/offset em janela rolante' },
       { field: 'socialJetLag', kind: 'derived', note: 'delta de midpoint util vs fim de semana' },
+    ],
+  },
+  SleepArchitecture: {
+    id: 'SleepArchitecture',
+    domain: 'sono',
+    interpolationPolicy: 'score_with_penalty',
+    minimumInputs: 3,
+    readinessKey: 'sleepArchitectureIndex',
+    confidenceRule: 'confidence = 1 para real, 0.7 para interpolado; score exige deep+rem+core reais',
+    primarySources: [
+      { field: 'sleepDeepHours', kind: 'primary', note: 'fase deep agregada noturna' },
+      { field: 'sleepRemHours', kind: 'primary', note: 'fase REM agregada noturna' },
+      { field: 'sleepCoreHours', kind: 'primary', note: 'fase core/light agregada noturna' },
+    ],
+    proxySources: [],
+    derivedSources: [
+      { field: 'pctDeep', kind: 'derived', note: 'fracao de deep sobre estagios classificados' },
+      { field: 'pctRem', kind: 'derived', note: 'fracao de REM sobre estagios classificados' },
+      { field: 'architectureScore', kind: 'derived', note: 'desvio das faixas de referencia deep/REM' },
     ],
   },
   AutonomicBalance: {

@@ -435,17 +435,21 @@ export default function App() {
   const today = format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })
   const blockedTabs = FARMACO_ONLY_MODE ? FARMACO_ONLY_BLOCKED_TABS : []
   const heroEyebrow = FARMACO_ONLY_MODE
-    ? 'RooCode · Farmaco em foco'
+    ? activeTab === 'sono'
+      ? 'RooCode · Sono em foco'
+      : 'RooCode · Farmaco em foco'
     : activeTab === 'panorama'
     ? 'RooCode · Panorama'
     : 'RooCode · Dashboard de Saúde Pessoal'
   const heroTitle = FARMACO_ONLY_MODE
-    ? 'Vamos lapidar a farmacologia primeiro.'
+    ? activeTab === 'sono'
+      ? 'Vamos entender o teu sono.'
+      : 'Vamos lapidar a farmacologia primeiro.'
     : activeTab === 'panorama'
     ? 'Estado geral para decidir o dia.'
     : 'Neuropsiquiatria, farmacocinética e dados de Apple Watch — sob o mesmo teto.'
   const heroDescription = FARMACO_ONLY_MODE
-    ? 'Modo foco ativo: as outras abas estão temporariamente bloqueadas para refinarmos a experiência de Farmaco.'
+    ? 'Modo foco: Farmaco e Sono estão ativos enquanto refinamos essas seções; as demais abas seguem em revisão.'
     : activeTab === 'panorama'
     ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
     : 'Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.'

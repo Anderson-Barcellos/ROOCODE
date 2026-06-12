@@ -935,23 +935,11 @@ export default function App() {
                   </p>
 
                   <DecisionSection
-                    eyebrow="Painel 1"
-                    title="Como foi minha última noite?"
-                    description="Headline noturna como leitura clínica imediata."
-                  >
-                    <NightQualityCard snapshots={ranged} windowLabel={range} />
-                  </DecisionSection>
-
-                  <DecisionSection
-                    eyebrow="Painel 2"
+                    eyebrow="Arquitetura da noite"
                     title="Como dormi?"
-                    description="Arquitetura da noite, regularidade circadiana e dívida acumulada no mesmo capítulo."
+                    description="Estrutura dos estágios e eficiência ao longo da janela."
                   >
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-                      <SleepStagesChart snapshots={ranged} />
-                      <SleepRegularityCard snapshots={ranged} />
-                    </div>
-                    <SleepDebtChart snapshots={ranged} baselineSnapshots={data.snapshots} />
+                    <SleepStagesChart snapshots={ranged} />
                   </DecisionSection>
                 </div>
               )}

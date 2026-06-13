@@ -20,6 +20,7 @@ const expectedIds: IndexEvidenceId[] = [
   'MovementEfficiency',
   'RestingHeartRate',
   'BloodPressure',
+  'StimulantCardiacLoad',
 ]
 
 for (const id of expectedIds) {

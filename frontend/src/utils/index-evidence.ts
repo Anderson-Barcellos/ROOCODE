@@ -20,6 +20,7 @@ export type IndexEvidenceId =
   | 'MovementEfficiency'
   | 'RestingHeartRate'
   | 'BloodPressure'
+  | 'StimulantCardiacLoad'
 
 export type IndexEvidenceReason =
   | 'ok'
@@ -377,6 +378,24 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
     proxySources: [],
     derivedSources: [
       { field: 'classification', kind: 'derived', note: 'classificação ACC/AHA 2017 da média recente' },
+    ],
+  },
+  StimulantCardiacLoad: {
+    id: 'StimulantCardiacLoad',
+    domain: 'coracao',
+    interpolationPolicy: 'visual_only',
+    minimumInputs: 2,
+    readinessKey: 'stimulantCardiacLoadIndex',
+    confidenceRule: 'correlação exploratória (não causalidade); exige variância de exposição (CV>=0.1) e >=14 pares',
+    primarySources: [
+      { field: 'restingHeartRate', kind: 'primary', note: 'alvo cardíaco da correlação' },
+      { field: 'hrvSdnn', kind: 'primary', note: 'alvo autonômico da correlação' },
+    ],
+    proxySources: [
+      { field: 'venvanseExposureAuc', kind: 'proxy', note: 'exposição diária ao estimulante via concentração PK amostrada' },
+    ],
+    derivedSources: [
+      { field: 'pearson_r', kind: 'derived', note: 'r de Pearson por alvo × lag, com p-value e FDR' },
     ],
   },
 }

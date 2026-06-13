@@ -26,6 +26,7 @@ import { RespiratoryLoadCard } from '@/components/cards/respiratory-load-card'
 import { SleepContinuityCard } from '@/components/cards/sleep-continuity-card'
 import { RestingHeartRateCard } from '@/components/cards/resting-heart-rate-card'
 import { BloodPressureCard } from '@/components/cards/blood-pressure-card'
+import { StimulantCardiacLoadCard } from '@/components/cards/stimulant-cardiac-load-card'
 import { VenvanseSleepOnsetChart } from '@/components/charts/venvanse-sleep-onset-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { InsightsCockpit } from '@/components/insights/insights-cockpit'
@@ -1006,6 +1007,14 @@ export default function App() {
                       <RestingHeartRateCard snapshots={ranged} />
                       <BloodPressureCard snapshots={data.snapshots} />
                     </div>
+                  </DecisionSection>
+
+                  <DecisionSection
+                    eyebrow="Estimulante × coração"
+                    title="O Venvanse pesa no coração?"
+                    description="Correlação exploratória entre a exposição diária ao estimulante e a FC de repouso / HRV."
+                  >
+                    <StimulantCardiacLoadCard snapshots={data.snapshots} doses={data.doses} />
                   </DecisionSection>
                 </div>
               )}

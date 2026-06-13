@@ -33,6 +33,7 @@
     "src/utils/sleep-continuity.ts",
     "src/utils/resting-heart-rate.ts",
     "src/utils/blood-pressure.ts",
+    "src/utils/stimulant-cardiac-load.ts",
     "src/utils/recovery-score.ts",
     "src/utils/autonomic-balance.ts",
     "src/utils/forecast-payload-enrichment.ts",

@@ -8,6 +8,7 @@ export type IndexEvidenceId =
   | 'RecoveryIndex'
   | 'SleepRegularity'
   | 'SleepArchitecture'
+  | 'RespiratoryLoad'
   | 'AutonomicBalance'
   | 'HRVVariability'
   | 'HRRange'
@@ -153,6 +154,23 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
       { field: 'pctDeep', kind: 'derived', note: 'fracao de deep sobre estagios classificados' },
       { field: 'pctRem', kind: 'derived', note: 'fracao de REM sobre estagios classificados' },
       { field: 'architectureScore', kind: 'derived', note: 'desvio das faixas de referencia deep/REM' },
+    ],
+  },
+  RespiratoryLoad: {
+    id: 'RespiratoryLoad',
+    domain: 'sono',
+    interpolationPolicy: 'visual_only',
+    minimumInputs: 1,
+    readinessKey: 'respiratoryLoadIndex',
+    confidenceRule: 'confidence = 1 real / 0.7 interpolado; flags (atípico/dessaturação/co-ocorrência) só em dias reais',
+    primarySources: [
+      { field: 'respiratoryDisturbances', kind: 'primary', note: 'proxy de AHI da Apple, agregado por noite — não episódios individuais' },
+    ],
+    proxySources: [],
+    derivedSources: [
+      { field: 'spo2', kind: 'derived', note: 'co-sinal de dessaturação; piso pessoal p10 (fallback 95%)' },
+      { field: 'respiratoryRate', kind: 'derived', note: 'co-sinal de carga respiratória noturna' },
+      { field: 'personalP90', kind: 'derived', note: 'limiar de noite atípica vs distribuição pessoal' },
     ],
   },
   AutonomicBalance: {

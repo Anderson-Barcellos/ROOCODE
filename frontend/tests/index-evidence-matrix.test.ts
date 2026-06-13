@@ -8,6 +8,7 @@ const expectedIds: IndexEvidenceId[] = [
   'RecoveryIndex',
   'SleepRegularity',
   'SleepArchitecture',
+  'RespiratoryLoad',
   'AutonomicBalance',
   'HRVVariability',
   'HRRange',

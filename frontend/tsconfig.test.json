@@ -29,6 +29,7 @@
     "src/utils/personal-baselines.ts",
     "src/utils/interp-policy.ts",
     "src/utils/sleep-debt.ts",
+    "src/utils/respiratory-load.ts",
     "src/utils/recovery-score.ts",
     "src/utils/autonomic-balance.ts",
     "src/utils/forecast-payload-enrichment.ts",

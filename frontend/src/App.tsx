@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { format, getDay, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Activity, Compass, HeartPulse, Moon, Pill, Telescope } from 'lucide-react'
+import { Activity, Compass, Heart, HeartPulse, Moon, Pill, Telescope } from 'lucide-react'
 import {
   TabNav,
   type DensityMode,
@@ -24,6 +24,7 @@ import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { SleepArchitectureCard } from '@/components/cards/sleep-architecture-card'
 import { RespiratoryLoadCard } from '@/components/cards/respiratory-load-card'
 import { SleepContinuityCard } from '@/components/cards/sleep-continuity-card'
+import { RestingHeartRateCard } from '@/components/cards/resting-heart-rate-card'
 import { VenvanseSleepOnsetChart } from '@/components/charts/venvanse-sleep-onset-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { InsightsCockpit } from '@/components/insights/insights-cockpit'
@@ -315,7 +316,7 @@ export default function App() {
   const [panoramaBrushRange, setPanoramaBrushRange] = useState<PanoramaBrushRange | null>(null)
   const pendingCapacityAnchorRef = useRef<string | null>(null)
   const navigateToTab = (tab: TabKey) => {
-    if (FARMACO_ONLY_MODE && tab !== 'farmaco' && tab !== 'sono') return
+    if (FARMACO_ONLY_MODE && tab !== 'farmaco' && tab !== 'sono' && tab !== 'coracao') return
     setActiveTab(tab)
   }
   const data = useRooCodeData(interpolation, 'on')
@@ -439,19 +440,25 @@ export default function App() {
   const heroEyebrow = FARMACO_ONLY_MODE
     ? activeTab === 'sono'
       ? 'RooCode · Sono em foco'
-      : 'RooCode · Farmaco em foco'
+      : activeTab === 'coracao'
+        ? 'RooCode · Coração em foco'
+        : 'RooCode · Farmaco em foco'
     : activeTab === 'panorama'
     ? 'RooCode · Panorama'
     : 'RooCode · Dashboard de Saúde Pessoal'
   const heroTitle = FARMACO_ONLY_MODE
     ? activeTab === 'sono'
       ? 'Vamos entender o teu sono.'
-      : 'Vamos lapidar a farmacologia primeiro.'
+      : activeTab === 'coracao'
+        ? 'Como anda o teu coração?'
+        : 'Vamos lapidar a farmacologia primeiro.'
     : activeTab === 'panorama'
     ? 'Estado geral para decidir o dia.'
     : 'Neuropsiquiatria, farmacocinética e dados de Apple Watch — sob o mesmo teto.'
   const heroDescription = FARMACO_ONLY_MODE
-    ? 'Modo foco: Farmaco e Sono estão ativos enquanto refinamos essas seções; as demais abas seguem em revisão.'
+    ? activeTab === 'coracao'
+      ? 'Seção Coração: FC de repouso e — quando houver dados suficientes — pressão arterial e a carga cardíaca do estimulante.'
+      : 'Modo foco: Farmaco e Sono estão ativos enquanto refinamos essas seções; as demais abas seguem em revisão.'
     : activeTab === 'panorama'
     ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
     : 'Correlações clínicas entre concentração plasmática, humor, sono e fisiologia cardiovascular.'
@@ -970,6 +977,31 @@ export default function App() {
                     description="Concentração estimada de Venvanse ao deitar contra o atraso do início do sono."
                   >
                     <VenvanseSleepOnsetChart snapshots={ranged} />
+                  </DecisionSection>
+                </div>
+              )}
+            </SurfaceFrame>
+          )}
+
+          {activeTab === 'coracao' && (
+            <SurfaceFrame
+              icon={<Heart className="h-4 w-4" />}
+              kicker="Coração"
+              title="Como anda o teu coração?"
+              description="FC de repouso e fisiologia cardiovascular. Cards dormentes acendem quando houver dados suficientes."
+              window={{ label: range, coveredDays: ranged.length }}
+              status={data.usedMock ? 'Mock · 14 dias' : `${data.snapshots.length} dias`}
+            >
+              {ranged.length === 0 ? (
+                <EmptyAnalyticsState message="Sem snapshots no intervalo selecionado." />
+              ) : (
+                <div className="space-y-6">
+                  <DecisionSection
+                    eyebrow="Coração em repouso"
+                    title="Frequência cardíaca basal"
+                    description="A FC de repouso contra faixas de risco cardiovascular, com tendência no período."
+                  >
+                    <RestingHeartRateCard snapshots={ranged} />
                   </DecisionSection>
                 </div>
               )}

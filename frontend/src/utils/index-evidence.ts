@@ -18,6 +18,7 @@ export type IndexEvidenceId =
   | 'FunctionalCapacityIndex'
   | 'CircadianRobustness'
   | 'MovementEfficiency'
+  | 'RestingHeartRate'
 
 export type IndexEvidenceReason =
   | 'ok'
@@ -33,7 +34,7 @@ export interface IndexEvidenceSource {
 
 export interface IndexEvidenceSpec {
   id: IndexEvidenceId
-  domain: 'recuperacao' | 'capacidade' | 'sono'
+  domain: 'recuperacao' | 'capacidade' | 'sono' | 'coracao'
   interpolationPolicy: InterpolationPolicy
   minimumInputs: number
   readinessKey: string
@@ -344,6 +345,21 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
     derivedSources: [
       { field: 'asymmetryPersistence14d', kind: 'derived', note: 'alerta de assimetria persistente' },
       { field: 'lowSpeedPersistence14d', kind: 'derived', note: 'alerta de velocidade baixa persistente' },
+    ],
+  },
+  RestingHeartRate: {
+    id: 'RestingHeartRate',
+    domain: 'coracao',
+    interpolationPolicy: 'visual_only',
+    minimumInputs: 1,
+    readinessKey: 'restingHeartRateIndex',
+    confidenceRule: 'confidence = 1 real / 0.7 interpolado; leitura direta sem score',
+    primarySources: [
+      { field: 'restingHeartRate', kind: 'primary', note: 'FC de repouso diária; faixas de risco CV (ótima <65 … alta >=85)' },
+    ],
+    proxySources: [],
+    derivedSources: [
+      { field: 'trend', kind: 'derived', note: 'tendência: metade recente vs antiga do período' },
     ],
   },
 }

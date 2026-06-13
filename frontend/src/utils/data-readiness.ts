@@ -217,6 +217,7 @@ export const CHART_REQUIREMENTS = {
   sleepArchitectureIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'sleepDeepHours' },
   respiratoryLoadIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'respiratoryDisturbances' },
   sleepContinuityIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'sleepEfficiencyPct' },
+  restingHeartRateIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'restingHeartRate' },
   cardiovascularAgeIndex: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'restingHeartRate' },
   activityReadinessIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 3, field: 'steps' },
 } as const satisfies Record<string, ReadinessRequirement>

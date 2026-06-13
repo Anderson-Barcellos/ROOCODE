@@ -22,6 +22,8 @@ import { PKHumorCorrelation } from '@/components/charts/pk-humor-correlation'
 import { SleepDebtChart } from '@/components/charts/sleep-debt-chart'
 import { SleepStagesChart } from '@/components/charts/sleep-stages-chart'
 import { SleepArchitectureCard } from '@/components/cards/sleep-architecture-card'
+import { RespiratoryLoadCard } from '@/components/cards/respiratory-load-card'
+import { SleepContinuityCard } from '@/components/cards/sleep-continuity-card'
 import { VenvanseSleepOnsetChart } from '@/components/charts/venvanse-sleep-onset-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { InsightsCockpit } from '@/components/insights/insights-cockpit'
@@ -948,6 +950,17 @@ export default function App() {
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
                       <SleepStagesChart snapshots={ranged} />
                       <SleepArchitectureCard snapshots={ranged} />
+                    </div>
+                  </DecisionSection>
+
+                  <DecisionSection
+                    eyebrow="Respiração & continuidade"
+                    title="Como respirei e quão contínuo foi o sono?"
+                    description="Vigilância respiratória noturna (proxy de apneia, agregado por noite) e a continuidade do sono em leitura clínica direta."
+                  >
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <RespiratoryLoadCard snapshots={ranged} />
+                      <SleepContinuityCard snapshots={ranged} />
                     </div>
                   </DecisionSection>
 

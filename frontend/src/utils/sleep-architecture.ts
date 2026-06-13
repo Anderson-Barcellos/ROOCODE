@@ -17,7 +17,6 @@ import { buildIndexEvidenceReport, type IndexEvidenceReport } from './index-evid
 const DEEP_REF = { lo: 13, hi: 23 }
 const REM_REF = { lo: 20, hi: 25 }
 
-const ARCHITECTURE_WINDOW_DAYS = 14
 const ARCHITECTURE_MIN_NIGHTS = 5
 const INTERP_CONFIDENCE_MULTIPLIER = 0.7
 
@@ -165,7 +164,8 @@ export function computeSleepArchitectureSummary(
 ): SleepArchitectureSummary {
   const series = computeSleepArchitectureSeries(snapshots)
   const valid = series.filter((point) => point.score != null)
-  const recent = valid.slice(-ARCHITECTURE_WINDOW_DAYS)
+  // Janela = período inteiro recebido (sem slice fixo), pra o card reagir ao seletor.
+  const recent = valid
 
   const latest = valid.length ? valid[valid.length - 1] : null
   if (recent.length < ARCHITECTURE_MIN_NIGHTS) {

@@ -17,6 +17,17 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Concluídos recentes
 
+- **2026-06-13** — **Fix aba Sono (follow-up da frente)**: dois bugs expostos pelos dados
+  reais ao mexer no seletor de período. (1) **Eficiência inviável** — usava `asleep/inBed`,
+  mas o Watch só registra "In Bed" em **8%** das noites (não usa Sleep Schedule), então o
+  card mostrava "0% Pobre" pegando o cochilo de hoje. Redefinida como **Total Sleep ÷
+  tempo-na-cama**, com tempo-na-cama = `sleepInBedHours` quando há, senão duração do episódio
+  **End−Start**. Noites com Total Sleep <1h viram inválidas (cochilo sai do `latest`).
+  (2) **Cards não reagiam ao período** — Respiração/Continuidade/Arquitetura usavam janela
+  interna fixa de 14d; removido o `slice`, passam a usar o período inteiro. QA no ar: eficiência
+  76% (era 0%), médias mudam 30d→90d. Gate verde. Obs: o `sleep_data.csv` teve flutuação
+  transitória do Health Auto Export (11↔110 noites) durante a sessão, mas restaurou sozinho.
+
 - **2026-06-13** — **Sono: Respiração Noturna + Continuidade (frente de 5 commits)**.
   Dois índices novos na aba Sono desdobrando sinais antes cegos no quality-score.
   (1) Respiração Noturna: `respiratory-load.ts` — proxy-apneia (`respiratoryDisturbances`)

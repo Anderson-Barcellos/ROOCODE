@@ -24,7 +24,6 @@ const AHI_GRAVE = 30
 const PERSONAL_WINDOW_DAYS = 30
 const PERSONAL_MIN_POINTS = 14
 const SPO2_ABSOLUTE_FLOOR = 95
-const SUMMARY_WINDOW_DAYS = 14
 const INTERP_CONFIDENCE_MULTIPLIER = 0.7
 
 export interface RespiratoryLoadPoint {
@@ -166,7 +165,8 @@ export function computeRespiratoryLoadSummary(
 ): RespiratoryLoadSummary {
   const series = computeRespiratoryLoadSeries(snapshots)
   const withDist = series.filter((p) => p.disturbances != null)
-  const recent = withDist.slice(-SUMMARY_WINDOW_DAYS)
+  // Janela = período inteiro recebido (sem slice fixo), pra o card reagir ao seletor.
+  const recent = withDist
   const latest = withDist.length ? withDist[withDist.length - 1] : null
 
   const realRecent = recent.filter((p) => !p.derivedFromInterpolated)

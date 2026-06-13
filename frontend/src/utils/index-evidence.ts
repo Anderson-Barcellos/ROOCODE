@@ -182,11 +182,11 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
     readinessKey: 'sleepContinuityIndex',
     confidenceRule: 'confidence = 1 real / 0.7 interpolado; leitura direta sem score composto',
     primarySources: [
-      { field: 'sleepEfficiencyPct', kind: 'primary', note: 'eficiência do sono (asleep/inBed), faixa AASM >=85%' },
+      { field: 'sleepTotalHours', kind: 'primary', note: 'tempo dormindo — numerador da eficiência; <1h é cochilo (noite inválida)' },
       { field: 'sleepAwakeHours', kind: 'primary', note: 'WASO — tempo acordado, faixa AASM <30min' },
     ],
     proxySources: [
-      { field: 'sleepAsleepHours+sleepInBedHours', kind: 'proxy', note: 'recálculo de eficiência quando sleepEfficiencyPct falta' },
+      { field: 'sleepInBedHours|sleepStartAt+sleepEndAt', kind: 'proxy', note: 'tempo na cama: InBed quando registrado, senão duração do episódio End-Start' },
     ],
     derivedSources: [],
   },

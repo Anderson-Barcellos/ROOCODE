@@ -90,10 +90,11 @@ assert.equal(missingNight.ahiBand, null)
 assert.equal(missingNight.confidence, 0)
 assert.equal(missingNight.evidence.reason, 'inputs_missing')
 
-// 7) Summary agrega janela recente real.
+// 7) Summary agrega o período inteiro (sem slice de 14 dias).
 const summary = computeRespiratoryLoadSummary(baseline({ respiratoryDisturbances: 0.6 }))
 assert.ok(summary.latest != null, 'summary tem latest')
 assert.ok(summary.meanDisturbances != null && summary.meanDisturbances > 0, 'média positiva')
 assert.equal(summary.currentBand, 'normal', 'média na zona normal')
+assert.equal(summary.nightsUsed, 17, 'usa todas as 17 noites do período, não 14')
 
 console.log('respiratory-load.test.ts — all assertions passed')

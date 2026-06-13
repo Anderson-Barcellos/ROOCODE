@@ -9,6 +9,7 @@ export type IndexEvidenceId =
   | 'SleepRegularity'
   | 'SleepArchitecture'
   | 'RespiratoryLoad'
+  | 'SleepContinuity'
   | 'AutonomicBalance'
   | 'HRVVariability'
   | 'HRRange'
@@ -172,6 +173,22 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
       { field: 'respiratoryRate', kind: 'derived', note: 'co-sinal de carga respiratória noturna' },
       { field: 'personalP90', kind: 'derived', note: 'limiar de noite atípica vs distribuição pessoal' },
     ],
+  },
+  SleepContinuity: {
+    id: 'SleepContinuity',
+    domain: 'sono',
+    interpolationPolicy: 'visual_only',
+    minimumInputs: 1,
+    readinessKey: 'sleepContinuityIndex',
+    confidenceRule: 'confidence = 1 real / 0.7 interpolado; leitura direta sem score composto',
+    primarySources: [
+      { field: 'sleepEfficiencyPct', kind: 'primary', note: 'eficiência do sono (asleep/inBed), faixa AASM >=85%' },
+      { field: 'sleepAwakeHours', kind: 'primary', note: 'WASO — tempo acordado, faixa AASM <30min' },
+    ],
+    proxySources: [
+      { field: 'sleepAsleepHours+sleepInBedHours', kind: 'proxy', note: 'recálculo de eficiência quando sleepEfficiencyPct falta' },
+    ],
+    derivedSources: [],
   },
   AutonomicBalance: {
     id: 'AutonomicBalance',

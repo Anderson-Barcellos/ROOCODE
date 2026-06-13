@@ -19,6 +19,7 @@ export type IndexEvidenceId =
   | 'CircadianRobustness'
   | 'MovementEfficiency'
   | 'RestingHeartRate'
+  | 'BloodPressure'
 
 export type IndexEvidenceReason =
   | 'ok'
@@ -360,6 +361,22 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
     proxySources: [],
     derivedSources: [
       { field: 'trend', kind: 'derived', note: 'tendência: metade recente vs antiga do período' },
+    ],
+  },
+  BloodPressure: {
+    id: 'BloodPressure',
+    domain: 'coracao',
+    interpolationPolicy: 'none',
+    minimumInputs: 2,
+    readinessKey: 'bloodPressureIndex',
+    confidenceRule: 'medição pontual; card dormente até cobertura cruzar collectingMin (10)',
+    primarySources: [
+      { field: 'systolicMmHg', kind: 'primary', note: 'pressão sistólica (manguito, spot-check)' },
+      { field: 'diastolicMmHg', kind: 'primary', note: 'pressão diastólica (manguito, spot-check)' },
+    ],
+    proxySources: [],
+    derivedSources: [
+      { field: 'classification', kind: 'derived', note: 'classificação ACC/AHA 2017 da média recente' },
     ],
   },
 }

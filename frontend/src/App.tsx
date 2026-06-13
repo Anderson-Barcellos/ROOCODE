@@ -25,6 +25,7 @@ import { SleepArchitectureCard } from '@/components/cards/sleep-architecture-car
 import { RespiratoryLoadCard } from '@/components/cards/respiratory-load-card'
 import { SleepContinuityCard } from '@/components/cards/sleep-continuity-card'
 import { RestingHeartRateCard } from '@/components/cards/resting-heart-rate-card'
+import { BloodPressureCard } from '@/components/cards/blood-pressure-card'
 import { VenvanseSleepOnsetChart } from '@/components/charts/venvanse-sleep-onset-chart'
 import { Spo2Chart } from '@/components/charts/spo2-chart'
 import { InsightsCockpit } from '@/components/insights/insights-cockpit'
@@ -1001,7 +1002,10 @@ export default function App() {
                     title="Frequência cardíaca basal"
                     description="A FC de repouso contra faixas de risco cardiovascular, com tendência no período."
                   >
-                    <RestingHeartRateCard snapshots={ranged} />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <RestingHeartRateCard snapshots={ranged} />
+                      <BloodPressureCard snapshots={data.snapshots} />
+                    </div>
                   </DecisionSection>
                 </div>
               )}

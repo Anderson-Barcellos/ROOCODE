@@ -7,11 +7,27 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Pendentes
 
-_(nenhum ticket aberto)_
+- **Bug calibração `RESP_DIST_CAP`** — `sleep-quality-score.ts` usa cap=30 (escala
+  AHI clínico) que satura o componente respiratório na faixa real (0–4,9), deixando-o
+  cego. Recalibrar (cap realista ~5–8 ou percentil pessoal). Trade-off: muda a
+  semântica do score histórico de qualidade — commit próprio, com nota de
+  comparabilidade temporal. O índice dedicado Respiração Noturna já contorna isso.
 
 ---
 
 ## Concluídos recentes
+
+- **2026-06-13** — **Sono: Respiração Noturna + Continuidade (frente de 5 commits)**.
+  Dois índices novos na aba Sono desdobrando sinais antes cegos no quality-score.
+  (1) Respiração Noturna: `respiratory-load.ts` — proxy-apneia (`respiratoryDisturbances`)
+  com escala híbrida banda AASM + percentil pessoal p90 (30d reais), co-sinais SpO₂/taxa
+  resp, flag de co-ocorrência (atípico + dessaturação), política `visual_only` (interpolado
+  não dispara bandeira). (2) Continuidade: `sleep-continuity.ts` — eficiência + WASO em
+  faixas AASM, leitura clínica direta sem score. Governança na matriz de evidência (2 ids
+  novos, `domain: 'sono'`). HRV descartada por dado empírico (r=+0,28, sentido oposto ao
+  esperado da teoria apneia→HRV). Bug do `RESP_DIST_CAP=30` registrado como ticket separado
+  acima. Gate verde: tsc/build/lint/test:unit. Brainstorm via superpowers; spec/plan em
+  `docs/superpowers/`. QA visual pendente (worktree não-mergeada — fazer pós-merge no ar).
 
 - **2026-06-11** — **Frente "Sono" (6 commits)**: dashboard fatiado por sistema
   fisiológico, começando pelo sono. (0) `d41ba7b` captura de **pressão

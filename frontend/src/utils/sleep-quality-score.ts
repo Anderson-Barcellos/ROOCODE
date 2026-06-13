@@ -50,6 +50,10 @@ export const SLEEP_QUALITY_WEIGHTS = {
 const DEEP_TARGET_H = 1.5
 const REM_TARGET_H = 1.5
 const AWAKE_PENALTY_CAP_H = 1.5
+// NOTA (2026-06-13): cap=30 (escala AHI clínico) satura o componente na faixa
+// real do usuário (0–4.9), deixando-o quase cego. O índice dedicado Respiração
+// Noturna (respiratory-load.ts) já usa escala calibrada. Recalibrar este cap é
+// ticket separado no BACKLOG — muda a semântica do score histórico.
 const RESP_DIST_CAP = 30
 const SPO2_FLOOR = 90
 const SPO2_CEIL = 96

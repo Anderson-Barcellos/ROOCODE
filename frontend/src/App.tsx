@@ -33,6 +33,9 @@ import { InsightsCockpit } from '@/components/insights/insights-cockpit'
 import { TempHumorCorrelation } from '@/components/charts/temp-humor-correlation'
 import { RespiratoryDisturbancesChart } from '@/components/charts/respiratory-disturbances-chart'
 import { HRRangeChart } from '@/components/charts/hr-range-chart'
+import { HeartRateReserveChart } from '@/components/charts/heart-rate-reserve-chart'
+import { ChronotropicResponseChart } from '@/components/charts/chronotropic-response-chart'
+import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
 import { VitalSignsTimeline } from '@/components/charts/vital-signs-timeline'
 import { NightQualityCard } from '@/components/cards/night-quality-card'
 import { PKMoodConcentrationChart } from '@/components/charts/pk-mood-concentration-chart'
@@ -997,14 +1000,38 @@ export default function App() {
               ) : (
                 <div className="space-y-6">
                   <DecisionSection
-                    eyebrow="Coração em repouso"
-                    title="Frequência cardíaca basal"
-                    description="A FC de repouso contra faixas de risco cardiovascular, com tendência no período."
+                    eyebrow="Em repouso"
+                    title="Coração em repouso"
+                    description="FC de repouso contra faixas de risco cardiovascular, pressão arterial e a faixa de FC ao longo do dia."
                   >
                     <div className="grid gap-4 md:grid-cols-2">
                       <RestingHeartRateCard snapshots={ranged} />
                       <BloodPressureCard snapshots={data.snapshots} />
                     </div>
+                    <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                  </DecisionSection>
+
+                  <DecisionSection
+                    eyebrow="Variabilidade & tônus autonômico"
+                    title="Como está meu tônus autonômico?"
+                    description="HRV como tendência pessoal e o balanço simpato-parassimpático (ABI) ao longo da janela."
+                  >
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <HrvVariabilityChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
+                      <AutonomicBalanceChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
+                    </div>
+                  </DecisionSection>
+
+                  <DecisionSection
+                    eyebrow="Resposta ao esforço"
+                    title="Como meu coração responde quando eu exijo dele?"
+                    description="Reserva cardíaca, aceleração na caminhada frente ao teu padrão e a recuperação da FC pós-esforço."
+                  >
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <HeartRateReserveChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
+                      <ChronotropicResponseChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
+                    </div>
+                    <CardioRecoveryChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
                   </DecisionSection>
 
                   <DecisionSection

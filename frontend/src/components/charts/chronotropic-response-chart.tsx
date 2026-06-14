@@ -56,24 +56,24 @@ function bandLabel(z: number): { text: string; color: string } {
 function chronotropicVerdict(z: number): { text: string; mood: 'good' | 'watch' | 'alert' } {
   if (z >= 1) {
     return {
-      text: 'Resposta cardíaca ao esforço leve acima do teu padrão. Boa competência cronotrópica hoje.',
+      text: 'Aceleração na caminhada acima do teu padrão histórico — boa resposta cardíaca hoje.',
       mood: 'good',
     }
   }
   if (z > -0.5) {
     return {
-      text: 'Resposta cardíaca ao esforço leve dentro do esperado para teu baseline.',
+      text: 'Aceleração na caminhada vs o teu padrão dentro do esperado para teu baseline.',
       mood: 'good',
     }
   }
   if (z > -1) {
     return {
-      text: 'Resposta cardíaca a esforço leve dentro do esperado, porém levemente comprimida — manter monitoramento.',
+      text: 'Aceleração na caminhada vs o teu padrão levemente comprimida — manter monitoramento.',
       mood: 'watch',
     }
   }
   return {
-    text: 'Resposta cronotrópica reduzida frente ao teu baseline. Pode sugerir sedação autonômica ou baixa prontidão; acompanhar tendência.',
+    text: 'Aceleração na caminhada vs o teu padrão abaixo do baseline. Pode sugerir sedação autonômica ou baixa prontidão; acompanhar tendência.',
     mood: 'alert',
   }
 }
@@ -294,15 +294,14 @@ export function ChronotropicResponseChart({ snapshots, baselineSnapshots }: Chro
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="inline-flex rounded-full border border-slate-900/10 bg-slate-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-600">
-            Coração · Resposta Cronotrópica
+            Coração · Aceleração na caminhada
           </span>
           <h3 className="mt-3 font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
-            Resposta Cronotrópica
+            Aceleração na caminhada
           </h3>
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-            z-score pessoal de FC Caminhada − FC Repouso. Mede a competência cronotrópica — quanto o coração
-            acelera durante esforço leve. As bandas servem como referência visual; a leitura clínica final
-            está no veredito textual.
+            z-score pessoal de FC na caminhada − FC de repouso. Mostra quanto o teu coração acelera na
+            caminhada do dia frente ao teu próprio padrão — leitura de tendência, não é teste de esforço.
           </p>
           {verdict && (
             <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
@@ -325,18 +324,19 @@ export function ChronotropicResponseChart({ snapshots, baselineSnapshots }: Chro
 
       <details className="mt-4 text-xs text-slate-500">
         <summary className="cursor-pointer select-none text-slate-400 hover:text-slate-600">
-          Sobre competência cronotrópica
+          Sobre esta leitura
         </summary>
         <p className="mt-2 leading-5">
-          Competência cronotrópica: capacidade do coração de elevar a frequência cardíaca proporcionalmente
-          ao esforço. O delta aqui medido (FC caminhada − FC repouso) é normalizado pelo seu histórico pessoal
-          via z-score. Valores pessoalmente baixos (z &lt; −1σ) podem indicar: sedação autonômica (clonazepam),
+          Esta métrica mede o delta (FC caminhada casual − FC repouso) normalizado pelo teu histórico pessoal
+          via z-score. É uma leitura de tendência individual — caminhada submáxima e não padronizada —, não
+          um teste de esforço clínico. O conceito clínico relacionado — competência cronotrópica — é avaliado
+          por teste ergométrico ou cardiopulmonar padronizado, que isto não é.
+          Valores pessoalmente baixos (z &lt; −1σ) podem indicar: sedação autonômica (clonazepam),
           efeito parassimpático excessivo (escitalopram em doses altas), ou descondicionamento. Valores altos
           (z &gt; +1σ) podem refletir caminhada mais intensa ou melhora no condicionamento aeróbico.
         </p>
         <p className="mt-1 leading-5">
-          Referências: Brubaker PH &amp; Kitzman DW. Chronotropic incompetence. Circulation 2011;
-          Cole CR et al. Heart-rate recovery. NEJM 1999.
+          Referência conceitual: Brubaker PH &amp; Kitzman DW. Chronotropic incompetence. Circulation 2011.
         </p>
       </details>
     </div>

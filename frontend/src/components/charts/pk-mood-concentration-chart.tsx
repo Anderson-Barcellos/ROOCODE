@@ -443,7 +443,15 @@ export function PKMoodConcentrationChart({
     for (const row of visibleRows) {
       if (row.concMax != null && row.concMax > maxConc) maxConc = row.concMax
     }
-    return range ? Math.max(maxConc * 1.12, range.max * 1.18, 1) : Math.max(maxConc * 1.15, 1)
+    const curveTop = maxConc > 0 ? maxConc * 1.2 : 0
+    if (!range) return Math.max(curveTop, 1)
+    // Escala adaptativa por medicamento: inclui o teto terapêutico só quando a
+    // curva chega perto dele (>=40%). Quando a concentração real é muito menor
+    // que a faixa (ex: Rivotril PRN ~5 ng/mL com faixa até 70), a escala segue a
+    // curva pra ela não ficar esmagada na base — a faixa fica indicada pelo badge.
+    const includeBand = maxConc >= range.max * 0.4
+    const bandTop = includeBand ? range.max * 1.18 : range.min * 1.4
+    return Math.max(curveTop, bandTop, 1)
   }, [range, visibleRows])
 
   const doseMarkerLevel = useMemo(() => Math.max(concTop * 0.05, 1), [concTop])
@@ -872,7 +880,7 @@ export function PKMoodConcentrationChart({
                     }}
                   />
                   {range && (
-                    <ReferenceArea yAxisId="conc" y1={range.min} y2={range.max} ifOverflow="extendDomain" fill={activeColor} fillOpacity={0.07} strokeOpacity={0} />
+                    <ReferenceArea yAxisId="conc" y1={range.min} y2={range.max} ifOverflow="hidden" fill={activeColor} fillOpacity={0.07} strokeOpacity={0} />
                   )}
                   {forecastLabel && (
                     <ReferenceLine yAxisId="conc" x={forecastLabel} stroke="var(--accent-violet)" strokeDasharray="4 3" strokeWidth={1.5} />

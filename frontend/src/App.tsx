@@ -814,7 +814,7 @@ export default function App() {
                 <p className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-4 py-3 text-xs leading-5 text-[color:var(--muted)]">
                   <span className="font-semibold text-[color:var(--foreground)]">Nota importante:</span> as concentrações exibidas são estimativas de um modelo farmacocinético baseado no regime registrado, não medições laboratoriais.
                 </p>
-                <PKMoodConcentrationChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
+                <PKMoodConcentrationChart snapshots={ranged} />
 
                 <details className="group">
                   <summary className="cursor-pointer rounded-xl border border-[color:var(--border)] bg-[color:var(--card-strong)] px-4 py-2.5 text-sm font-semibold text-[color:var(--foreground)] transition hover:bg-[color:var(--card)]">

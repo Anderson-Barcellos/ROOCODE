@@ -1063,8 +1063,8 @@ export default function App() {
 
                   <DecisionSection
                     eyebrow="Painel 3"
-                    title="Como meu coração responde quando eu exijo dele?"
-                    description="VO2, reserva cardíaca, resposta cronotrópica e recuperação pós-esforço em uma leitura única."
+                    title="Qual minha capacidade aeróbica?"
+                    description="VO2 máx estimado como proxy da reserva cardiorrespiratória disponível para esforço."
                   >
                     <CapacityCardiovascularPanel
                       snapshots={rangedWithForecast}

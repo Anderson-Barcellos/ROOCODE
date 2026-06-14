@@ -17,9 +17,6 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
-import { CardioRecoveryChart } from '@/components/charts/cardio-recovery-chart'
-import { ChronotropicResponseChart } from '@/components/charts/chronotropic-response-chart'
-import { HeartRateReserveChart } from '@/components/charts/heart-rate-reserve-chart'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
@@ -241,24 +238,14 @@ export function CapacityCardiovascularPanel({ snapshots, baselineSnapshots = sna
     () => computeFunctionalCapacity(snapshots, baselineSnapshots),
     [snapshots, baselineSnapshots],
   )
-  const hrr = fci.components.find((component) => component.key === 'heartRateReserve')?.value ?? null
-  const chrono = fci.components.find((component) => component.key === 'chronotropic')?.value ?? null
-  const hrrOne = fci.components.find((component) => component.key === 'heartRateRecovery')?.value ?? null
-  const verdict = `VO2 ${formatNumber(fci.vo2Estimated, 1)} ml/kg/min, reserva ${formatNumber(hrr, 0)} bpm, cronotrópica ${formatNumber(chrono, 2)}σ e HRR1 ${formatNumber(hrrOne, 0)} bpm. Leitura integrada: ${fci.verdict}`
+  const verdict = `VO2 estimado ${formatNumber(fci.vo2Estimated, 1)} ml/kg/min. ${fci.verdict}`
 
   return (
     <div className="space-y-4">
       <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-        <span className="font-semibold text-slate-900">Veredito cardiovascular:</span> {verdict}
+        <span className="font-semibold text-slate-900">Capacidade aeróbica:</span> {verdict}
       </p>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Vo2MaxChart snapshots={snapshots} forecastStartDate={forecastStartDate} />
-        <HeartRateReserveChart snapshots={snapshots} baselineSnapshots={baselineSnapshots} />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <ChronotropicResponseChart snapshots={snapshots} baselineSnapshots={baselineSnapshots} />
-        <CardioRecoveryChart snapshots={snapshots} baselineSnapshots={baselineSnapshots} forecastStartDate={forecastStartDate} />
-      </div>
+      <Vo2MaxChart snapshots={snapshots} forecastStartDate={forecastStartDate} />
     </div>
   )
 }

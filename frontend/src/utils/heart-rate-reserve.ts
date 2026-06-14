@@ -16,24 +16,8 @@
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { ANDERS_HRMAX_BPM } from './health-policies'
-import type { ClinicalTone } from './health-policies'
 import { INTERP_CONFIDENCE_MULTIPLIER } from './interp-policy'
 import { sma } from './statistics'
-
-export interface HrrBand {
-  label: string
-  min: number
-  max: number
-  tone: ClinicalTone
-  color: string
-}
-
-export const HRR_BANDS: HrrBand[] = [
-  { label: 'Baixa',     min: 0,   max: 100, tone: 'negative', color: '#fca5a5' },
-  { label: 'Moderada',  min: 100, max: 115, tone: 'watch',    color: '#fed7aa' },
-  { label: 'Boa',       min: 115, max: 125, tone: 'positive', color: '#bbf7d0' },
-  { label: 'Excelente', min: 125, max: 999, tone: 'positive', color: '#86efac' },
-]
 
 export interface HrrPoint {
   date: string
@@ -42,15 +26,9 @@ export interface HrrPoint {
   walkingReservePct: number | null
   rhr: number | null
   walkingHR: number | null
-  band: HrrBand | null
   confidence: number
   derivedFromInterpolated: boolean
   reason?: 'inputs_missing'
-}
-
-export function getHrrBand(hrr: number | null): HrrBand | null {
-  if (hrr == null) return null
-  return HRR_BANDS.find((b) => hrr >= b.min && hrr < b.max) ?? HRR_BANDS[HRR_BANDS.length - 1]
 }
 
 export function computeHeartRateReserveSeries(
@@ -77,7 +55,6 @@ export function computeHeartRateReserveSeries(
         walkingReservePct: null,
         rhr: null,
         walkingHR,
-        band: null,
         confidence: 0,
         derivedFromInterpolated,
         reason: 'inputs_missing' as const,
@@ -99,7 +76,6 @@ export function computeHeartRateReserveSeries(
       walkingReservePct,
       rhr,
       walkingHR,
-      band: getHrrBand(hrr),
       confidence,
       derivedFromInterpolated,
     }

@@ -3,7 +3,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -16,7 +15,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { computeHeartRateReserveSeries, HRR_BANDS, type HrrBand } from '@/utils/heart-rate-reserve'
+import { computeHeartRateReserveSeries } from '@/utils/heart-rate-reserve'
 import { ANDERS_HRMAX_BPM } from '@/utils/health-policies'
 import { USER_PROFILE } from '@/utils/user-profile'
 
@@ -46,7 +45,6 @@ interface ChartRow {
   walkingReservePct: number | null
   rhr: number | null
   walkingHR: number | null
-  band: HrrBand | null
   derivedFromInterpolated: boolean
 }
 
@@ -76,7 +74,6 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
       walkingReservePct: point?.walkingReservePct ?? null,
       rhr: point?.rhr ?? null,
       walkingHR: point?.walkingHR ?? null,
-      band: point?.band ?? null,
       derivedFromInterpolated: isInterp,
     }
   })
@@ -100,7 +97,6 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         walkingReservePct: null,
         rhr: null,
         walkingHR: null,
-        band: null,
         derivedFromInterpolated: false,
       })
     }
@@ -131,11 +127,6 @@ function HrrTooltip({ active, payload }: HrrTooltipProps) {
         <span className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
           {hrr.toFixed(0)} bpm
         </span>
-        {row.band && (
-          <span className="text-[0.65rem] uppercase tracking-wider" style={{ color: row.band.color }}>
-            {row.band.label}
-          </span>
-        )}
       </div>
       <div className="space-y-1 text-slate-600">
         {row.hrrSma7 != null && (
@@ -178,30 +169,16 @@ function HrrTooltip({ active, payload }: HrrTooltipProps) {
 }
 
 function buildHrrVerdict(row: ChartRow): { text: string; mood: 'good' | 'watch' | 'alert' } {
-  if (row.hrr == null || row.band == null) {
+  if (row.hrr == null) {
     return {
-      text: 'Sem dados suficientes para estimar reserva cardíaca de forma confiável.',
-      mood: 'watch',
-    }
-  }
-
-  if (row.band.tone === 'positive') {
-    return {
-      text: 'Reserva cardíaca boa para esforço aeróbico. Sinal favorável de capacidade cardiovascular funcional.',
-      mood: 'good',
-    }
-  }
-
-  if (row.band.tone === 'watch') {
-    return {
-      text: 'Reserva cardíaca moderada. Dá para evoluir com treino regular e melhora de recuperação basal.',
+      text: 'Sem dados suficientes para estimar a tendência da tua reserva cardíaca.',
       mood: 'watch',
     }
   }
 
   return {
-    text: 'Reserva cardíaca reduzida no momento. Priorize condicionamento progressivo e revisão de carga de estresse.',
-    mood: 'alert',
+    text: 'Acompanha a tendência da tua reserva cardíaca — quanto maior, mais capacidade cardiovascular disponível para o esforço.',
+    mood: 'good',
   }
 }
 
@@ -225,19 +202,15 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
   }, [data])
 
   const yDomain = useMemo<[number, number]>(() => {
-    let min = HRR_BANDS[0].max
-    let max = HRR_BANDS[2].max
-    for (const row of data) {
-      if (row.hrr != null) {
-        if (row.hrr < min) min = row.hrr
-        if (row.hrr > max) max = row.hrr
-      }
-      if (row.hrrSma7 != null) {
-        if (row.hrrSma7 < min) min = row.hrrSma7
-        if (row.hrrSma7 > max) max = row.hrrSma7
-      }
-    }
-    return [Math.max(0, Math.floor(min - Y_PAD)), Math.ceil(max + Y_PAD)]
+    const hrrVals = data.flatMap((r) => {
+      const vals: number[] = []
+      if (r.hrr != null) vals.push(r.hrr)
+      if (r.hrrSma7 != null) vals.push(r.hrrSma7)
+      return vals
+    })
+    const minVal = hrrVals.length ? Math.min(...hrrVals) : 80
+    const maxVal = hrrVals.length ? Math.max(...hrrVals) : 140
+    return [Math.max(0, Math.floor(minVal - Y_PAD)), Math.ceil(maxVal + Y_PAD)]
   }, [data])
 
   const chartBody = (
@@ -274,10 +247,6 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
               stroke={COLOR_ROSE}
             />
           )}
-          <ReferenceArea yAxisId="left" y1={yDomain[0]} y2={Math.min(100, yDomain[1])} fill="#fca5a5" fillOpacity={0.08} />
-          <ReferenceArea yAxisId="left" y1={Math.max(100, yDomain[0])} y2={Math.min(115, yDomain[1])} fill="#fed7aa" fillOpacity={0.06} />
-          <ReferenceArea yAxisId="left" y1={Math.max(115, yDomain[0])} y2={Math.min(125, yDomain[1])} fill="#bbf7d0" fillOpacity={0.06} />
-          <ReferenceArea yAxisId="left" y1={Math.max(125, yDomain[0])} y2={yDomain[1]} fill="#86efac" fillOpacity={0.08} />
           <Tooltip content={<HrrTooltip />} />
           <Line
             yAxisId="left"
@@ -345,8 +314,6 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
     </div>
   )
 
-  const latestBandColor = latest?.band?.color
-  const latestBandLabel = latest?.band?.label
   const verdict = latest ? buildHrrVerdict(latest) : null
   const verdictClass =
     verdict?.mood === 'good'
@@ -366,9 +333,9 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
             Reserva Cardíaca
           </h3>
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-            HRmax estimada ({ANDERS_HRMAX_BPM} bpm) − FC Repouso. Representa a capacidade cardiovascular de
-            resposta ao esforço. Linha rosa tracejada = % da reserva utilizada durante caminhada
-            (fórmula de Karvonen).
+            Tendência da tua reserva cardíaca: HRmax estimada ({ANDERS_HRMAX_BPM} bpm) − FC Repouso.
+            Quanto maior, mais margem de resposta ao esforço. Linha rosa tracejada = % da reserva
+            utilizada durante caminhada (fórmula de Karvonen).
           </p>
           {verdict && (
             <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
@@ -380,8 +347,6 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
           <CardScoreBadge
             label="Último"
             value={`${latest.hrr.toFixed(0)} bpm`}
-            band={latestBandLabel || undefined}
-            bandColor={latestBandColor}
             hint={latest.label}
           />
         )}

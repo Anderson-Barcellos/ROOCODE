@@ -2,9 +2,7 @@ import assert from 'node:assert/strict'
 
 import type { DailySnapshot } from '../src/types/apple-health'
 import {
-  HRR_BANDS,
   computeHeartRateReserveSeries,
-  getHrrBand,
 } from '../src/utils/heart-rate-reserve'
 import { ANDERS_HRMAX_BPM } from '../src/utils/health-policies'
 import { INTERP_CONFIDENCE_MULTIPLIER } from '../src/utils/interp-policy'
@@ -81,36 +79,13 @@ function buildSeries(opts: FixtureOptions = {}): ReturnType<typeof computeHeartR
   return computeHeartRateReserveSeries([fixture(0, opts)])
 }
 
-// ─── HRR_BANDS sanity ─────────────────────────────────────────────────────────
-
-assert.equal(HRR_BANDS.length, 4)
-assert.equal(HRR_BANDS[0].label, 'Baixa')
-assert.equal(HRR_BANDS[3].label, 'Excelente')
-
 // ─── Test 1: Basic reserve computation ───────────────────────────────────────
 
 const [basic] = buildSeries({ rhr: 60 })
 assert.equal(basic.hrr, ANDERS_HRMAX_BPM - 60) // 181 - 60 = 121
 assert.equal(basic.rhr, 60)
 
-// ─── Test 2: Band classification ─────────────────────────────────────────────
-
-assert.equal(getHrrBand(95)?.label, 'Baixa')
-assert.equal(getHrrBand(110)?.label, 'Moderada')
-assert.equal(getHrrBand(120)?.label, 'Boa')
-assert.equal(getHrrBand(130)?.label, 'Excelente')
-
-// ─── Test 3: Band boundaries (inclusive lower, exclusive upper) ───────────────
-
-assert.equal(getHrrBand(100)?.label, 'Moderada')  // not 'Baixa' — 100 is the boundary
-assert.equal(getHrrBand(115)?.label, 'Boa')        // not 'Moderada'
-assert.equal(getHrrBand(125)?.label, 'Excelente')  // not 'Boa'
-
-// ─── Test 4: getHrrBand(null) → null ─────────────────────────────────────────
-
-assert.equal(getHrrBand(null), null)
-
-// ─── Test 5: Walking reserve % ───────────────────────────────────────────────
+// ─── Test 2: Walking reserve % ───────────────────────────────────────────────
 
 const [walkingPoint] = buildSeries({ rhr: 60, walkingHR: 90 })
 // hrr = 121, pct = (90 - 60) / 121 * 100 ≈ 24.79%
@@ -175,7 +150,6 @@ const [missingRhr] = buildSeries({ rhr: null })
 assert.equal(missingRhr.hrr, null)
 assert.equal(missingRhr.reason, 'inputs_missing')
 assert.equal(missingRhr.confidence, 0)
-assert.equal(missingRhr.band, null)
 
 // ─── Test 12: interpolated=true → derivedFromInterpolated=true, confidence=INTERP ─
 

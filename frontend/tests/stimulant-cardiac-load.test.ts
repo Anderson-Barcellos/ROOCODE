@@ -1,19 +1,7 @@
 import assert from 'node:assert/strict'
 
 import type { DailySnapshot, DailyHealthMetrics } from '../src/types/apple-health'
-import type { PKMedication, PKDose } from '../src/utils/pharmacokinetics'
 import { computeStimulantCardiacLoad } from '../src/utils/stimulant-cardiac-load'
-
-const WEIGHT = 91
-const MED: PKMedication = {
-  id: 'venvanse',
-  name: 'Venvanse',
-  category: 'Stimulant',
-  halfLife: 10,
-  volumeOfDistribution: 3.5,
-  bioavailability: 0.96,
-  absorptionRate: 2.0,
-}
 
 function isoDate(daysBack: number): string {
   const base = new Date('2026-06-10T00:00:00Z')
@@ -46,36 +34,38 @@ function snap(daysBack: number, rhr: number | null): DailySnapshot {
   return { date, health: health(date, rhr), mood: null, medications: null }
 }
 
-function doseAt(daysBack: number, mg: number): PKDose {
-  const date = isoDate(daysBack)
-  return { medicationId: 'venvanse', timestamp: new Date(`${date}T07:00:00`).getTime(), doseAmount: mg }
-}
-
-// 1) med ausente → med_unavailable.
-assert.equal(computeStimulantCardiacLoad([snap(0, 70)], null, [], WEIGHT).reason, 'med_unavailable')
-
-// 2) poucos dias (5 < 14 pares) → insufficient_data.
+// 1) Poucos dias com exposição (< 14 pares) → insufficient_data.
 const fewSnaps: DailySnapshot[] = []
-const fewDoses: PKDose[] = []
-for (let d = 4; d >= 0; d -= 1) { fewSnaps.push(snap(d, 75)); fewDoses.push(doseAt(d, 200)) }
-assert.equal(computeStimulantCardiacLoad(fewSnaps, MED, fewDoses, WEIGHT).reason, 'insufficient_data')
+const fewExp = new Map<string, number>()
+for (let d = 4; d >= 0; d -= 1) { fewSnaps.push(snap(d, 75)); fewExp.set(isoDate(d), 100) }
+assert.equal(computeStimulantCardiacLoad(fewSnaps, fewExp).reason, 'insufficient_data')
 
-// 3) exposição com variância + FC correlacionada → ok, 8 células, bestCell presente.
+// 2) Exposição constante (CV ~0 < 0.1) → insufficient_variance (a dose fixa do mundo real).
+const flatSnaps: DailySnapshot[] = []
+const flatExp = new Map<string, number>()
+for (let d = 19; d >= 0; d -= 1) { flatSnaps.push(snap(d, 72)); flatExp.set(isoDate(d), 100) }
+const flat = computeStimulantCardiacLoad(flatSnaps, flatExp)
+assert.equal(flat.reason, 'insufficient_variance', 'exposição constante = variância insuficiente')
+assert.ok(flat.exposureCv != null && flat.exposureCv < 0.1, 'CV ~0')
+
+// 3) Exposição variável + FC correlacionada → ok, 8 células, correlação positiva forte.
 const varSnaps: DailySnapshot[] = []
-const varDoses: PKDose[] = []
+const varExp = new Map<string, number>()
 for (let d = 19; d >= 0; d -= 1) {
   const high = d % 2 === 0
-  varDoses.push(doseAt(d, high ? 400 : 70))
   varSnaps.push(snap(d, high ? 86 : 68))
+  varExp.set(isoDate(d), high ? 300 : 50)
 }
-const ok = computeStimulantCardiacLoad(varSnaps, MED, varDoses, WEIGHT)
+const ok = computeStimulantCardiacLoad(varSnaps, varExp)
 assert.equal(ok.reason, 'ok', 'variância alta + 20 dias = ok')
 assert.equal(ok.cells.length, 8, '2 alvos × 4 lags = 8 células')
 assert.ok(ok.exposureCv != null && ok.exposureCv >= 0.1, 'CV de exposição alto')
 assert.ok(ok.bestCell != null, 'tem bestCell')
 assert.ok(ok.scatter.length >= 14, 'scatter com pontos suficientes')
-// lag 0 de restingHeartRate deve ter correlação positiva forte (dose alta ↔ FC alta)
 const lag0Rhr = ok.cells.find((c) => c.target === 'restingHeartRate' && c.lag === 0)!
 assert.ok(lag0Rhr.r != null && lag0Rhr.r > 0.5, 'FC repouso correlaciona positivo com exposição')
+
+// 4) Sem exposição (map vazio) → insufficient_data.
+assert.equal(computeStimulantCardiacLoad(varSnaps, new Map()).reason, 'insufficient_data')
 
 console.log('stimulant-cardiac-load.test.ts — all assertions passed')

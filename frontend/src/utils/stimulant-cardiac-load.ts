@@ -14,14 +14,12 @@
  * sinal. Correlação, não causalidade.
  */
 import type { DailySnapshot } from '@/types/apple-health'
-import { calculateConcentration, type PKMedication, type PKDose } from './pharmacokinetics'
 import { pearson, benjaminiHochbergFdr } from './intraday-correlation'
 import { pValueFromR } from './temp-humor-correlation'
 
 export type CardiacTarget = 'restingHeartRate' | 'hrvSdnn'
-export type StimulantReason = 'ok' | 'med_unavailable' | 'insufficient_data' | 'insufficient_variance'
+export type StimulantReason = 'ok' | 'insufficient_data' | 'insufficient_variance'
 
-const SAMPLE_HOURS = [0, 3, 6, 9, 12, 15, 18, 21]
 const LAGS = [0, 1, 2, 3]
 const MIN_PAIRS = 14
 const MIN_EXPOSURE_CV = 0.1
@@ -49,20 +47,6 @@ export interface StimulantCardiacLoadSummary {
   bestCell: StimulantCardiacCell | null
 }
 
-// Exposição diária ≈ AUC: média da concentração amostrada ao longo do dia.
-function dailyExposure(med: PKMedication, doses: PKDose[], dateIso: string, weightKg: number): number | null {
-  const samples: number[] = []
-  for (const h of SAMPLE_HOURS) {
-    const hh = String(h).padStart(2, '0')
-    const t = new Date(`${dateIso}T${hh}:00:00`).getTime()
-    if (!Number.isFinite(t)) continue
-    const c = calculateConcentration(med, doses, t, weightKg)
-    if (Number.isFinite(c)) samples.push(c)
-  }
-  if (!samples.length) return null
-  return samples.reduce((a, b) => a + b, 0) / samples.length
-}
-
 function realTarget(snap: DailySnapshot, target: CardiacTarget): number | null {
   if (snap.interpolated || snap.forecasted) return null
   const v = snap.health?.[target]
@@ -77,11 +61,14 @@ function coefficientOfVariation(values: number[]): number | null {
   return Math.sqrt(variance) / Math.abs(mean)
 }
 
+/**
+ * Recebe a exposição diária já calculada (date → AUC), tipicamente da série de
+ * concentração do backend (`useConcentrationSeries`), que expande o regime quando
+ * não há doses logadas — capturando a variância natural (ex.: Venvanse seg-sex).
+ */
 export function computeStimulantCardiacLoad(
   snapshots: ReadonlyArray<DailySnapshot>,
-  med: PKMedication | null,
-  doses: PKDose[],
-  weightKg: number,
+  exposureByDate: ReadonlyMap<string, number>,
 ): StimulantCardiacLoadSummary {
   const empty = (reason: StimulantReason, exposureCv: number | null = null): StimulantCardiacLoadSummary => ({
     reason,
@@ -91,9 +78,10 @@ export function computeStimulantCardiacLoad(
     bestCell: null,
   })
 
-  if (!med) return empty('med_unavailable')
-
-  const exposures = snapshots.map((s) => dailyExposure(med, doses, s.date, weightKg))
+  const exposures = snapshots.map((s) => {
+    const e = exposureByDate.get(s.date)
+    return e != null && Number.isFinite(e) ? e : null
+  })
   const exposureVals = exposures.filter((e): e is number => e != null && e > 0)
   const exposureCv = coefficientOfVariation(exposureVals)
 

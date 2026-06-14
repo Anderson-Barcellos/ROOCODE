@@ -1014,7 +1014,7 @@ export default function App() {
                     title="O Venvanse pesa no coração?"
                     description="Correlação exploratória entre a exposição diária ao estimulante e a FC de repouso / HRV."
                   >
-                    <StimulantCardiacLoadCard snapshots={data.snapshots} doses={data.doses} />
+                    <StimulantCardiacLoadCard snapshots={data.snapshots} />
                   </DecisionSection>
                 </div>
               )}

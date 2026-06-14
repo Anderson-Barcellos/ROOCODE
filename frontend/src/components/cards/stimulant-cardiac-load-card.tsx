@@ -2,9 +2,8 @@ import { useMemo } from 'react'
 import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
-import type { DoseRecord } from '@/lib/api'
-import { buildPKMedication, DEFAULT_PK_BODY_WEIGHT_KG } from '@/utils/pharmacokinetics'
-import { toPKDoses } from '@/utils/intraday-correlation'
+import { useConcentrationSeries } from '@/lib/api'
+import { DEFAULT_PK_BODY_WEIGHT_KG } from '@/utils/pharmacokinetics'
 import {
   computeStimulantCardiacLoad,
   type CardiacTarget,
@@ -13,7 +12,6 @@ import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
 
 interface StimulantCardiacLoadCardProps {
   snapshots: DailySnapshot[]
-  doses: DoseRecord[]
 }
 
 const TARGET_LABEL: Record<CardiacTarget, string> = {
@@ -22,26 +20,28 @@ const TARGET_LABEL: Record<CardiacTarget, string> = {
 }
 
 const REASON_COPY: Record<string, { title: string; body: string }> = {
-  med_unavailable: {
-    title: 'Venvanse não encontrado',
-    body: 'Sem doses de Venvanse registradas no regime — sem como estimar a exposição.',
-  },
   insufficient_data: {
     title: 'Coletando dados',
     body: 'Faltam dias pareados (exposição + FC/HRV) para uma correlação confiável.',
   },
   insufficient_variance: {
     title: 'Variância insuficiente',
-    body: 'Tua dose é praticamente fixa, então a exposição quase não varia — não dá pra isolar o efeito no coração sem variação real (doses puladas, mudança de regime).',
+    body: 'A exposição ao estimulante varia pouco na janela — não dá pra isolar o efeito no coração sem variação real (fim de semana sem dose, doses puladas, mudança de regime).',
   },
 }
 
-export function StimulantCardiacLoadCard({ snapshots, doses }: StimulantCardiacLoadCardProps) {
+export function StimulantCardiacLoadCard({ snapshots }: StimulantCardiacLoadCardProps) {
+  const from = snapshots.length ? snapshots[0].date : ''
+  const to = snapshots.length ? snapshots[snapshots.length - 1].date : ''
+  const concentrationQuery = useConcentrationSeries('venvanse', from, to, DEFAULT_PK_BODY_WEIGHT_KG)
+
   const summary = useMemo(() => {
-    const med = buildPKMedication('Venvanse')
-    const stimulantDoses = toPKDoses(doses.filter((d) => /venvanse|lisdex/i.test(d.substance)))
-    return computeStimulantCardiacLoad(snapshots, med, stimulantDoses, DEFAULT_PK_BODY_WEIGHT_KG)
-  }, [snapshots, doses])
+    const exposureByDate = new Map<string, number>()
+    for (const point of concentrationQuery.data?.series ?? []) {
+      exposureByDate.set(point.date, point.auc_est)
+    }
+    return computeStimulantCardiacLoad(snapshots, exposureByDate)
+  }, [snapshots, concentrationQuery.data])
 
   if (!snapshots.length) return null
 

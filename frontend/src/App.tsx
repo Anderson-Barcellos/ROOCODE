@@ -902,20 +902,6 @@ export default function App() {
 
                   <DecisionSection
                     eyebrow="Painel 5"
-                    title="Meu sistema nervoso autônomo está em equilíbrio?"
-                    description="ABI, HRV, frequência cardíaca basal e idade cardiovascular interpretativa."
-                  >
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-                      <AutonomicBalanceChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
-                    </div>
-                    <div className="grid gap-4 xl:grid-cols-2">
-                      <HrvVariabilityChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
-                      <HRRangeChart snapshots={rangedWithForecast} forecastStartDate={data.forecastedSnapshots.length > 0 ? todayIso : undefined} />
-                    </div>
-                  </DecisionSection>
-
-                  <DecisionSection
-                    eyebrow="Painel 6"
                     title="Quanto a semana me reparou?"
                     description="Fechamento clínico da tendência recente e do histórico de recuperação."
                   >

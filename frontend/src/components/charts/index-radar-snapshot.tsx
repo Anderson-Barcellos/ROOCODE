@@ -24,9 +24,8 @@ import { CHART_TOKENS } from './shared/chart-tokens'
  * Radar com snapshot dos índices em escala 0–100 da INDEX_EVIDENCE_MATRIX.
  *
  * Cobertura desta primeira versão: 7 índices que rendem score 0–100 unificado.
- * Os 4 restantes da matriz (AutonomicBalance z-score, HRVVariability ms,
- * HRRange bpm, CardiovascularAge anos) ficam fora porque não normalizam pra
- * 0–100 trivialmente.
+ * Os 3 restantes da matriz (AutonomicBalance z-score, HRVVariability ms,
+ * HRRange bpm) ficam fora porque não normalizam pra 0–100 trivialmente.
  *
  * Mostra 1 polígono (snapshot atual) + reference circles em 70 (ótimo) e
  * 45 (atenção). Sombra "média 30d" fica como follow-up — exige snapshots

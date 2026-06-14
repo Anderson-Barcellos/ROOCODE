@@ -13,7 +13,6 @@ const expectedIds: IndexEvidenceId[] = [
   'AutonomicBalance',
   'HRVVariability',
   'HRRange',
-  'CardiovascularAge',
   'ActivityReadiness',
   'FunctionalCapacityIndex',
   'CircadianRobustness',

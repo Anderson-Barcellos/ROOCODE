@@ -220,6 +220,5 @@ export const CHART_REQUIREMENTS = {
   restingHeartRateIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'restingHeartRate' },
   bloodPressureIndex: { type: 'days', robustMin: 30, exploratoryMin: 20, collectingMin: 10, field: 'systolicMmHg' },
   stimulantCardiacLoadIndex: { type: 'days', robustMin: 30, exploratoryMin: 20, collectingMin: 14, field: 'restingHeartRate' },
-  cardiovascularAgeIndex: { type: 'days', robustMin: 30, exploratoryMin: 14, collectingMin: 7, field: 'restingHeartRate' },
   activityReadinessIndex: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 3, field: 'steps' },
 } as const satisfies Record<string, ReadinessRequirement>

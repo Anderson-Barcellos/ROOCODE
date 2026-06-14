@@ -13,7 +13,6 @@ export type IndexEvidenceId =
   | 'AutonomicBalance'
   | 'HRVVariability'
   | 'HRRange'
-  | 'CardiovascularAge'
   | 'ActivityReadiness'
   | 'FunctionalCapacityIndex'
   | 'CircadianRobustness'
@@ -242,25 +241,6 @@ export const INDEX_EVIDENCE_MATRIX: Record<IndexEvidenceId, IndexEvidenceSpec> =
     proxySources: [],
     derivedSources: [
       { field: 'meanSma7', kind: 'derived', note: 'suavizacao longitudinal do sinal medio' },
-    ],
-  },
-  CardiovascularAge: {
-    id: 'CardiovascularAge',
-    domain: 'recuperacao',
-    interpolationPolicy: 'visual_only',
-    minimumInputs: 3,
-    readinessKey: 'cardiovascularAgeIndex',
-    confidenceRule: 'confidence cresce com dias reais, clamp 35%-100%',
-    primarySources: [
-      { field: 'restingHeartRate', kind: 'primary', note: 'sinal basal cardiovascular' },
-      { field: 'hrvSdnn', kind: 'primary', note: 'tônus vagal basal' },
-      { field: 'vo2Max', kind: 'primary', note: 'capacidade aeróbica, quando disponível' },
-    ],
-    proxySources: [
-      { field: 'vo2FromRhr', kind: 'proxy', note: 'estimativa de VO2 via FC repouso quando VO2 falta' },
-    ],
-    derivedSources: [
-      { field: 'cardiovascularAge', kind: 'derived', note: 'composite interpretativo não diagnóstico' },
     ],
   },
   ActivityReadiness: {

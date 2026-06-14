@@ -49,7 +49,6 @@ import {
 import { RecoveryIndexCard } from '@/components/cards/recovery-index-card'
 import { RecoveryIndexChart } from '@/components/charts/recovery-index-chart'
 import { SleepRegularityCard } from '@/components/cards/sleep-regularity-card'
-import { CardiovascularAgeCard } from '@/components/cards/cardiovascular-age-card'
 import { RecoveryWeekCard } from '@/components/cards/recovery-week-card'
 import { PillarGaugeBars } from '@/components/charts/pillar-gauge-bars'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
@@ -905,7 +904,6 @@ export default function App() {
                   >
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
                       <AutonomicBalanceChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />
-                      <CardiovascularAgeCard snapshots={ranged} />
                     </div>
                     <div className="grid gap-4 xl:grid-cols-2">
                       <HrvVariabilityChart snapshots={rangedWithForecast} baselineSnapshots={allWithForecast} />

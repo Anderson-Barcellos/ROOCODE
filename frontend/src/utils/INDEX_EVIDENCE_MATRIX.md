@@ -18,7 +18,6 @@ Matriz oficial de governanca de indices para garantir rastreabilidade de fonte, 
 | AutonomicBalance | hrvSdnn, restingHeartRate | nenhum | score_with_penalty | 2 | autonomicBalanceChart |
 | HRVVariability | hrvSdnn | nenhum | score_with_penalty | 1 | hrvVariabilityChart |
 | HRRange | heartRateMin, heartRateMax, heartRateMean, restingHeartRate | nenhum | visual_only | 1 | hrRangeChart |
-| CardiovascularAge | restingHeartRate, hrvSdnn, vo2Max | vo2FromRhr | visual_only | 3 | cardiovascularAgeIndex |
 
 ## Capacidade
 

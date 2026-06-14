@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 
 import type { DailySnapshot } from '../src/types/apple-health'
 import {
-  getHrvBand,
   computeHrvVariabilitySeries,
 } from '../src/utils/hrv-variability'
 import { INTERP_CONFIDENCE_MULTIPLIER } from '../src/utils/interp-policy'
@@ -72,20 +71,6 @@ function fixture(daysBack: number, opts: FixtureOptions = {}): DailySnapshot {
     medications: null,
   }
 }
-
-// ─── getHrvBand — classificações ──────────────────────────────────────────
-
-assert.equal(getHrvBand(15)?.label, 'Ruim', 'hrv=15 → Ruim')
-assert.equal(getHrvBand(25)?.label, 'Médio-Baixo', 'hrv=25 → Médio-Baixo')
-assert.equal(getHrvBand(45)?.label, 'Bom', 'hrv=45 → Bom')
-assert.equal(getHrvBand(70)?.label, 'Excelente', 'hrv=70 → Excelente')
-assert.equal(getHrvBand(null), null, 'hrv=null → null')
-
-// ─── getHrvBand — limites de banda ────────────────────────────────────────
-
-assert.equal(getHrvBand(20)?.label, 'Médio-Baixo', 'hrv=20 → Médio-Baixo (não Ruim)')
-assert.equal(getHrvBand(40)?.label, 'Bom', 'hrv=40 → Bom (não Médio-Baixo)')
-assert.equal(getHrvBand(60)?.label, 'Excelente', 'hrv=60 → Excelente (não Bom)')
 
 // ─── sma7 disponível após ~4 dias (floor(7/2)=3 → 4ª posição índice 3) ───
 

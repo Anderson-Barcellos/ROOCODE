@@ -4,7 +4,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,7 +15,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { computeHrvVariabilitySeries, HRV_BANDS_MALE_39, type HrvBand } from '@/utils/hrv-variability'
+import { computeHrvVariabilitySeries } from '@/utils/hrv-variability'
 
 interface HrvVariabilityChartProps {
   snapshots: DailySnapshot[]
@@ -43,7 +42,6 @@ interface ChartRow {
   sdBandLow: number | null
   sdBandWidth: number | null
   rollingSd7: number | null
-  band: HrvBand | null
   derivedFromInterpolated: boolean
 }
 
@@ -79,7 +77,6 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
       sdBandLow: point?.sdBandLow ?? null,
       sdBandWidth,
       rollingSd7: point?.rollingSd7 ?? null,
-      band: point?.band ?? null,
       derivedFromInterpolated: isInterp,
     }
   })
@@ -104,7 +101,6 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         sdBandLow: null,
         sdBandWidth: null,
         rollingSd7: null,
-        band: null,
         derivedFromInterpolated: false,
       })
     }
@@ -119,25 +115,10 @@ function sdLabel(sd: number | null): { text: string; color: string } | null {
   return { text: 'Alta (flexível)', color: '#6366f1' }
 }
 
-function hrvVerdict(
-  hrv: number,
-  tone: HrvBand['tone'],
-): { text: string; mood: 'good' | 'watch' | 'alert' } {
-  if (tone === 'positive') {
-    return {
-      text: `VFC em boa faixa para teu perfil (${hrv.toFixed(1)} ms). Tendência compatível com recuperação preservada.`,
-      mood: 'good',
-    }
-  }
-  if (tone === 'watch') {
-    return {
-      text: `VFC em faixa médio-baixa (${hrv.toFixed(1)} ms). Dá para melhorar com sono consistente e carga mais estável.`,
-      mood: 'watch',
-    }
-  }
+function hrvVerdict(hrv: number): { text: string; mood: 'good' } {
   return {
-    text: `VFC baixa para teu baseline (${hrv.toFixed(1)} ms). Sinal de estresse fisiológico; priorize recuperação hoje.`,
-    mood: 'alert',
+    text: `VFC pessoal mais recente: ${hrv.toFixed(1)} ms (SDNN ultra-curto Apple Watch). Acompanha a tua tendência — SMA 7d e 30d mostram a direção; envelope SD reflete estabilidade dia-a-dia.`,
+    mood: 'good',
   }
 }
 
@@ -152,7 +133,6 @@ function HrvTooltip({ active, payload }: TooltipProps) {
   if (!row || (row.hrvReal == null && row.hrvInterp == null)) return null
 
   const hrv = (row.hrvReal ?? row.hrvInterp)!
-  const band = row.band
   const sdInfo = sdLabel(row.rollingSd7)
 
   return (
@@ -167,14 +147,6 @@ function HrvTooltip({ active, payload }: TooltipProps) {
         <span className="font-['Fraunces'] text-2xl tracking-[-0.04em] text-slate-900">
           {hrv.toFixed(1)} ms
         </span>
-        {band && (
-          <span
-            className="text-[0.65rem] uppercase tracking-wider font-semibold"
-            style={{ color: band.tone === 'negative' ? '#ef4444' : band.tone === 'watch' ? '#f59e0b' : '#10b981' }}
-          >
-            {band.label}
-          </span>
-        )}
       </div>
       <div className="space-y-1 text-slate-600">
         {row.sma7 != null && (
@@ -224,6 +196,19 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
     return null
   }, [data])
 
+  const yDomain = useMemo<[number, number]>(() => {
+    const vals = data.flatMap((r) => {
+      const v: number[] = []
+      if (r.hrv != null) v.push(r.hrv)
+      if (r.sma7 != null) v.push(r.sma7)
+      if (r.sma30 != null) v.push(r.sma30)
+      return v
+    })
+    const minVal = vals.length ? Math.min(...vals) : 0
+    const maxVal = vals.length ? Math.max(...vals) : 80
+    return [Math.max(0, Math.floor(minVal - 5)), Math.ceil(maxVal + 5)]
+  }, [data])
+
   const chartBody = (
     <div className="h-[320px] w-full">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 1, height: 1 }}>
@@ -237,18 +222,13 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
             minTickGap={22}
           />
           <YAxis
-            domain={[0, 'auto']}
+            domain={yDomain}
             tick={{ fill: '#475569', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={36}
             tickFormatter={(v: number) => `${v}`}
           />
-
-          <ReferenceArea y1={0}  y2={20}  fill="#ef4444" fillOpacity={0.08} />
-          <ReferenceArea y1={20} y2={40}  fill="#f59e0b" fillOpacity={0.06} />
-          <ReferenceArea y1={40} y2={60}  fill="#10b981" fillOpacity={0.06} />
-          <ReferenceArea y1={60} y2={200} fill="#10b981" fillOpacity={0.08} />
 
           <Area
             type="monotone"
@@ -320,22 +300,9 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
   )
 
   const latestHrv = latest != null ? (latest.hrvReal ?? latest.hrvInterp) : null
-  const latestBand = latest?.band ?? null
 
-  const bandColor = latestBand
-    ? latestBand.tone === 'negative'
-      ? '#ef4444'
-      : latestBand.tone === 'watch'
-        ? '#f59e0b'
-        : '#10b981'
-    : undefined
-  const verdict = latestHrv != null && latestBand ? hrvVerdict(latestHrv, latestBand.tone) : null
-  const verdictClass =
-    verdict?.mood === 'good'
-      ? 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
-      : verdict?.mood === 'alert'
-        ? 'border-rose-200 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-500/10 text-rose-900 dark:text-rose-200'
-        : 'border-amber-200 dark:border-amber-400/30 bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200'
+  const verdict = latestHrv != null ? hrvVerdict(latestHrv) : null
+  const verdictClass = 'border-emerald-200 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
 
   return (
     <div className="rounded-[1.5rem] border border-slate-900/10 bg-white/85 p-5 shadow-[0_18px_42px_rgba(17,35,30,0.08)] backdrop-blur">
@@ -348,21 +315,20 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
             Variabilidade da Frequência Cardíaca
           </h3>
           <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
-            HRV (SDNN) diário com tendências de curto (7d) e longo prazo (30d). Banda cinza = variabilidade
-            dia-a-dia (rolling SD 7d). Bandas coloridas = referências populacionais para homem ~39 anos.
+            SDNN ultra-curto (~1 min) registrado pelo Apple Watch — sem norma populacional robusta para
+            wearables. Este gráfico mostra a tua tendência pessoal: HRV diário, SMA 7d, SMA 30d e
+            envelope de variabilidade dia-a-dia (SD 7d em cinza).
           </p>
           {verdict && (
             <p className={`mt-2 rounded-xl border px-3 py-2 text-xs leading-5 ${verdictClass}`}>
-              <span className="font-semibold">Veredito:</span> {verdict.text}
+              {verdict.text}
             </p>
           )}
         </div>
-        {latestHrv != null && latestBand && (
+        {latestHrv != null && (
           <CardScoreBadge
             label="Último"
             value={`${latestHrv.toFixed(1)} ms`}
-            band={latestBand.label}
-            bandColor={bandColor}
             hint={latest?.label}
           />
         )}
@@ -425,29 +391,18 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
             </ul>
           </div>
           <p className="border-t border-slate-100 pt-2 text-[0.72rem] text-slate-400">
-            O Apple Watch mede SDNN usando o sensor óptico (PPG). As demais métricas requerem acesso aos
-            intervalos RR brutos, não disponíveis no formato AutoExport. Bandas populacionais:{' '}
-            Shaffer &amp; Ginsberg (Front Public Health 2017); Malik et al. (Eur Heart J 1996).
+            O Apple Watch mede SDNN usando o sensor óptico (PPG) em janela ultra-curta (~1 min),
+            subestimado em relação às normas ECG de 5 min / 24 h (Malik et al., Eur Heart J 1996;
+            Shaffer &amp; Ginsberg, Front Public Health 2017). Por isso este chart não classifica
+            em Bom/Ruim — mostra apenas a tua tendência pessoal ao longo do tempo.
           </p>
         </div>
       </details>
 
       <div className="mt-4 flex flex-wrap gap-4 text-[0.68rem]">
-        {HRV_BANDS_MALE_39.map((band) => (
-          <div key={band.label} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-sm"
-              style={{ backgroundColor: band.color, opacity: 0.7 }}
-            />
-            <span className="text-slate-500">{band.label}</span>
-            <span className="text-slate-400">
-              {band.max === 999 ? `≥${band.min}ms` : `${band.min}–${band.max}ms`}
-            </span>
-          </div>
-        ))}
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-6 rounded-sm bg-slate-400 opacity-30" />
-          <span className="text-slate-500">SD 7d</span>
+          <span className="text-slate-500">Envelope SD 7d</span>
         </div>
       </div>
     </div>

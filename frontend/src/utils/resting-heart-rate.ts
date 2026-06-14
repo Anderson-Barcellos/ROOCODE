@@ -7,6 +7,9 @@
  *
  * Faixas de referência adulto (FC repouso ↔ risco CV/mortalidade — populacional,
  * não alvo individual): ótima <65 · normal 65–75 · elevada 75–85 · alta ≥85.
+ * Lastro: risco CV/mortalidade cresce de forma contínua acima de ~65 bpm
+ * (Framingham; pooled de 12 coortes, n=112.680, Eur J Prev Cardiol 2014;
+ * meta-análise CMAJ 2016). Curva em U na ponta muito baixa (<60) não modelada aqui.
  */
 import type { DailySnapshot } from '@/types/apple-health'
 import { CHART_REQUIREMENTS, evaluateReadiness } from './data-readiness'

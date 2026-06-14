@@ -7,14 +7,6 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Pendentes
 
-- **Estimulante×Coração — trocar fonte de exposição** — o card usa as doses *logadas*
-  (`data.doses`), que são esparsas (3 de Venvanse) → mostra "Coletando dados". Trocar pela
-  série do backend `useConcentrationSeries('venvanse', …)`, que **expande o regime**
-  (`venvanse-weekdays`, seg-sex) e tem variância natural (cai no fim de semana). Refatorar
-  `computeStimulantCardiacLoad` pra receber a exposição diária pronta (map date→auc) em vez
-  de recalcular via doses. Aí o card sai de "coletando" pra leitura real (ou "variância
-  insuficiente" honesto).
-
 - **Bug calibração `RESP_DIST_CAP`** — `sleep-quality-score.ts` usa cap=30 (escala
   AHI clínico) que satura o componente respiratório na faixa real (0–4,9), deixando-o
   cego. Recalibrar (cap realista ~5–8 ou percentil pessoal). Trade-off: muda a
@@ -35,9 +27,10 @@ Histórico arquivado em `docs/HISTORY/`.
   autocontido, não toca infra PK×Humor). Reconhecimento de dados aplicou a lição do In Bed:
   PA viável só 2%, Recuperação Cardio/VO2/Perfusão mortos → fora. Governança: novo
   `domain: 'coracao'` na matriz (3 ids). Gate verde (tsc/build/lint/test) + QA visual dark
-  desktop/mobile sem overflow, 0 erros. **Nuance honesta**: o card do Estimulante mostra
-  "Coletando dados" porque usa doses logadas esparsas — refinamento pendente acima (usar a
-  série do backend que expande o regime). Spec em `docs/superpowers/`.
+  desktop/mobile sem overflow, 0 erros. Refinamento aplicado em seguida (`e2a3d34`): o card
+  do Estimulante passou a usar a série do backend (`useConcentrationSeries`), que expande o
+  regime seg-sex e captura a variância natural — com dados reais deu r=-0.41 FC repouso lag 3d,
+  q<0.001 (correlação exploratória, provável confound de dia-da-semana). Spec em `docs/superpowers/`.
 
 - **2026-06-13** — **Fix aba Sono (follow-up da frente)**: dois bugs expostos pelos dados
   reais ao mexer no seletor de período. (1) **Eficiência inviável** — usava `asleep/inBed`,

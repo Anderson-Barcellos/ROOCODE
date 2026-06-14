@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import type { DailySnapshot } from '@/types/apple-health'
 import { USER_PROFILE } from '@/utils/user-profile'
 import { mean } from '@/utils/date'
-import { estimateVo2MaxUthSorensen } from '@/utils/health-policies'
+import { estimateVo2MaxUthSorensen, ANDERS_HRMAX_BPM } from '@/utils/health-policies'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { buildIndexEvidenceReport } from '@/utils/index-evidence'
 
@@ -29,7 +29,7 @@ export function CardiovascularAgeCard({ snapshots }: CardiovascularAgeCardProps)
     const rhr = latest?.health?.restingHeartRate ?? mean(real.map((snapshot) => snapshot.health?.restingHeartRate ?? null))
     const hrv = latest?.health?.hrvSdnn ?? mean(real.map((snapshot) => snapshot.health?.hrvSdnn ?? null))
     const usedVo2Proxy = latest?.health?.vo2Max == null && rhr != null
-    const vo2 = latest?.health?.vo2Max ?? (rhr != null ? estimateVo2MaxUthSorensen(rhr, USER_PROFILE.hrMaxBpm) : null)
+    const vo2 = latest?.health?.vo2Max ?? (rhr != null ? estimateVo2MaxUthSorensen(rhr, ANDERS_HRMAX_BPM) : null)
     if (rhr == null || hrv == null || vo2 == null) {
       return {
         cardiovascularAge: null,

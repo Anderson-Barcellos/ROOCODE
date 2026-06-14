@@ -1,9 +1,8 @@
 import type { DailySnapshot } from '../types/apple-health'
 import { computeChronotropicSeries } from './chronotropic-response'
 import { computeHeartRateReserveSeries } from './heart-rate-reserve'
-import { estimateVo2MaxUthSorensen } from './health-policies'
+import { estimateVo2MaxUthSorensen, ANDERS_HRMAX_BPM } from './health-policies'
 import { mean } from './date'
-import { USER_PROFILE } from './user-profile'
 import { CHART_REQUIREMENTS, evaluateReadiness } from './data-readiness'
 import { buildIndexEvidenceReport, type IndexEvidenceReport } from './index-evidence'
 
@@ -308,5 +307,5 @@ export function getFunctionalCapacityTone(score: number | null): 'positive' | 'w
 }
 
 export function getEstimatedHrMaxLabel(): string {
-  return `${USER_PROFILE.hrMaxBpm} bpm estimado`
+  return `${ANDERS_HRMAX_BPM} bpm estimado`
 }

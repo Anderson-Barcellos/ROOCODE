@@ -6,14 +6,13 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
-  Tooltip,
   XAxis,
   YAxis,
   ZAxis,
 } from 'recharts'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -247,8 +246,7 @@ export function PKMoodScatterChart() {
                 label={{ value: 'humor neutro', position: 'insideTopRight', fontSize: 10, fill: CHART_TOKENS.reference.meanText }}
               />
               <ZAxis range={[40, 40]} />
-              <Tooltip
-                {...TOOLTIP_DEFAULTS}
+              <ChartTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => {
                   if (name === 'Concentração') return [typeof v === 'number' ? `${v.toFixed(2)} ng/mL` : '—', name]

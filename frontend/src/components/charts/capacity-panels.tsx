@@ -8,7 +8,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -16,7 +15,8 @@ import {
 import type { DailySnapshot } from '@/types/apple-health'
 import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
@@ -194,8 +194,7 @@ function RealLoadChart({ snapshots, forecastStartDate }: SharedPanelProps) {
               <XAxis dataKey="label" tick={{ fill: '#475569', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={20} />
               <YAxis yAxisId="left" tick={{ fill: '#ea580c', fontSize: 10 }} tickLine={false} axisLine={false} width={44} />
               <YAxis yAxisId="right" orientation="right" tick={{ fill: '#0369a1', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
-              <Tooltip
-                {...TOOLTIP_DEFAULTS}
+              <ChartTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name, item) => {
                   const suffix = getDataSuffix(item)

@@ -8,7 +8,6 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -17,7 +16,8 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import {
   RESPIRATORY_DISTURBANCES_BANDS,
   getRespiratoryDisturbancesCategory,
@@ -159,8 +159,7 @@ export function RespiratoryDisturbancesChart({
                 domain={[0, 'auto']}
                 tickFormatter={(v: number) => `${v}`}
               />
-              <Tooltip
-                {...TOOLTIP_DEFAULTS}
+              <ChartTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name, item) => {
                   const suffix = getDataSuffix(item)

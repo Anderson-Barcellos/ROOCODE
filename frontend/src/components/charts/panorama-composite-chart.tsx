@@ -7,7 +7,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -17,7 +16,7 @@ import type { PanoramaHistoryPoint } from '@/utils/panorama-model'
 
 import { CHART_PATTERNS, CHART_TOKENS, forecastPatternMarkup } from './shared/chart-tokens'
 import { ChartBrushOverlay, type BrushIndexSelection } from './shared/useChartBrush'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 
 /**
  * Substitui PanoramaHistoryChart. Estado geral do Panorama com:
@@ -321,7 +320,7 @@ export function PanoramaCompositeChart({
               />
             )}
 
-            <Tooltip {...TOOLTIP_DEFAULTS} content={<CompositeTooltip showMood={showMood} />} />
+            <ChartTooltip content={<CompositeTooltip showMood={showMood} />} />
 
             <ReferenceLine
               yAxisId="score"

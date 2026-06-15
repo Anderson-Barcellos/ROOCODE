@@ -6,7 +6,6 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -15,7 +14,8 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import {
   ANDERS_HRMAX_BPM,
   VO2_BANDS_MALE_35_44,
@@ -167,8 +167,7 @@ export function Vo2MaxChart({ snapshots, forecastStartDate }: Vo2MaxChartProps) 
                 ifOverflow="hidden"
               />
             ))}
-            <Tooltip
-              {...TOOLTIP_DEFAULTS}
+            <ChartTooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 if (name === 'vo2_real' || name === 'vo2_interp' || name === 'vo2_forecast') return [null, null]

@@ -11,7 +11,6 @@ import {
   ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -35,7 +34,7 @@ import {
 import { SUBSTANCE_COLORS } from '@/lib/substance-colors'
 import { sma } from '@/utils/statistics'
 import { ChartBrushOverlay, type BrushIndexSelection } from '@/components/charts/shared/useChartBrush'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 
 const PRESET_TO_COLOR_ID: Record<string, string> = {
   escitalopram: 'lexapro',
@@ -710,8 +709,7 @@ export function PKMoodConcentrationChart({
                     width={32}
                     tickFormatter={(value: number) => (value === -1 ? '-1' : value === 0 ? '0' : value === 1 ? '+1' : value.toFixed(1))}
                   />
-                  <Tooltip
-                    {...TOOLTIP_DEFAULTS}
+                  <ChartTooltip
                     contentStyle={{ borderRadius: 14, border: '1px solid var(--chart-ui-border)', fontSize: 12, background: 'var(--chart-ui-card-bg)' }}
                     content={({ payload }) => {
                       const row = payload?.[0]?.payload as Row | undefined
@@ -837,8 +835,7 @@ export function PKMoodConcentrationChart({
                     width={44}
                     tickFormatter={(value: number) => fmtConc(value)}
                   />
-                  <Tooltip
-                    {...TOOLTIP_DEFAULTS}
+                  <ChartTooltip
                     contentStyle={{ borderRadius: 14, border: '1px solid var(--chart-ui-border)', fontSize: 12, background: 'var(--chart-ui-card-bg)' }}
                     content={({ payload }) => {
                       const row = payload?.[0]?.payload as Row | undefined

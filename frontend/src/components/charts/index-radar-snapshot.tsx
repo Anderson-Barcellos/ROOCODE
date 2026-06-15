@@ -6,7 +6,6 @@ import {
   Radar,
   RadarChart,
   ResponsiveContainer,
-  Tooltip,
 } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
@@ -19,7 +18,7 @@ import { computeSleepQualityScoreSeries } from '@/utils/sleep-quality-score'
 import { computeSleepRegularitySeries } from '@/utils/sleep-regularity'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 
 /**
  * Radar com snapshot dos índices em escala 0–100 da INDEX_EVIDENCE_MATRIX.
@@ -141,8 +140,7 @@ export function IndexRadarSnapshot({ snapshots }: IndexRadarSnapshotProps) {
               tickCount={6}
               axisLine={false}
             />
-            <Tooltip
-              {...TOOLTIP_DEFAULTS}
+            <ChartTooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name) => {
                 if (typeof value !== 'number') return ['—', String(name)]

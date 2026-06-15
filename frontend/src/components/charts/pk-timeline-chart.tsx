@@ -7,7 +7,6 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -26,7 +25,7 @@ import {
 import { getSubstanceColor } from '@/lib/substance-colors'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import type { PanoramaBrushRange } from './panorama-composite-chart'
 
 /**
@@ -267,8 +266,7 @@ export function PKTimelineChart({
               domain={[0, 150]}
               tickFormatter={(v: number) => `${v.toFixed(0)}%`}
             />
-            <Tooltip
-              {...TOOLTIP_DEFAULTS}
+            <ChartTooltip
               contentStyle={TOOLTIP_STYLE}
               labelFormatter={(label) =>
                 typeof label === 'number' ? format(new Date(label), "dd/MM 'às' HH:mm", { locale: ptBR }) : String(label)

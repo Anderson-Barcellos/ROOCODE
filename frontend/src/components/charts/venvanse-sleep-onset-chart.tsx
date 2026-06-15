@@ -5,7 +5,6 @@ import {
   Line,
   ResponsiveContainer,
   Scatter,
-  Tooltip,
   XAxis,
   YAxis,
   ZAxis,
@@ -15,7 +14,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { FULL_HISTORY_DOSE_HOURS, useDoses, useSubstances } from '@/lib/api'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import { evaluateReadiness, type ReadinessRequirement } from '@/utils/data-readiness'
 import {
   inferIntradayCorrelation,
@@ -184,8 +183,7 @@ export function VenvanseSleepOnsetChart({ snapshots }: VenvanseSleepOnsetChartPr
                 label={{ value: 'Atraso do início (min)', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: CHART_TOKENS.ui.muted }}
               />
               <ZAxis range={[40, 40]} />
-              <Tooltip
-                {...TOOLTIP_DEFAULTS}
+              <ChartTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => {
                   if (name === 'Venvanse na hora de dormir') return [typeof v === 'number' ? `${v.toFixed(2)} ng/mL` : '—', name]

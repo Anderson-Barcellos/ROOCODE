@@ -8,7 +8,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -17,7 +16,8 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { getStepsLabel, getStepsTone } from '@/utils/health-policies'
 import { mean } from '@/utils/date'
 import { sma } from '@/utils/statistics'
@@ -160,8 +160,7 @@ export function StepsChart({ snapshots, forecastStartDate }: StepsChartProps) {
               width={50}
               tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`)}
             />
-            <Tooltip
-              {...TOOLTIP_DEFAULTS}
+            <ChartTooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 const suffix = getDataSuffix(item)

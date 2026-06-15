@@ -5,13 +5,12 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import { FULL_HISTORY_DOSE_HOURS, useDoses, useMood, useSubstances } from '@/lib/api'
 import type { MoodRecord } from '@/lib/api'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
@@ -347,8 +346,7 @@ export function LagCorrelationChart() {
                 tickFormatter={(v: number) => v.toFixed(2)}
                 label={{ value: correlationMethod === 'pearson' ? 'Pearson r' : 'Spearman ρ', angle: -90, position: 'left', offset: 10, fontSize: 11, fill: CHART_TOKENS.ui.axis }}
               />
-              <Tooltip
-                {...TOOLTIP_DEFAULTS}
+              <ChartTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => {
                   if (name === 'r') return [typeof v === 'number' ? v.toFixed(3) : '—', correlationMethod === 'pearson' ? 'Pearson r' : 'Spearman ρ']

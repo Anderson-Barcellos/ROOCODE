@@ -5,7 +5,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -17,7 +16,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import type { PanoramaHistoryPoint } from '@/utils/panorama-model'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import type { PanoramaBrushRange } from './panorama-composite-chart'
 
 /**
@@ -142,8 +141,7 @@ function MiniChart({ pillarKey, rows, onNavigate }: MiniChartProps) {
               width={28}
               domain={[0, 100]}
             />
-            <Tooltip
-              {...TOOLTIP_DEFAULTS}
+            <ChartTooltip
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name) => {
                 if (typeof value !== 'number') return ['—', name]

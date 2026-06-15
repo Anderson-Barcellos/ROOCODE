@@ -6,7 +6,6 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -15,7 +14,8 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
+import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { CARDIO_RECOVERY_BANDS, getCardioRecoveryCategory } from '@/utils/health-policies'
 import { sma } from '@/utils/statistics'
 
@@ -188,8 +188,7 @@ export function CardioRecoveryChart({ snapshots, baselineSnapshots, forecastStar
                 domain={[0, 30]}
                 tickFormatter={(v: number) => `${v}`}
               />
-              <Tooltip
-                {...TOOLTIP_DEFAULTS}
+              <ChartTooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name, item) => {
                   if (name === 'hrr_real' || name === 'hrr_forecast') return [null, null]

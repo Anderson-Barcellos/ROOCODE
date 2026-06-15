@@ -5,7 +5,6 @@ import {
   ComposedChart,
   Line,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -15,7 +14,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import { computeHrvVariabilitySeries } from '@/utils/hrv-variability'
 
 interface HrvVariabilityChartProps {
@@ -311,7 +310,7 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
             name="SMA 30d"
           />
 
-          <Tooltip {...TOOLTIP_DEFAULTS} content={<HrvTooltip />} />
+          <ChartTooltip content={<HrvTooltip />} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

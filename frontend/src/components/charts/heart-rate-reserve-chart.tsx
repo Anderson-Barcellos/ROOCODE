@@ -5,7 +5,6 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -15,7 +14,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import { computeHeartRateReserveSeries } from '@/utils/heart-rate-reserve'
 import { ANDERS_HRMAX_BPM } from '@/utils/health-policies'
 import { USER_PROFILE } from '@/utils/user-profile'
@@ -251,7 +250,7 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
               stroke={COLOR_ROSE}
             />
           )}
-          <Tooltip {...TOOLTIP_DEFAULTS} content={<HrrTooltip />} />
+          <ChartTooltip content={<HrrTooltip />} />
           <Line
             yAxisId="left"
             type="monotone"

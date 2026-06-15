@@ -6,7 +6,6 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -16,7 +15,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 import { sma } from '@/utils/statistics'
 import {
   ABI_BAND_THRESHOLD,
@@ -260,7 +259,7 @@ export function AutonomicBalanceChart({ snapshots, baselineSnapshots }: Autonomi
           <ReferenceArea y1={-ABI_BAND_THRESHOLD} y2={ABI_BAND_THRESHOLD} fill={COLOR_AMBER} fillOpacity={0.06} />
           <ReferenceArea y1={ABI_BAND_THRESHOLD} y2={yDomain[1]} fill={COLOR_GREEN} fillOpacity={0.08} />
           <ReferenceLine y={0} stroke="rgba(15,23,42,0.25)" strokeDasharray="4 3" strokeWidth={1} />
-          <Tooltip {...TOOLTIP_DEFAULTS} content={<AbiTooltip />} />
+          <ChartTooltip content={<AbiTooltip />} />
           <Line
             type="monotone"
             dataKey="abiBridge"

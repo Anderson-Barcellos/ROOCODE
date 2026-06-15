@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, XAxis, YAxis } from 'recharts'
 
 import type { DailySnapshot } from '@/types/apple-health'
 import { useConcentrationSeries } from '@/lib/api'
@@ -9,7 +9,7 @@ import {
   type CardiacTarget,
 } from '@/utils/stimulant-cardiac-load'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
-import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
 
 interface StimulantCardiacLoadCardProps {
   snapshots: DailySnapshot[]
@@ -85,7 +85,7 @@ export function StimulantCardiacLoadCard({ snapshots }: StimulantCardiacLoadCard
                 <CartesianGrid stroke={CHART_TOKENS.ui.grid} strokeDasharray="3 3" />
                 <XAxis type="number" dataKey="exposure" name="Exposição" tick={{ fontSize: 10, fill: CHART_TOKENS.ui.axis }} />
                 <YAxis type="number" dataKey="value" name="FC repouso" tick={{ fontSize: 10, fill: CHART_TOKENS.ui.axis }} domain={['dataMin - 2', 'dataMax + 2']} />
-                <Tooltip {...TOOLTIP_DEFAULTS} cursor={{ strokeDasharray: '3 3' }} />
+                <ChartTooltip cursor={{ strokeDasharray: '3 3' }} />
                 <Scatter data={summary.scatter} fill={CHART_TOKENS.series.venvanse} />
               </ScatterChart>
             </ResponsiveContainer>

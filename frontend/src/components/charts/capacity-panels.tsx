@@ -16,7 +16,7 @@ import {
 import type { DailySnapshot } from '@/types/apple-health'
 import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { StepsChart } from '@/components/charts/steps-chart'
 import { Vo2MaxChart } from '@/components/charts/vo2-max-chart'
 import { WalkingVitalityChart } from '@/components/charts/walking-vitality-chart'
@@ -195,6 +195,7 @@ function RealLoadChart({ snapshots, forecastStartDate }: SharedPanelProps) {
               <YAxis yAxisId="left" tick={{ fill: '#ea580c', fontSize: 10 }} tickLine={false} axisLine={false} width={44} />
               <YAxis yAxisId="right" orientation="right" tick={{ fill: '#0369a1', fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
               <Tooltip
+                {...TOOLTIP_DEFAULTS}
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name, item) => {
                   const suffix = getDataSuffix(item)

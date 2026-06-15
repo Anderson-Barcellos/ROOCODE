@@ -26,6 +26,7 @@ import {
 import { getSubstanceColor } from '@/lib/substance-colors'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import type { PanoramaBrushRange } from './panorama-composite-chart'
 
 /**
@@ -267,6 +268,7 @@ export function PKTimelineChart({
               tickFormatter={(v: number) => `${v.toFixed(0)}%`}
             />
             <Tooltip
+              {...TOOLTIP_DEFAULTS}
               contentStyle={TOOLTIP_STYLE}
               labelFormatter={(label) =>
                 typeof label === 'number' ? format(new Date(label), "dd/MM 'às' HH:mm", { locale: ptBR }) : String(label)

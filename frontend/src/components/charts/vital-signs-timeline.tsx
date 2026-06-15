@@ -15,7 +15,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import {
   RESPIRATORY_RATE_BANDS,
   WRIST_TEMP_DEVIATION_BANDS,
@@ -209,6 +209,7 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
                     tickFormatter={(v: number) => `${v.toFixed(1)}`}
                   />
                   <Tooltip
+                    {...TOOLTIP_DEFAULTS}
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v, name, item) => {
                       if (['rr_real', 'rr_interp', 'rr_forecast'].includes(name as string)) return [null, null]
@@ -278,6 +279,7 @@ export function VitalSignsTimeline({ snapshots, forecastStartDate }: VitalSignsT
                   <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} />
                   <ReferenceLine y={0.5} stroke="#dc2626" strokeDasharray="3 3" strokeOpacity={0.5} strokeWidth={1} />
                   <Tooltip
+                    {...TOOLTIP_DEFAULTS}
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v, name, item) => {
                       if (['tempDelta_real', 'tempDelta_interp', 'tempDelta_forecast', 'tempDelta_visual'].includes(name as string)) return [null, null]

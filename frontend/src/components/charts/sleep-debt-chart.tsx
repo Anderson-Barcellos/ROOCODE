@@ -17,6 +17,7 @@ import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { computeSleepDebt } from '@/utils/sleep-debt'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 
 const TARGET_HOURS = 7.5
 const DANGER_THRESHOLD = 5
@@ -95,6 +96,7 @@ export function SleepDebtChart({ snapshots, baselineSnapshots, target = TARGET_H
                 tickFormatter={(v: number) => `${v.toFixed(0)}h`}
               />
               <Tooltip
+                {...TOOLTIP_DEFAULTS}
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(value, name) => {
                   const text =

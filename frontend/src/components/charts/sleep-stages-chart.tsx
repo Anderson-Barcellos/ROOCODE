@@ -16,7 +16,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getInterpolationSuffix } from '@/components/charts/shared/tooltip-helpers'
 
 interface SleepStagesPoint {
   date: string
@@ -142,6 +142,7 @@ export function SleepStagesChart({ snapshots }: SleepStagesChartProps) {
               tickFormatter={(v: number) => `${v}%`}
             />
             <Tooltip
+              {...TOOLTIP_DEFAULTS}
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name, item) => {
                 if (name === 'Eficiência') {

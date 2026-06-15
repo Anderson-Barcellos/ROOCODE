@@ -28,6 +28,7 @@ import {
   linearRegression,
   type PKMoodPair,
 } from '@/utils/intraday-correlation'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 
 // Requirement inline pra evitar tocar em data-readiness.ts (Codex WIP).
 // Pares cmax×REM são diários, então thresholds menores que pkMoodScatter (que
@@ -267,6 +268,7 @@ export function PkRemSuppression() {
               />
               <ZAxis range={[40, 40]} />
               <Tooltip
+                {...TOOLTIP_DEFAULTS}
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => {
                   if (name === 'Cmax estimado') return [typeof v === 'number' ? `${v.toFixed(2)} ng/mL` : '—', name]

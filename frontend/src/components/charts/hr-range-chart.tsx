@@ -16,7 +16,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { mean } from '@/utils/date'
 import { sma } from '@/utils/statistics'
 import { buildIndexEvidenceReport } from '@/utils/index-evidence'
@@ -184,6 +184,7 @@ export function HRRangeChart({ snapshots, forecastStartDate }: HRRangeChartProps
               tickFormatter={(v: number) => `${v}`}
             />
             <Tooltip
+              {...TOOLTIP_DEFAULTS}
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 if (name === 'hrMean_interp' || name === 'hrMean_forecast') return [null, null]

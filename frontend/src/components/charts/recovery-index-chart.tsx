@@ -18,6 +18,7 @@ import { computeRecoveryIndexSeries, type RecoveryIndexPoint } from '@/utils/rec
 import { computeSleepDebt } from '@/utils/sleep-debt'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import { ChartBrushOverlay, type BrushIndexSelection } from './shared/useChartBrush'
 import type { PanoramaBrushRange } from './panorama-composite-chart'
 
@@ -225,6 +226,7 @@ export function RecoveryIndexChart({
               />
             )}
             <Tooltip
+              {...TOOLTIP_DEFAULTS}
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name) => {
                 if (typeof value !== 'number') return ['—', name]

@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -247,6 +248,7 @@ export function PKMoodScatterChart() {
               />
               <ZAxis range={[40, 40]} />
               <Tooltip
+                {...TOOLTIP_DEFAULTS}
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name) => {
                   if (name === 'Concentração') return [typeof v === 'number' ? `${v.toFixed(2)} ng/mL` : '—', name]

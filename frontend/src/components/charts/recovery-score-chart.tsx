@@ -25,6 +25,7 @@ import {
   badgeLabel,
   computeRecoveryCoverage,
 } from '@/utils/recovery-coverage'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 
 interface RecoveryScoreChartProps {
   snapshots: DailySnapshot[]
@@ -284,7 +285,7 @@ export function RecoveryScoreChart({ snapshots, baselineSnapshots }: RecoverySco
             <ReferenceArea y1={0} y2={BAND_LOW} fill={COLOR_RED} fillOpacity={0.08} />
             <ReferenceArea y1={BAND_LOW} y2={BAND_HIGH} fill={COLOR_AMBER} fillOpacity={0.08} />
             <ReferenceArea y1={BAND_HIGH} y2={100} fill={COLOR_GREEN} fillOpacity={0.08} />
-            <Tooltip content={<RecoveryTooltip />} />
+            <Tooltip {...TOOLTIP_DEFAULTS} content={<RecoveryTooltip />} />
             <Line
               type="monotone"
               dataKey="scoreReal"

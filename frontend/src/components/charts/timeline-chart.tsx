@@ -15,6 +15,7 @@ import type { TimelinePoint, TimelineSeriesKey } from '@/types/apple-health'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import type { DataReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from './shared/DataReadinessGate'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 
 interface TimelineChartProps {
   data: TimelinePoint[]
@@ -191,7 +192,7 @@ export function TimelineChart({ data, seriesKeys, labels, readiness, forecastSta
               axisLine={false}
               width={42}
             />
-            <Tooltip content={<TimelineTooltip labels={labels} />} />
+            <Tooltip {...TOOLTIP_DEFAULTS} content={<TimelineTooltip labels={labels} />} />
             <Legend />
             {forecastStartDate && (
               <ReferenceLine

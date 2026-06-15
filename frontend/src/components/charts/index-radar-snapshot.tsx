@@ -19,6 +19,7 @@ import { computeSleepQualityScoreSeries } from '@/utils/sleep-quality-score'
 import { computeSleepRegularitySeries } from '@/utils/sleep-regularity'
 
 import { CHART_TOKENS } from './shared/chart-tokens'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 
 /**
  * Radar com snapshot dos índices em escala 0–100 da INDEX_EVIDENCE_MATRIX.
@@ -141,6 +142,7 @@ export function IndexRadarSnapshot({ snapshots }: IndexRadarSnapshotProps) {
               axisLine={false}
             />
             <Tooltip
+              {...TOOLTIP_DEFAULTS}
               contentStyle={TOOLTIP_STYLE}
               formatter={(value, name) => {
                 if (typeof value !== 'number') return ['—', String(name)]

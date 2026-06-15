@@ -15,7 +15,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import { CARDIO_RECOVERY_BANDS, getCardioRecoveryCategory } from '@/utils/health-policies'
 import { sma } from '@/utils/statistics'
 
@@ -189,6 +189,7 @@ export function CardioRecoveryChart({ snapshots, baselineSnapshots, forecastStar
                 tickFormatter={(v: number) => `${v}`}
               />
               <Tooltip
+                {...TOOLTIP_DEFAULTS}
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name, item) => {
                   if (name === 'hrr_real' || name === 'hrr_forecast') return [null, null]

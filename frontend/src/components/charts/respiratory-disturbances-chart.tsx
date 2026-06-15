@@ -17,7 +17,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import {
   RESPIRATORY_DISTURBANCES_BANDS,
   getRespiratoryDisturbancesCategory,
@@ -160,6 +160,7 @@ export function RespiratoryDisturbancesChart({
                 tickFormatter={(v: number) => `${v}`}
               />
               <Tooltip
+                {...TOOLTIP_DEFAULTS}
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(v, name, item) => {
                   const suffix = getDataSuffix(item)

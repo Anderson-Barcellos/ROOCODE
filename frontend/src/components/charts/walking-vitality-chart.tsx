@@ -15,7 +15,7 @@ import type { DailySnapshot } from '@/types/apple-health'
 import { dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
-import { getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
+import { TOOLTIP_DEFAULTS, getDataSuffix } from '@/components/charts/shared/tooltip-helpers'
 import {
   getWalkingAsymmetryLabel,
   getWalkingAsymmetryTone,
@@ -166,6 +166,7 @@ export function WalkingVitalityChart({ snapshots, forecastStartDate }: WalkingVi
               tickFormatter={(v: number) => `${v}bpm`}
             />
             <Tooltip
+              {...TOOLTIP_DEFAULTS}
               contentStyle={TOOLTIP_STYLE}
               formatter={(v, name, item) => {
                 const suffix = getDataSuffix(item)

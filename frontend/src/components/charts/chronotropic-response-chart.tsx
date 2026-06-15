@@ -16,6 +16,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import { computeChronotropicSeries, type ChronotropicComponents } from '@/utils/chronotropic-response'
 
 interface ChronotropicResponseChartProps {
@@ -42,6 +43,7 @@ interface ChartRow {
   label: string
   zReal: number | null
   zInterp: number | null
+  zBridge: number | null
   sma7: number | null
   components: ChronotropicComponents | null
   derivedFromInterpolated: boolean
@@ -100,6 +102,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
           : prevIsInterp || nextIsInterp
             ? (point?.zScore ?? null)
             : null,
+      zBridge: point?.zScore ?? null,
       sma7: point?.sma7 ?? null,
       components: point?.components ?? null,
       derivedFromInterpolated: isInterp,
@@ -120,6 +123,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         label: '',
         zReal: null,
         zInterp: null,
+        zBridge: null,
         sma7: null,
         components: null,
         derivedFromInterpolated: false,
@@ -240,7 +244,21 @@ export function ChronotropicResponseChart({ snapshots, baselineSnapshots }: Chro
           <ReferenceArea y1={-BAND_THRESHOLD} y2={BAND_THRESHOLD} fill={COLOR_AMBER} fillOpacity={0.06} />
           <ReferenceArea y1={BAND_THRESHOLD} y2={yDomain[1]} fill={COLOR_GREEN} fillOpacity={0.08} />
           <ReferenceLine y={0} stroke="rgba(15,23,42,0.25)" strokeDasharray="4 3" strokeWidth={1} />
-          <Tooltip content={<ChronotropicTooltip />} />
+          <Tooltip {...TOOLTIP_DEFAULTS} content={<ChronotropicTooltip />} />
+          <Line
+            type="monotone"
+            dataKey="zBridge"
+            stroke={COLOR_LINE}
+            strokeWidth={1.2}
+            strokeOpacity={0.22}
+            strokeDasharray="1 5"
+            dot={false}
+            activeDot={false}
+            connectNulls
+            name="z-score (ligação visual)"
+            legendType="none"
+            isAnimationActive={false}
+          />
           <Line
             type="monotone"
             dataKey="zReal"

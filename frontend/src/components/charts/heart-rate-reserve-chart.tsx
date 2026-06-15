@@ -15,6 +15,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import { computeHeartRateReserveSeries } from '@/utils/heart-rate-reserve'
 import { ANDERS_HRMAX_BPM } from '@/utils/health-policies'
 import { USER_PROFILE } from '@/utils/user-profile'
@@ -41,6 +42,7 @@ interface ChartRow {
   hrr: number | null
   hrrReal: number | null
   hrrInterp: number | null
+  hrrBridge: number | null
   hrrSma7: number | null
   walkingReservePct: number | null
   rhr: number | null
@@ -70,6 +72,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
           : prevIsInterp || nextIsInterp
             ? (point?.hrr ?? null)
             : null,
+      hrrBridge: point?.hrr ?? null,
       hrrSma7: point?.hrrSma7 ?? null,
       walkingReservePct: point?.walkingReservePct ?? null,
       rhr: point?.rhr ?? null,
@@ -93,6 +96,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         hrr: null,
         hrrReal: null,
         hrrInterp: null,
+        hrrBridge: null,
         hrrSma7: null,
         walkingReservePct: null,
         rhr: null,
@@ -247,7 +251,22 @@ export function HeartRateReserveChart({ snapshots, baselineSnapshots }: HeartRat
               stroke={COLOR_ROSE}
             />
           )}
-          <Tooltip content={<HrrTooltip />} />
+          <Tooltip {...TOOLTIP_DEFAULTS} content={<HrrTooltip />} />
+          <Line
+            yAxisId="left"
+            type="monotone"
+            dataKey="hrrBridge"
+            stroke={COLOR_TEAL}
+            strokeWidth={1.2}
+            strokeOpacity={0.22}
+            strokeDasharray="1 5"
+            dot={false}
+            activeDot={false}
+            connectNulls
+            name="HRR (ligação visual)"
+            legendType="none"
+            isAnimationActive={false}
+          />
           <Line
             yAxisId="left"
             type="monotone"

@@ -15,6 +15,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import { computeHrvVariabilitySeries } from '@/utils/hrv-variability'
 
 interface HrvVariabilityChartProps {
@@ -37,6 +38,7 @@ interface ChartRow {
   hrv: number | null
   hrvReal: number | null
   hrvInterp: number | null
+  hrvBridge: number | null
   sma7: number | null
   sma30: number | null
   sdBandLow: number | null
@@ -72,6 +74,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         : prevIsInterp || nextIsInterp
           ? (point?.hrv ?? null)
           : null,
+      hrvBridge: point?.hrv ?? null,
       sma7: point?.sma7 ?? null,
       sma30: point?.sma30 ?? null,
       sdBandLow: point?.sdBandLow ?? null,
@@ -96,6 +99,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         hrv: null,
         hrvReal: null,
         hrvInterp: null,
+        hrvBridge: null,
         sma7: null,
         sma30: null,
         sdBandLow: null,
@@ -252,6 +256,20 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
 
           <Line
             type="monotone"
+            dataKey="hrvBridge"
+            stroke={COLOR_TEAL}
+            strokeWidth={1.2}
+            strokeOpacity={0.22}
+            strokeDasharray="1 5"
+            dot={false}
+            activeDot={false}
+            connectNulls
+            name="HRV (ligação visual)"
+            legendType="none"
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
             dataKey="hrvReal"
             stroke={COLOR_TEAL}
             strokeWidth={1.8}
@@ -293,7 +311,7 @@ export function HrvVariabilityChart({ snapshots, baselineSnapshots }: HrvVariabi
             name="SMA 30d"
           />
 
-          <Tooltip content={<HrvTooltip />} />
+          <Tooltip {...TOOLTIP_DEFAULTS} content={<HrvTooltip />} />
         </ComposedChart>
       </ResponsiveContainer>
     </div>

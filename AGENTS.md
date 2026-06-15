@@ -280,3 +280,14 @@ Details:
 
 Notes:
 Esta janela é puramente visual; nada de estrutura narrativa do Insights mudou. A reestruturação narrativa (cockpit "Quem mexeu no meu humor essa semana", absorção do `MoodDriverBoard`, remoção de 4 PKs do view) está em brainstorm pausado — checkpoint em `/root/RooCode/.superpowers/brainstorm/RESUME_INSIGHTS.md`, retomada na Q#7 (granularidade do ranking).
+
+### 2026-06-15 - Cognição Diária (onda Codex a partir de specs do Claude desktop)
+
+Context:
+Nova feature **independente** de aferição cognitiva longitudinal. As especificações foram boladas pelo Anders com o Claude no desktop; a implementação foi delegada ao Codex, com a diretriz explícita de entrar como **seção isolada que não interfere no funcionamento de nada** — só adiciona a feature. Registro escrito pela sessão Claude da frente Coração a pedido do Anders (essa sessão NÃO implementou a Cognição; só documentou).
+
+Details:
+Backend novo em `Cognition/` (rotas `/cognition/status`, `/cognition/materials`, `/cognition/complete`; wrapper `Cognition/openai_tasks.py` para scoring linguístico via OpenAI) com persistência server-side. Frontend: aba **Cognição** com o fluxo completo da sessão — VAS+contexto → PVT → span (`digit`/`corsi`) → fluência (`phonemic`/`semantic`) → flanker, com tarefas rotativas (tipos A/B/C). Tipos em `frontend/src/types/cognition.ts`, lógica de sessão em `frontend/src/utils/cognition-session.ts`, UI em `frontend/src/components/cognition/CognitionDailySection.tsx`. Testes: `tests/test_cognition.py` (backend) e `frontend/tests/cognition-session.test.ts` (frontend). `TabNav.tsx`, `App.tsx`, `api.ts`, `main.py` e `BACKLOG.md` receberam os pontos de integração da aba/rotas.
+
+Notes:
+Tratar como **subsistema isolado** — não acoplar a Panorama/Recuperação/Coração/etc. Na data deste registro a frente estava **NÃO-COMMITADA** no working tree (mudanças pendentes quando a sessão de polimento da aba Coração documentou). Validação reportada no `BACKLOG.md` (2026-06-15): `py_compile`, `python -m unittest tests.test_cognition -v`, e `GET /cognition/status` retornando 200 em `http://localhost:8011` e via Apache em `https://ultrassom.ai/health/api/cognition/status`. As specs originais ficaram no Claude desktop do Anders (não versionadas no repo). Próxima sessão deve decidir o destino dessa frente (commitar como onda própria ou `git stash`) antes de iniciar trabalho de código novo — ver `CLAUDE.md` → "Próxima sessão".

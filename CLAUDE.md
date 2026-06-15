@@ -12,9 +12,9 @@ App em **modo manutenção**: tickets pontuais em `BACKLOG.md`, sem sprint forma
 
 - **Backend:** FastAPI unificado em `main.py` (porta 8011), pandas, venv local (`/root/RooCode/bin/python`).
 - **Frontend:** React 19 + Vite + TypeScript + Tailwind v4 + Recharts + TanStack Query.
-- **Módulos backend:** `Sleep/`, `Metrics/`, `Mood/`, `Farma/`, `Forecast/`, `Interpolate/`, `Profile/`.
+- **Módulos backend:** `Sleep/`, `Metrics/`, `Mood/`, `Farma/`, `Forecast/`, `Interpolate/`, `Profile/`, `Cognition/`.
 - **Farmacocinética:** `Farma/math.py` + `Farma/medDataBase.json` (backend) e `frontend/src/utils/pharmacokinetics.ts` (frontend).
-- **Perfil canônico:** `Profile/__init__.py` (backend) e `frontend/src/utils/user-profile.ts` (front) — peso 91 kg, HRmax 181 bpm, idade 39, sexo M, timezone America/Sao_Paulo.
+- **Perfil canônico:** `Profile/__init__.py` (backend) e `frontend/src/utils/user-profile.ts` (front) — peso 91 kg, idade 40, sexo M, timezone America/Sao_Paulo. HRmax estimado via **Tanaka** (208 − 0,7×idade ≈ 180 bpm), fonte única `ANDERS_HRMAX_BPM` derivada da idade; o literal `hrMaxBpm` (Fox-Haskell 220−39) foi removido em 2026-06-14.
 
 ## Runtime e serviços
 
@@ -61,6 +61,7 @@ git diff --check
 - `/farma/concentration-series` (GET)
 - `/interpolate` (POST)
 - `/forecast` (POST) · `/forecast/accuracy` (POST) · `/forecast/report` (POST)
+- `/cognition/status` · `/cognition/materials` · `/cognition/complete` (módulo Cognição — feature independente, ver AGENTS.md 2026-06-15)
 
 ## Componentes ativos por aba
 
@@ -68,9 +69,12 @@ git diff --check
 |---|---|
 | **Panorama** | PillarGaugeBars · PanoramaCompositeChart · RecoveryIndexChart · PillarMiniCharts · PKTimelineChart · IndexRadarSnapshot · PanoramaWeeklyRegimeCard · MetricGrid · RecoveryWeekCard |
 | **Farmaco** | MoodTimeline · PKMedicationGrid · PKHumorCorrelation · PKCoverageCard · DoseLogger · DoseCalendarView · MedicationCatalogEditor |
-| **Recuperação** | NightQualityCard · RecoveryIndexCard · SleepStagesChart · SleepRegularityCard · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline · AutonomicBalanceChart · HrvVariabilityChart · HRRangeChart · CardiovascularAgeCard · RecoveryWeekCard · RecoveryIndexChart |
-| **Capacidade** | ActivityReadinessCard · CapacityPanels (FCI + Carga real + Cardio + CRI + Movement Efficiency) · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart · HeartRateReserveChart · ChronotropicResponseChart · CardioRecoveryChart |
+| **Recuperação** | NightQualityCard · RecoveryIndexCard · SleepStagesChart · SleepRegularityCard · SleepDebtChart · Spo2Chart · RespiratoryDisturbancesChart · VitalSignsTimeline · RecoveryWeekCard · RecoveryIndexChart |
+| **Capacidade** | ActivityReadinessCard · CapacityPanels (FCI + Carga real + Cardiorrespiratório[VO2] + CRI + Movement Efficiency) · ActivityBars · StepsChart · Vo2MaxChart · WalkingVitalityChart |
+| **Sono** | SleepStagesChart · SleepArchitectureCard · RespiratoryLoadCard · SleepContinuityCard · VenvanseSleepOnsetChart |
+| **Coração** | RestingHeartRateCard · BloodPressureCard (dormente) · HRRangeChart · HrvVariabilityChart · AutonomicBalanceChart · HeartRateReserveChart · ChronotropicResponseChart (Aceleração na caminhada) · CardioRecoveryChart (dormente) · StimulantCardiacLoadCard |
 | **Insights** | MoodDriverBoard · CorrelationHeatmap · TempHumorCorrelation · PKVariabilityReportCard · PKVariabilityHumorLab (grade 4×3) · PKMoodScatterChart · LagCorrelationChart · PkRemSuppression · ForecastAccuracyCard (colapsada) |
+| **Cognição** | CognitionDailySection — fluxo de sessão independente (VAS+contexto → PVT → span → fluência → flanker); backend `Cognition/`, scoring linguístico OpenAI |
 
 ## Baseline funcional a preservar
 
@@ -99,6 +103,9 @@ git diff --check
 - Paleta visual centralizada em `frontend/src/components/charts/shared/chart-tokens.ts` (`CHART_TOKENS`). Charts novos devem importar daqui em vez de hardcodar hex/rgba; isso evita drift quando charts são editados isoladamente. Heatmaps e charts de Insights já consomem essa fonte; charts antigos podem migrar gradualmente.
 - Zoom horizontal sobre Recharts usa `useChartBrush` em `frontend/src/components/charts/shared/useChartBrush.tsx` — brush D3 montado como overlay SVG sobre `ResponsiveContainer`; D3 captura o drag, Recharts mantém o hover. Consumidor controla `BrushIndexSelection` e filtra `data` antes do chart.
 - Panorama virou tela de exploração aditiva: a trinca clicável (decisão) continua no topo intacta, mas abaixo dela `PanoramaCompositeChart` (histórico longo com brush + overlay de humor), `PillarGaugeBars` (substituiu o sparkline antigo), `RecoveryIndexChart` v2 (zoom sincronizado + sleep debt) e três accordions colapsados por padrão (`PillarMiniCharts`, `PKTimelineChart`, `IndexRadarSnapshot`) entregam camada exploratória. `panorama-model.ts` segue como motor único — novos componentes só visualizam séries já calculadas.
+- **Coração consolidado + validado (2026-06-14):** a aba agrega todo o cardíaco em 4 seções (Em repouso · Variabilidade & tônus · Resposta ao esforço · Estimulante). O cardíaco saiu de Recuperação (Painel 5) e Capacidade (painel cardiovascular, que ficou só com VO2). Validade auditada: **idade cardiovascular removida** (coef. fabricados + dupla contagem de RHR); **reserva de FC e HRV viraram tendência-pura** (bandas sem lastro removidas — HRR absoluto depende de HRmax estimado; SDNN do Apple é ultra-short sem norma de wearable); **cronotrópica renomeada** "Aceleração na caminhada" (não é teste de esforço); FC repouso mantém bandas com fonte citada (Framingham/12-coortes). VO2 fica na Capacidade (dado esparso). Spec/plano em `docs/superpowers/specs/2026-06-14-coracao-consolidacao-validacao-design.md` + plano correspondente.
+- **Tooltip global + gap "liso+sinalizado" (2026-06-14):** comportamento do tooltip centralizado em `frontend/src/components/charts/shared/ChartTooltip.tsx` (embute `TOOLTIP_DEFAULTS` de `tooltip-helpers.ts` — posição fixa no topo, x segue o cursor). Charts novos devem usar `<ChartTooltip>` em vez de `<Tooltip>` pra herdar o comportamento. Séries diárias entrecortadas usam uma linha-ponte pontilhada tênue (`connectNulls`, opacidade baixa, atrás da linha sólida) que conecta gaps sem inventar dado — sólido = medição real, pontilhado = ligação visual.
+- **Cognição é feature independente (2026-06-15, onda Codex):** módulo `Cognition/` (backend) + aba Cognição (frontend) NÃO interferem no resto do app. Specs boladas no Claude desktop, implementadas pelo Codex. Tratar como subsistema isolado; não acoplar a Panorama/Recuperação/etc.
 
 ## Fresh start
 
@@ -112,12 +119,13 @@ Depois: revisar `AGENTS.md` (registro cronológico de cada onda Codex/Claude no 
 
 ## Próxima sessão
 
-- Estado funcional: Insights redesign aplicado em 2026-05-27 (cockpit narrativo "Quem mexeu no humor essa janela" — Top 3 + accordion + faixa de medicação; `ForecastAccuracyCard` migrou pro rodapé do Panorama em accordion). Spec/plan completos em `docs/superpowers/specs/insights-redesign.md` + `docs/superpowers/plans/2026-05-27-insights-redesign.md`. Validação visual desktop em verde.
-- Ponto de retomada recomendado: QA visual mobile do novo Insights (`Top 3 + accordion + faixa medicação` em viewport estreito) antes de abrir frente nova.
-- Pendência honesta antiga: a aba Recuperação já mostra o desvio noturno de temperatura, mas **não** calcula amplitude diária da temperatura do pulso porque o pipeline atual ainda não recebe esse dado bruto.
-- Decisão já tomada: `Sleep Regularity Index` e `Social Jet Lag` estão implementados como leitura exploratória baseada em `sleepStartAt/sleepEndAt`; não voltar a tratar isso como se fosse cálculo minuto-a-minuto definitivo.
-- Opções naturais de continuação (sem ordem fixa): expansão do pipeline de temperatura pra suportar amplitude circadiana real, nova spec de `Capacidade`, polimento narrativo do `Panorama`, ou reativação dos 4 PKs preservados (`PKVariabilityReportCard`, `PKVariabilityHumorLab`, `PKMoodScatterChart`, `LagCorrelationChart`) numa superfície dedicada (Lab PK separado?).
-- Evolução futura prevista no design doc do Insights: templates determinísticos podem virar LLM se o tom narrativo soar raso; faixa contextual de medicação ganha timing médio quando ticket #1 do BACKLOG (PK Coverage 3-camadas) entregar adesão/timing como eventos categorizados.
+- ⚠️ **PUSH PENDENTE:** a frente Coração + polimento (2026-06-14) tem ~14 commits na `main` local **não enviados** pro origin (8 de consolidação/validação cardíaca + 2 docs spec/plano + 4 de polimento visual). Validar e então `git push origin main` quando o Anders autorizar explicitamente (push direto na main exige aval claro).
+- ⚠️ **Cognição NÃO-COMMITADA no working tree:** o módulo `Cognition/` + aba (onda Codex, 2026-06-15, feature independente) está presente mas **sem commit** — `git status` mostra `Cognition/`, `frontend/src/components/cognition/`, `cognition*.ts`, `main.py`, `api.ts`, `TabNav.tsx`, `App.tsx`, `BACKLOG.md` modificados/novos. **Antes de abrir frente nova de código, decidir o destino dela** (commitar como onda própria OU `git stash`) — senão fica boiando junto com o trabalho novo. Specs originais ficaram no Claude desktop do Anders. Detalhe da onda em `AGENTS.md` (2026-06-15).
+- QA visual feito (desktop): tooltip fixo no topo + gap "liso+sinalizado" validados na aba Coração (ABI via screenshot). Falta passar o olho nas demais abas e no mobile.
+- Próximos dados: o Anders vai trazer **dados novos** numa sessão fresca — frente nova, começar com contexto limpo.
+- Pendência honesta antiga: a aba Recuperação mostra o desvio noturno de temperatura, mas **não** calcula amplitude diária da temperatura do pulso (o pipeline ainda não recebe o dado bruto intradia).
+- Decisão já tomada: `Sleep Regularity Index` e `Social Jet Lag` são leitura exploratória de `sleepStartAt/sleepEndAt` — não tratar como cálculo minuto-a-minuto definitivo.
+- 4 PKs preservados (`PKVariabilityReportCard`, `PKVariabilityHumorLab`, `PKMoodScatterChart`, `LagCorrelationChart`) seguem como arquivos sem callsite, candidatos a um Lab PK dedicado.
 
 ## Histórico
 
@@ -126,5 +134,7 @@ Depois: revisar `AGENTS.md` (registro cronológico de cada onda Codex/Claude no 
 - 2026-05-17: refactor da aba Capacidade. 6 painéis (Prontidão, Functional Capacity Index, Cardio, Carga real, CRI, Movement Efficiency); FCI usa último valor válido por componente; CRI proxy térmica `Temp. pulso vs baseline` (não amplitude pico-nadir, que aguarda dado intradia); `RecoveryIndex` filtra inputs ausentes em vez de ranquear como zero.
 - 2026-05-18: 3 ondas — governance formal de evidência de índices (matriz central em `index-evidence.ts` + `INDEX_EVIDENCE_MATRIX.md`, 11 índices cobertos), Panorama refactor final em tela de decisão (`panorama-model.ts` único motor, pesos 40/35/25, modulação PK por cap progressivo, trinca clicável navega pras abas), e QA visual mobile (overflow TabNav corrigido + 20 charts ganharam `initialDimension` Recharts).
 - 2026-05-26: 13 commits em 3 frentes coordenadas. (1) Foundation: `CHART_TOKENS` + `useChartBrush` em `components/charts/shared/`. (2) Panorama virou tela de exploração aditiva — `PillarGaugeBars` substitui sparkline; `PanoramaCompositeChart` (com brush) substitui `panorama-history-chart.tsx`; `RecoveryIndexChart` ganhou zoom sincronizado + sleep debt; três accordions novos colapsados por padrão (`PillarMiniCharts`, `PKTimelineChart`, `IndexRadarSnapshot`). (3) Insights migrou pra paleta `CHART_TOKENS` (heatmap-helpers, `PKMoodScatterChart`, `LagCorrelationChart`, `TempHumorCorrelation`) como polimento visual antes de reestruturação narrativa maior — esta última segue em brainstorm pausado (checkpoint `/root/RooCode/.superpowers/brainstorm/RESUME_INSIGHTS.md`, parou na Q#7).
+- 2026-06-14: frente **Coração** — consolidação + validação dos marcadores cardíacos. Auditoria dos 11 marcadores; idade CV removida, HRmax→Tanaka, reserva/HRV tendência-pura, cronotrópica renomeada; cardíaco migrou de Recuperação/Capacidade pra aba Coração (4 seções); polimento visual (tooltip global `ChartTooltip` + gap "liso+sinalizado"). 14 commits na main local (push pendente). Spec/plano em `docs/superpowers/`.
+- 2026-06-15: onda **Codex** — módulo Cognição (aferição cognitiva longitudinal, feature independente). Specs no Claude desktop, implementação pelo Codex. **Não-commitada** no working tree na data deste handoff. Detalhe em `AGENTS.md`.
 
 10 sprints concluídas até 2026-05-11: REG-0..5, Cross-Domain Insights (A/B/C), Codex Cleanup, PK×Humor Methodology, M1-M7, R, D, D-patch1. Detalhes em `docs/HISTORY/ROADMAP_maturation.md`, `docs/HISTORY/ROADMAP.md`, `docs/HISTORY/AGENTS.md` ou `git log --oneline`.

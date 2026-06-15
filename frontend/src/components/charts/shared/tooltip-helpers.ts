@@ -1,3 +1,15 @@
+/**
+ * Defaults compartilhados pro <Tooltip> do Recharts em todos os charts.
+ * `position={{ y: 8 }}` ancora o tooltip no topo da área de plotagem (o x segue
+ * o cursor), então ele nunca se sobrepõe às linhas. `allowEscapeViewBox.y` deixa
+ * escapar pra cima quando necessário; `zIndex` garante que fique acima do SVG.
+ */
+export const TOOLTIP_DEFAULTS = {
+  position: { y: 8 },
+  allowEscapeViewBox: { x: false, y: true },
+  wrapperStyle: { zIndex: 30, pointerEvents: 'none' as const },
+} as const
+
 type TooltipItemLike = {
   payload?: unknown
 } | undefined

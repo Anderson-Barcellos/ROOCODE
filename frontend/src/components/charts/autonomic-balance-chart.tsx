@@ -16,6 +16,7 @@ import { CardScoreBadge } from '@/components/cards/CardScoreBadge'
 import { calculateDayGapDays, dayLabel } from '@/utils/aggregation'
 import { CHART_REQUIREMENTS, evaluateReadiness } from '@/utils/data-readiness'
 import { DataReadinessGate } from '@/components/charts/shared/DataReadinessGate'
+import { TOOLTIP_DEFAULTS } from '@/components/charts/shared/tooltip-helpers'
 import { sma } from '@/utils/statistics'
 import {
   ABI_BAND_THRESHOLD,
@@ -46,6 +47,7 @@ interface ChartRow {
   label: string
   abiReal: number | null
   abiInterp: number | null
+  abiBridge: number | null
   sma7: number | null
   components: AbiComponents | null
   derivedFromInterpolated: boolean
@@ -112,6 +114,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
           : prevIsInterp || nextIsInterp
             ? (point?.abi ?? null)
             : null,
+      abiBridge: point?.abi ?? null,
       sma7: smaValues[idx],
       components: point?.components ?? null,
       derivedFromInterpolated: isInterp,
@@ -132,6 +135,7 @@ function buildRows(baselineSnapshots: DailySnapshot[], snapshots: DailySnapshot[
         label: '',
         abiReal: null,
         abiInterp: null,
+        abiBridge: null,
         sma7: null,
         components: null,
         derivedFromInterpolated: false,
@@ -256,7 +260,21 @@ export function AutonomicBalanceChart({ snapshots, baselineSnapshots }: Autonomi
           <ReferenceArea y1={-ABI_BAND_THRESHOLD} y2={ABI_BAND_THRESHOLD} fill={COLOR_AMBER} fillOpacity={0.06} />
           <ReferenceArea y1={ABI_BAND_THRESHOLD} y2={yDomain[1]} fill={COLOR_GREEN} fillOpacity={0.08} />
           <ReferenceLine y={0} stroke="rgba(15,23,42,0.25)" strokeDasharray="4 3" strokeWidth={1} />
-          <Tooltip content={<AbiTooltip />} />
+          <Tooltip {...TOOLTIP_DEFAULTS} content={<AbiTooltip />} />
+          <Line
+            type="monotone"
+            dataKey="abiBridge"
+            stroke={COLOR_LINE}
+            strokeWidth={1.2}
+            strokeOpacity={0.22}
+            strokeDasharray="1 5"
+            dot={false}
+            activeDot={false}
+            connectNulls
+            name="ABI (ligação visual)"
+            legendType="none"
+            isAnimationActive={false}
+          />
           <Line
             type="monotone"
             dataKey="abiReal"

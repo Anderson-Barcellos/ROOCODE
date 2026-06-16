@@ -8,6 +8,7 @@ from Mood.mood import router as mood_router
 from Farma.router import router as farma_router
 from Interpolate.router import router as interpolate_router
 from Forecast.router import router as forecast_router
+from Cognition.router import router as cognition_router
 
 app = FastAPI(title="RooCode API", version="1.0.0")
 
@@ -24,6 +25,7 @@ app.include_router(mood_router, prefix="/mood", tags=["mood"])
 app.include_router(farma_router, prefix="/farma", tags=["farma"])
 app.include_router(interpolate_router, prefix="/interpolate", tags=["interpolate"])
 app.include_router(forecast_router, prefix="/forecast", tags=["forecast"])
+app.include_router(cognition_router, prefix="/cognition", tags=["cognition"])
 
 
 if __name__ == "__main__":

@@ -61,6 +61,7 @@ import { PKTimelineChart } from '@/components/charts/pk-timeline-chart'
 import { IndexRadarSnapshot } from '@/components/charts/index-radar-snapshot'
 import { PanoramaWeeklyRegimeCard } from '@/components/charts/panorama-weekly-regime-card'
 import { InterpolationDemo } from '@/pages/InterpolationDemo'
+import { CognitionDailySection } from '@/components/cognition/CognitionDailySection'
 import { useRooCodeData } from '@/hooks/useRooCodeData'
 import type { DailySnapshot } from '@/types/apple-health'
 import { selectSnapshotRange } from '@/utils/aggregation'
@@ -320,7 +321,7 @@ export default function App() {
   const [panoramaBrushRange, setPanoramaBrushRange] = useState<PanoramaBrushRange | null>(null)
   const pendingCapacityAnchorRef = useRef<string | null>(null)
   const navigateToTab = (tab: TabKey) => {
-    if (FARMACO_ONLY_MODE && tab !== 'farmaco' && tab !== 'sono' && tab !== 'coracao') return
+    if (FARMACO_ONLY_MODE && tab !== 'farmaco' && tab !== 'sono' && tab !== 'coracao' && tab !== 'cognicao') return
     setActiveTab(tab)
   }
   const data = useRooCodeData(interpolation, 'on')
@@ -446,6 +447,8 @@ export default function App() {
       ? 'RooCode · Sono em foco'
       : activeTab === 'coracao'
         ? 'RooCode · Coração em foco'
+        : activeTab === 'cognicao'
+          ? 'RooCode · Cognição em foco'
         : 'RooCode · Farmaco em foco'
     : activeTab === 'panorama'
     ? 'RooCode · Panorama'
@@ -455,6 +458,8 @@ export default function App() {
       ? 'Vamos entender o teu sono.'
       : activeTab === 'coracao'
         ? 'Como anda o teu coração?'
+        : activeTab === 'cognicao'
+          ? 'Como anda tua cognição hoje?'
         : 'Vamos lapidar a farmacologia primeiro.'
     : activeTab === 'panorama'
     ? 'Estado geral para decidir o dia.'
@@ -462,6 +467,8 @@ export default function App() {
   const heroDescription = FARMACO_ONLY_MODE
     ? activeTab === 'coracao'
       ? 'Seção Coração: FC de repouso e — quando houver dados suficientes — pressão arterial e a carga cardíaca do estimulante.'
+      : activeTab === 'cognicao'
+        ? 'Seção Cognição: aferição diária curta, server-side, com PVT, span e slot rotativo para baseline longitudinal.'
       : 'Modo foco: Farmaco e Sono estão ativos enquanto refinamos essas seções; as demais abas seguem em revisão.'
     : activeTab === 'panorama'
     ? 'Recuperação, sono, atividade e humor em primeiro plano. A parte farmacológica fica no detalhe da aba Farmaco.'
@@ -1030,6 +1037,10 @@ export default function App() {
                 </div>
               )}
             </SurfaceFrame>
+          )}
+
+          {activeTab === 'cognicao' && (
+            <CognitionDailySection range={range} />
           )}
 
           {activeTab === 'capacidade' && (

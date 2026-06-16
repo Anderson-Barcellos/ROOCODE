@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import type { MedicationRegimenEntry } from '@/types/pharmacology'
 import type { ForecastReport } from '@/hooks/useForecastReport'
+import type {
+  CognitiveSessionStatus,
+  CompleteCognitiveSessionInput,
+  CompleteCognitiveSessionResponse,
+  PreparedCognitionPlan,
+} from '@/types/cognition'
 
 const BASE = '/health/api'
 
@@ -248,6 +254,43 @@ export const useMood = () =>
 
 export const useMetrics = () =>
   useQuery<MetricsRecord[]>({ queryKey: ['metrics'], queryFn: () => get<MetricsRecord[]>('/metrics') })
+
+export const useCognitionStatus = (days = 30) =>
+  useQuery<CognitiveSessionStatus>({
+    queryKey: ['cognition-status', days],
+    queryFn: () => get<CognitiveSessionStatus>(`/cognition/status?days=${days}`),
+    staleTime: 30 * 1000,
+  })
+
+export const usePrepareCognitionSession = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      fetch(`${BASE}/cognition/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).then((response) => readJson<PreparedCognitionPlan>(response)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cognition-status'] })
+    },
+  })
+}
+
+export const useCompleteCognitionSession = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: CompleteCognitiveSessionInput) =>
+      fetch(`${BASE}/cognition/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).then((response) => readJson<CompleteCognitiveSessionResponse>(response)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cognition-status'] })
+    },
+  })
+}
 
 // ─── Forecast summary (agregados sem IA) ────────────────────────────────────
 

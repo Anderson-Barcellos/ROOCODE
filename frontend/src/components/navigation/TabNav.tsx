@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { useEffect, useRef, useState } from 'react'
-import { Activity, Heart, HeartPulse, LayoutDashboard, Moon, Pill, SlidersHorizontal, Sparkles, Telescope } from 'lucide-react'
+import { Activity, Brain, Heart, HeartPulse, LayoutDashboard, Moon, Pill, SlidersHorizontal, Sparkles, Telescope } from 'lucide-react'
 import type { InterpolationMode } from '@/hooks/useInterpolation'
 
-export type TabKey = 'panorama' | 'recuperacao' | 'capacidade' | 'farmaco' | 'sono' | 'coracao' | 'insights'
+export type TabKey = 'panorama' | 'recuperacao' | 'capacidade' | 'farmaco' | 'sono' | 'coracao' | 'cognicao' | 'insights'
 export type ThemeMode = 'clinical' | 'graphite' | 'contrast'
 export type DensityMode = 'cozy' | 'compact'
 
@@ -61,6 +61,7 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof LayoutDashboard }> 
   { key: 'farmaco', label: 'Farmaco', icon: Pill },
   { key: 'sono', label: 'Sono', icon: Moon },
   { key: 'coracao', label: 'Coração', icon: Heart },
+  { key: 'cognicao', label: 'Cognição', icon: Brain },
   { key: 'insights', label: 'Insights', icon: Telescope },
 ]
 

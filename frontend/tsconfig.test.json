@@ -44,6 +44,8 @@
     "src/utils/chronotropic-response.ts",
     "src/utils/driver-ranking.ts",
     "src/utils/insights-narrative.ts",
+    "src/utils/cognition-session.ts",
+    "src/types/cognition.ts",
     "tests/**/*.ts"
   ]
 }

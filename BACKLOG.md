@@ -17,6 +17,28 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Concluídos recentes
 
+- **2026-06-15** — **Nova seção Cognição Diária (P0 funcional)**. Entrou um módulo
+  independente de aferição cognitiva longitudinal com persistência server-side e
+  scoring linguístico por OpenAI. Backend novo em `Cognition/` com rotas
+  `/cognition/status`, `/cognition/materials` e `/cognition/complete`; storage
+  JSON local (`sessions.json`), rotação A→B→C por última sessão concluída,
+  PVT/Span/Fluência/Reading/Flanker com métricas e respostas cruas persistidas.
+  Wrapper dedicado em `Cognition/openai_tasks.py` adiciona as categorias
+  `generate_reading_passage`, `score_reading_recall` e `score_verbal_fluency`
+  com JSON estrito + similaridade semântica por embeddings. Frontend ganhou a
+  aba **Cognição** com fluxo completo da sessão (VAS+contexto → PVT → span →
+  slot rotativo), gráfico temporal mínimo com overlay de humor e baseline
+  sombreado. Integração feita em `App.tsx`, `TabNav.tsx` e `api.ts`.
+  Validação verde: `py_compile`, `python -m unittest tests.test_cognition -v`,
+  `frontend: tsc`, `test:unit`, `lint`, `build`, `git diff --check`.
+  Runtime fechado após restart de `roocode.service` + `roocode-vite.service`,
+  com `GET http://localhost:8011/cognition/status` e
+  `GET https://ultrassom.ai/health/api/cognition/status` retornando 200.
+  Follow-up UX no mesmo dia: Digit Span agora foca automaticamente o campo de
+  resposta após a sequência e confirma com Enter, evitando a sensação de precisar
+  digitar duas vezes; tentativa errada sem encerramento também reapresenta nova
+  sequência do mesmo comprimento.
+
 - **2026-06-13** — **Aba Coração nova (3 fases)**. Fatiamento fisiológico continua no coração.
   (1) `4a989f1` FC de Repouso dedicada (faixas de risco CV ótima<65…alta≥85, tendência,
   respeita período) + aba Coração nova (TabKey, fura modo foco). (2) `efad25b` Pressão Arterial

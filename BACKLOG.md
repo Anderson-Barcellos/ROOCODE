@@ -7,6 +7,39 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Pendentes
 
+### Cognição Diária — blindagem da régua + análise (pós-auditoria 2026-06-16)
+
+Auditoria da implementação Codex contra a spec original: fidelidade alta, P0 todos
+verdes. Estes 5 itens são reforços que a spec não cobriu ou deixou em aberto.
+
+- **[P0-barato] Carimbar versão do scoring em cada sessão** — persistir
+  `scoring_model` + `embedding_model` no `session` dict (`Cognition/router.py`).
+  Risco coberto: LLM de scoring não é estável no tempo; ao trocar de modelo a série
+  ganha degrau artificial confundível com mudança cognitiva real. Como o raw já é
+  persistido, isso habilita re-scoring em lote consistente no futuro. Custo: ~2 linhas.
+
+- **[P1] Cruzar PVT × concentração de Venvanse** — puxar a concentração estimada do
+  módulo Farma (`Farma/math.py` / `pharmacokinetics.ts`) no horário da sessão e
+  correlacionar com lapses/RT do PVT. "Horas desde a dose" é o maior driver provável
+  da vigilância (estimulante). Estende o padrão PK×humor existente pra PK×cognição
+  (responde §2 da spec — correlação defasada).
+
+- **[P1] Reliable Change Index pós-baseline** — banda de mudança confiável após as
+  14 sessões de baseline. É o que transforma a série temporal em sinal interpretável
+  e testa de fato a hipótese central (desacoplamento humor×cognição). Era P1 da spec.
+
+- **[P2] Snapshot do dia vs baseline no fechamento** — a tela de fechamento mostra os
+  números do dia mas não compara com a média do baseline (§8.2 da spec ficou parcial).
+
+- **[P2] Consistência de medição** — registrar device/input method por sessão (latência
+  de toque mobile ≠ clique desktop afeta o PVT) e usar `temperature: 0` no scoring se a
+  API permitir, pra reduzir jitter de pontuação do mesmo texto.
+
+**Decisões do Codex a ratificar** (perguntas em aberto §13 que ele resolveu sozinho):
+baseline=14 (piso de "2–3 semanas"); persistir timings trial-a-trial (era "decisão do
+usuário"); `primary_score` do digit = backward; listas de fluência (`F,P,M,C,T,S,L,R` /
+categorias com produtividades heterogêneas — revisar "profissões"/"objetos de cozinha").
+
 - **Bug calibração `RESP_DIST_CAP`** — `sleep-quality-score.ts` usa cap=30 (escala
   AHI clínico) que satura o componente respiratório na faixa real (0–4,9), deixando-o
   cego. Recalibrar (cap realista ~5–8 ou percentil pessoal). Trade-off: muda a

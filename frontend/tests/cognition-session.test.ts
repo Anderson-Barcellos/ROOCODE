@@ -54,6 +54,8 @@ const fixedRng = (() => {
     pvt_response_speed: 2.3,
     pvt_median_rt_ms: 310,
     span_primary: 4,
+    venvanse_ng_ml: null,
+    hours_since_dose: null,
     slot_label: 'Fluência',
     slot_primary: 10,
     slot_exploratory: false,

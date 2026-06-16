@@ -50,6 +50,7 @@ import {
   spanLabel,
 } from '@/utils/cognition-session'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
+import { PKCognitionScatterChart } from './PKCognitionScatterChart'
 
 const STEP_LABELS = [
   'Contexto',
@@ -1409,6 +1410,18 @@ export function CognitionDailySection({ range }: { range: RangeOption }) {
               </div>
             </section>
           </div>
+
+          {timeline.some((row) => row.venvanse_ng_ml != null) && (
+            <section className="rounded-[1.6rem] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">
+              <div className="mb-4">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">Exploratório · PK × PVT</p>
+                <h3 className="mt-2 font-['Fraunces'] text-2xl tracking-[-0.04em] text-[color:var(--foreground)]">
+                  Concentração Venvanse × vigilância psicomotora
+                </h3>
+              </div>
+              <PKCognitionScatterChart rows={timeline} />
+            </section>
+          )}
 
           {(completeMutation.isError || statusQuery.data?.timeline.length === 0) && !todaySession && (
             <p className="text-sm text-[color:var(--muted)]">

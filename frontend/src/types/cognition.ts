@@ -15,6 +15,8 @@ export interface CognitiveSessionChartRow {
   pvt_response_speed: number | null
   pvt_median_rt_ms: number | null
   span_primary: number | null
+  venvanse_ng_ml: number | null
+  hours_since_dose: number | null
   slot_label: string
   slot_primary: number | null
   slot_exploratory: boolean
@@ -125,6 +127,14 @@ export interface CognitiveSessionRecord {
     interference_ms: number | null
     exploratory: boolean
   } | null
+  pk_context: {
+    venvanse_ng_ml: number
+    hours_since_dose: number
+    dose_mg: number
+    dose_source: 'dose_log' | 'context_hhmm'
+  } | null
+  scoring_model: string | null
+  embedding_model: string | null
   baseline_phase: boolean
   created_at: string
 }

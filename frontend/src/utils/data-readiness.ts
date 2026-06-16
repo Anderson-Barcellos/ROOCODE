@@ -194,6 +194,9 @@ export const CHART_REQUIREMENTS = {
   pkMoodScatter: { type: 'pairs', robustMin: 30, exploratoryMin: 15, collectingMin: 8 },
   // Lag correlation: mesma base de pares, threshold ligeiramente maior pra estabilidade.
   lagCorrelation: { type: 'pairs', robustMin: 30, exploratoryMin: 15, collectingMin: 8 },
+  // PVT × concentração Venvanse: cada par = 1 sessão cognitiva diária (não intraday),
+  // por isso os limiares são menores que pkMoodScatter. robustMin alinhado a MIN_PAIRED_DAYS_FOR_RANKING.
+  pkCognitionScatter: { type: 'pairs', robustMin: 10, exploratoryMin: 6, collectingMin: 3 },
   // Fase 10D — charts clínicos novos
   respiratoryDisturbancesChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'respiratoryDisturbances' },
   vitalSignsTimelineChart: { type: 'days', robustMin: 21, exploratoryMin: 10, collectingMin: 5, field: 'respiratoryRate' },

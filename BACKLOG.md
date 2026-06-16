@@ -10,19 +10,7 @@ Histórico arquivado em `docs/HISTORY/`.
 ### Cognição Diária — blindagem da régua + análise (pós-auditoria 2026-06-16)
 
 Auditoria da implementação Codex contra a spec original: fidelidade alta, P0 todos
-verdes. Estes 5 itens são reforços que a spec não cobriu ou deixou em aberto.
-
-- **[P0-barato] Carimbar versão do scoring em cada sessão** — persistir
-  `scoring_model` + `embedding_model` no `session` dict (`Cognition/router.py`).
-  Risco coberto: LLM de scoring não é estável no tempo; ao trocar de modelo a série
-  ganha degrau artificial confundível com mudança cognitiva real. Como o raw já é
-  persistido, isso habilita re-scoring em lote consistente no futuro. Custo: ~2 linhas.
-
-- **[P1] Cruzar PVT × concentração de Venvanse** — puxar a concentração estimada do
-  módulo Farma (`Farma/math.py` / `pharmacokinetics.ts`) no horário da sessão e
-  correlacionar com lapses/RT do PVT. "Horas desde a dose" é o maior driver provável
-  da vigilância (estimulante). Estende o padrão PK×humor existente pra PK×cognição
-  (responde §2 da spec — correlação defasada).
+verdes. Estes itens são reforços que a spec não cobriu ou deixou em aberto.
 
 - **[P1] Reliable Change Index pós-baseline** — banda de mudança confiável após as
   14 sessões de baseline. É o que transforma a série temporal em sinal interpretável
@@ -49,6 +37,18 @@ categorias com produtividades heterogêneas — revisar "profissões"/"objetos d
 ---
 
 ## Concluídos recentes
+
+- **2026-06-16** — **Cognição: PVT × PK Venvanse + carimbo de scoring** (tickets #1+#2 da
+  auditoria). Helper puro `Cognition/pk_enrichment.py` calcula a concentração estimada de
+  Venvanse no horário da sessão reusando `Farma.math` (dose real do dose_log ≤24h, fallback
+  `vyvanse_taken_at` HH:MM), sem acoplar `Farma.router`. `/complete` carimba `pk_context`
+  {venvanse_ng_ml, hours_since_dose, dose_mg, dose_source} + `scoring_model`/`embedding_model`
+  (blindagem contra drift de LLM). Frontend: `PKCognitionScatterChart` reusa
+  `inferIntradayCorrelation` (Pearson/Spearman+permutation+IC95%) com toggle eixo X
+  (concentração ↔ horas desde a dose) e métrica Y (lapses ↔ RT mediana); `DataReadinessGate`
+  com `pkCognitionScatter` (robustMin=10). Retrocompat: sessões antigas → null. Gates verdes
+  (unittest 9/9, tsc, test:unit, lint, build); QA visual r=-0.82 p=0.006 n=10. Commits
+  bae3c58, 7ead5b8.
 
 - **2026-06-15** — **Nova seção Cognição Diária (P0 funcional)**. Entrou um módulo
   independente de aferição cognitiva longitudinal com persistência server-side e

@@ -188,5 +188,118 @@ class CognitionEndpointTests(unittest.TestCase):
         self.assertEqual(second.status_code, 409)
 
 
+class CognitionPKEnrichmentTests(unittest.TestCase):
+    def test_concentration_deterministic(self) -> None:
+        from Cognition import pk_enrichment
+        from Farma.math import (
+            concentration_at_time,
+            get_substance_profile,
+            _profile_volume_of_distribution,
+        )
+        from Profile import DEFAULT_BODY_WEIGHT_KG
+
+        dose_at = datetime(2026, 4, 20, 12, 0, tzinfo=timezone.utc)
+        with patch.object(
+            pk_enrichment,
+            "_load_venvanse_doses_from_log",
+            return_value=[(dose_at, 210.0)],
+        ):
+            result = pk_enrichment.enrich_session_pk(
+                "2026-04-20T15:00:00+00:00", {"vyvanse_taken_at": None}
+            )
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["dose_source"], "dose_log")
+        self.assertEqual(result["hours_since_dose"], 3.0)
+
+        profile = get_substance_profile("venvanse")
+        vd = _profile_volume_of_distribution(profile, DEFAULT_BODY_WEIGHT_KG)
+        expected = (
+            concentration_at_time(
+                210.0, profile["ka_per_hour"], profile["ke_per_hour"], vd, 3.0,
+                bioavailability=profile.get("bioavailability", 1.0),
+            )
+            * 1000.0
+        )
+        self.assertAlmostEqual(result["venvanse_ng_ml"], round(expected, 4), places=4)
+
+    def test_pk_context_null_when_no_dose(self) -> None:
+        from Cognition import pk_enrichment
+
+        with patch.object(pk_enrichment, "_load_venvanse_doses_from_log", return_value=[]):
+            result = pk_enrichment.enrich_session_pk(
+                "2026-04-20T15:00:00+00:00", {"vyvanse_taken_at": None}
+            )
+        self.assertIsNone(result)
+
+    def test_fallback_hhmm_dose_source(self) -> None:
+        from Cognition import pk_enrichment
+
+        with patch.object(pk_enrichment, "_load_venvanse_doses_from_log", return_value=[]):
+            # started_at 15:00 UTC = 12:00 BRT; dose "08:30" BRT = 3.5h antes
+            result = pk_enrichment.enrich_session_pk(
+                "2026-06-16T15:00:00+00:00", {"vyvanse_taken_at": "08:30"}
+            )
+        self.assertIsNotNone(result)
+        assert result is not None
+        self.assertEqual(result["dose_source"], "context_hhmm")
+        self.assertAlmostEqual(result["hours_since_dose"], 3.5, places=3)
+        self.assertEqual(result["dose_mg"], pk_enrichment.DEFAULT_REGIMEN_DOSE_MG)
+
+    @patch("Cognition.router.score_verbal_fluency")
+    @patch(
+        "Cognition.router.enrich_session_pk",
+        return_value={
+            "venvanse_ng_ml": 42.5,
+            "hours_since_dose": 3.0,
+            "dose_mg": 210.0,
+            "dose_source": "dose_log",
+        },
+    )
+    def test_complete_session_persists_pk_context(
+        self, _mock_pk: Any, mock_score_fluency: Any
+    ) -> None:
+        mock_score_fluency.return_value = {
+            "valid_count": 5,
+            "invalid": [],
+            "repeats": [],
+            "clusters": [],
+            "mean_cluster_size": 1.0,
+            "switch_count": 0,
+        }
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        original_path = cognition_storage.SESSIONS_PATH
+        cognition_storage.SESSIONS_PATH = Path(temp_dir.name) / "sessions.json"
+        self.addCleanup(lambda: setattr(cognition_storage, "SESSIONS_PATH", original_path))
+        app = FastAPI()
+        app.include_router(cognition_router.router, prefix="/cognition")
+        client = TestClient(app)
+
+        response = client.post("/cognition/complete", json=_session_payload())
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["session"]["pk_context"]["venvanse_ng_ml"], 42.5)
+        self.assertEqual(payload["session"]["scoring_model"], cognition_router.DEFAULT_CHAT_MODEL)
+        self.assertEqual(payload["summary"]["venvanse_ng_ml"], 42.5)
+        self.assertEqual(payload["summary"]["hours_since_dose"], 3.0)
+
+    def test_old_session_without_pk_context_tolerates_chart_row(self) -> None:
+        row = cognition_router._session_chart_row(
+            {
+                "id": "legacy",
+                "started_at": "2026-04-01T15:00:00+00:00",
+                "rotating_type": "C",
+                "vas": {"mood": 50, "energy": 50, "anxiety": 20},
+                "pvt": {"lapses_count": 1},
+                "span": {"primary_score": 5},
+                "flanker": {"interference_ms": 40.0},
+            }
+        )
+        self.assertIsNone(row["venvanse_ng_ml"])
+        self.assertIsNone(row["hours_since_dose"])
+
+
 if __name__ == "__main__":
     unittest.main()

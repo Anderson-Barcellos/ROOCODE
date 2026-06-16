@@ -14,10 +14,13 @@ from pydantic import BaseModel, Field, field_validator
 
 from Cognition import storage
 from Cognition.openai_tasks import (
+    DEFAULT_CHAT_MODEL,
+    DEFAULT_EMBEDDING_MODEL,
     generate_reading_passage,
     score_reading_recall,
     score_verbal_fluency,
 )
+from Cognition.pk_enrichment import enrich_session_pk
 
 router = APIRouter()
 
@@ -384,6 +387,7 @@ def _slot_summary(session: dict[str, Any]) -> tuple[str, float | None, bool]:
 def _session_chart_row(session: dict[str, Any]) -> dict[str, Any]:
     pvt = session.get("pvt") or {}
     span = session.get("span") or {}
+    pk = session.get("pk_context") or {}
     slot_label, slot_primary, exploratory = _slot_summary(session)
     return {
         "id": session.get("id"),
@@ -397,6 +401,8 @@ def _session_chart_row(session: dict[str, Any]) -> dict[str, Any]:
         "pvt_response_speed": pvt.get("response_speed_mean"),
         "pvt_median_rt_ms": pvt.get("median_rt_ms"),
         "span_primary": span.get("primary_score"),
+        "venvanse_ng_ml": pk.get("venvanse_ng_ml"),
+        "hours_since_dose": pk.get("hours_since_dose"),
         "slot_label": slot_label,
         "slot_primary": slot_primary,
         "slot_exploratory": exploratory,
@@ -464,6 +470,7 @@ async def cognition_complete(body: CompleteSessionPayload) -> JSONResponse:
     session_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     baseline_phase = len(sessions) < 14
+    pk_context = enrich_session_pk(body.started_at, body.context.model_dump())
     session = {
         "id": session_id,
         "user_id": "default",
@@ -476,6 +483,9 @@ async def cognition_complete(body: CompleteSessionPayload) -> JSONResponse:
         "fluency": fluency_result,
         "reading": reading_result,
         "flanker": flanker_result,
+        "pk_context": pk_context,
+        "scoring_model": DEFAULT_CHAT_MODEL,
+        "embedding_model": DEFAULT_EMBEDDING_MODEL,
         "baseline_phase": baseline_phase,
         "created_at": created_at,
     }

@@ -12,10 +12,6 @@ Histórico arquivado em `docs/HISTORY/`.
 Auditoria da implementação Codex contra a spec original: fidelidade alta, P0 todos
 verdes. Estes itens são reforços que a spec não cobriu ou deixou em aberto.
 
-- **[P1] Reliable Change Index pós-baseline** — banda de mudança confiável após as
-  14 sessões de baseline. É o que transforma a série temporal em sinal interpretável
-  e testa de fato a hipótese central (desacoplamento humor×cognição). Era P1 da spec.
-
 - **[P2] Snapshot do dia vs baseline no fechamento** — a tela de fechamento mostra os
   números do dia mas não compara com a média do baseline (§8.2 da spec ficou parcial).
 
@@ -37,6 +33,19 @@ categorias com produtividades heterogêneas — revisar "profissões"/"objetos d
 ---
 
 ## Concluídos recentes
+
+- **2026-06-18** — **Cognição: Régua de mudança confiável (RCI + SPC)** (ticket [P1]).
+  Util puro `frontend/src/utils/cognition-reliable-change.ts`: banda de controle individual
+  (média ± 2σ/3σ, reusa `computeRollingBaseline` com SD n-1) + RCI Jacobson-Truax
+  (`(x−μ)/(σ·√(2(1−r_xx)))`, |RCI|≥1.96), mapa de polaridade cognitiva (antes só inline) e
+  `detectDecoupling` humor×cognição. r_xx de literatura ratificável (PVT 0.80, span/VAS 0.70).
+  Rotativos fora (n<6). Cálculo 100% frontend sobre o `timeline` (cada row já traz
+  `baseline_phase`); subsistema isolado, proveniência local — não na matriz `index-evidence`.
+  UI: `TimelineChart` ganha ReferenceLines da banda (rotativo fica fora) + migra para
+  `ChartTooltip`; card novo "Régua de mudança confiável" com baseline mean±sd por eixo +
+  contagem melhora/piora + bloco de desacoplamento. Tudo sob `baseline_complete` (N<14 →
+  oculto sem quebrar). Gates verdes (test:unit incl. caso novo, tsc, lint, build). Commits
+  6976ae7 (util+testes) + cacf988 (UI). Decisões de método batidas com Anders nesta sessão.
 
 - **2026-06-16** — **Cognição: PVT × PK Venvanse + carimbo de scoring** (tickets #1+#2 da
   auditoria). Helper puro `Cognition/pk_enrichment.py` calcula a concentração estimada de

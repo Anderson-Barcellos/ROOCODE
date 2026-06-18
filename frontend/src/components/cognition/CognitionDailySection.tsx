@@ -18,8 +18,8 @@ import {
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
@@ -50,6 +50,16 @@ import {
   spanLabel,
 } from '@/utils/cognition-session'
 import { CHART_TOKENS } from '@/components/charts/shared/chart-tokens'
+import { ChartTooltip } from '@/components/charts/shared/ChartTooltip'
+import {
+  COGNITIVE_POLARITY,
+  COGNITIVE_RELIABILITY,
+  classifyChange,
+  computeBaselineStats,
+  detectDecoupling,
+  spcBands,
+  type ReliableMetricKey,
+} from '@/utils/cognition-reliable-change'
 import { PKCognitionScatterChart } from './PKCognitionScatterChart'
 
 const STEP_LABELS = [
@@ -1010,6 +1020,12 @@ function TimelineChart({
 }) {
   const [metric, setMetric] = useState<TimelineMetricKey>('pvt_lapses')
   const baseline = useMemo(() => baselineWindow(rows), [rows])
+  // Banda de controle só para métricas medidas toda sessão; rotativo fica fora.
+  const bands = useMemo(() => {
+    if (metric === 'slot_primary') return null
+    const stats = computeBaselineStats(rows, metric)
+    return stats ? spcBands(stats) : null
+  }, [rows, metric])
 
   if (!rows.length) {
     return <EmptyAnalyticsState message="Ainda não há sessões suficientes para desenhar a série temporal." />
@@ -1045,7 +1061,7 @@ function TimelineChart({
             <XAxis dataKey="date" tickFormatter={localDateLabel} stroke={CHART_TOKENS.ui.axis} />
             <YAxis yAxisId="left" stroke={CHART_TOKENS.ui.axis} />
             <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke={CHART_TOKENS.ui.axis} />
-            <Tooltip
+            <ChartTooltip
               contentStyle={{
                 borderRadius: 16,
                 border: '1px solid var(--border)',
@@ -1066,6 +1082,14 @@ function TimelineChart({
                 fill={CHART_TOKENS.fill.attention}
                 fillOpacity={0.18}
               />
+            )}
+            {bands && (
+              <>
+                <ReferenceLine yAxisId="left" y={bands.warnHigh} stroke={CHART_TOKENS.fill.attention} strokeDasharray="4 4" strokeOpacity={0.7} />
+                <ReferenceLine yAxisId="left" y={bands.warnLow} stroke={CHART_TOKENS.fill.attention} strokeDasharray="4 4" strokeOpacity={0.7} />
+                <ReferenceLine yAxisId="left" y={bands.signalHigh} stroke={CHART_TOKENS.fill.critical} strokeDasharray="2 4" strokeOpacity={0.85} />
+                <ReferenceLine yAxisId="left" y={bands.signalLow} stroke={CHART_TOKENS.fill.critical} strokeDasharray="2 4" strokeOpacity={0.85} />
+              </>
             )}
             <Line
               yAxisId="left"
@@ -1091,6 +1115,79 @@ function TimelineChart({
         </ResponsiveContainer>
       </div>
     </div>
+  )
+}
+
+const RELIABLE_CARD_METRICS: Array<{ key: ReliableMetricKey; label: string }> = [
+  { key: 'pvt_lapses', label: 'Lapses PVT' },
+  { key: 'pvt_response_speed', label: 'Velocidade PVT' },
+  { key: 'span_primary', label: 'Span' },
+  { key: 'mood', label: 'Humor' },
+  { key: 'energy', label: 'Energia' },
+  { key: 'anxiety', label: 'Ansiedade' },
+]
+
+function formatStat(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
+function ReliableChangeCard({ rows }: { rows: CognitiveSessionChartRow[] }) {
+  const summary = useMemo(() => {
+    const perMetric = RELIABLE_CARD_METRICS.map(({ key, label }) => {
+      const stats = computeBaselineStats(rows, key)
+      if (!stats) return null
+      let improve = 0
+      let worsen = 0
+      for (const row of rows) {
+        if (row.baseline_phase) continue
+        const change = classifyChange(row[key], stats, COGNITIVE_RELIABILITY[key], COGNITIVE_POLARITY[key])
+        if (!change || change.band === 'within') continue
+        if (change.direction === 'improve') improve += 1
+        else if (change.direction === 'worsen') worsen += 1
+      }
+      return { key, label, stats, improve, worsen }
+    }).filter((entry): entry is NonNullable<typeof entry> => entry != null)
+    return { perMetric, decoupling: detectDecoupling(rows) }
+  }, [rows])
+
+  if (!summary.perMetric.length) return null
+
+  const { decoupling } = summary
+  return (
+    <section className="rounded-[1.6rem] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">
+      <div className="mb-4">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">Régua de mudança confiável</p>
+        <h3 className="mt-2 font-['Fraunces'] text-2xl tracking-[-0.04em] text-[color:var(--foreground)]">
+          Banda de controle (±2σ/±3σ) + RCI sobre o baseline
+        </h3>
+      </div>
+      <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card-strong)] p-4 text-sm leading-6 text-[color:var(--muted)]">
+        {decoupling.evaluatedCount > 0 ? (
+          <>
+            Cognição e humor se desacoplaram em{' '}
+            <strong className="text-[color:var(--foreground)]">{decoupling.decoupledCount}</strong> de{' '}
+            {decoupling.evaluatedCount} sessões pós-baseline — um eixo cruzou a régua sem o outro acompanhar.
+          </>
+        ) : (
+          <>Ainda sem sessões pós-baseline para avaliar o desacoplamento humor×cognição.</>
+        )}
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {summary.perMetric.map((metric) => (
+          <div key={metric.key} className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--card-strong)] p-4">
+            <p className="text-sm font-semibold text-[color:var(--foreground)]">{metric.label}</p>
+            <p className="mt-1 text-xs text-[color:var(--muted)]">
+              baseline {formatStat(metric.stats.mean)} ± {formatStat(metric.stats.sd)} (n={metric.stats.n})
+            </p>
+            <p className="mt-2 text-xs">
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">↑ {metric.improve} melhora</span>
+              <span className="text-[color:var(--muted)]"> · </span>
+              <span className="font-semibold text-rose-600 dark:text-rose-400">↓ {metric.worsen} piora</span>
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -1410,6 +1507,8 @@ export function CognitionDailySection({ range }: { range: RangeOption }) {
               </div>
             </section>
           </div>
+
+          {baselineComplete && <ReliableChangeCard rows={timeline} />}
 
           {timeline.some((row) => row.venvanse_ng_ml != null) && (
             <section className="rounded-[1.6rem] border border-[color:var(--border)] bg-[color:var(--card)] p-5 shadow-[var(--shadow)]">

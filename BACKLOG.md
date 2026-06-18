@@ -13,8 +13,16 @@ Auditoria da implementação Codex contra a spec original: fidelidade alta, P0 t
 verdes. Estes itens são reforços que a spec não cobriu ou deixou em aberto.
 
 - **[P2] Consistência de medição** — registrar device/input method por sessão (latência
-  de toque mobile ≠ clique desktop afeta o PVT) e usar `temperature: 0` no scoring se a
-  API permitir, pra reduzir jitter de pontuação do mesmo texto.
+  de toque mobile ≠ clique desktop afeta o PVT).
+  - **`temperature: 0` é INCOMPATÍVEL** com o scoring atual: `Cognition/openai_tasks.py`
+    usa `gpt-5.1` + `reasoning_effort: high`, e modelos de reasoning da OpenAI só aceitam
+    `temperature` default (setar 0 → HTTP 400, mesmo padrão do `xhigh` rejeitado no forecast).
+    Alavanca compatível pra reduzir jitter de pontuar o mesmo texto: **`seed` fixo** nas
+    chamadas de SCORING (`_chat_json` em score_reading_recall / score_verbal_fluency) — NÃO
+    na geração de texto (`generate_reading_passage`, que deve variar). Exige 1 teste real
+    contra a API pra confirmar que gpt-5.1 aceita `seed` antes de commitar (não validado).
+  - device/input method: toca schema (`CognitiveContextInput` front + `context` backend +
+    persistência) — não é one-liner.
 
 **Decisões do Codex a ratificar** (perguntas em aberto §13 que ele resolveu sozinho):
 baseline=14 (piso de "2–3 semanas"); persistir timings trial-a-trial (era "decisão do

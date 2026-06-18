@@ -12,9 +12,6 @@ Histórico arquivado em `docs/HISTORY/`.
 Auditoria da implementação Codex contra a spec original: fidelidade alta, P0 todos
 verdes. Estes itens são reforços que a spec não cobriu ou deixou em aberto.
 
-- **[P2] Snapshot do dia vs baseline no fechamento** — a tela de fechamento mostra os
-  números do dia mas não compara com a média do baseline (§8.2 da spec ficou parcial).
-
 - **[P2] Consistência de medição** — registrar device/input method por sessão (latência
   de toque mobile ≠ clique desktop afeta o PVT) e usar `temperature: 0` no scoring se a
   API permitir, pra reduzir jitter de pontuação do mesmo texto.
@@ -33,6 +30,14 @@ categorias com produtividades heterogêneas — revisar "profissões"/"objetos d
 ---
 
 ## Concluídos recentes
+
+- **2026-06-18** — **Cognição: Snapshot dia vs baseline no card de hoje** (ticket [P2]).
+  Componente `DayVsBaseline` no card "Concluído hoje": cada métrica elegível (Humor, Lapses
+  PVT, Span) ganha selo de banda (dentro/↑acima/↓abaixo · melhora/piora, seta pelo valor +
+  valência pela polaridade) + delta bruto (`baseline 4 · +8`). Reusa `classifyChange`/
+  `computeBaselineStats` da régua — mesma maquinaria, então o snapshot do dia nunca contradiz
+  o card agregado. Rotativo fica sem selo (fora da régua); N<14 mostra "baseline em construção".
+  Gates verdes (tsc, lint, build, test:unit). Decisões de design batidas com Anders no brainstorm.
 
 - **2026-06-18** — **Cognição: Régua de mudança confiável (RCI + SPC)** (ticket [P1]).
   Util puro `frontend/src/utils/cognition-reliable-change.ts`: banda de controle individual

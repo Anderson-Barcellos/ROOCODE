@@ -1131,6 +1131,58 @@ function formatStat(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
+/**
+ * Snapshot da métrica de hoje contra o baseline — a régua de mudança confiável
+ * apontada para a sessão corrente. Reusa classifyChange; o baseline vem das 14
+ * primeiras sessões (a de hoje tem baseline_phase=false, não se autocontamina).
+ */
+function DayVsBaseline({
+  value,
+  metricKey,
+  rows,
+  baselineCount,
+}: {
+  value: number | null
+  metricKey: ReliableMetricKey
+  rows: CognitiveSessionChartRow[]
+  baselineCount: number
+}) {
+  if (value == null) return null
+  const stats = computeBaselineStats(rows, metricKey)
+  if (!stats) {
+    return (
+      <div className="mt-1 text-[0.62rem] font-medium text-emerald-700/65 dark:text-emerald-300/65">
+        baseline em construção ({baselineCount}/14)
+      </div>
+    )
+  }
+
+  const change = classifyChange(value, stats, COGNITIVE_RELIABILITY[metricKey], COGNITIVE_POLARITY[metricKey])
+  const delta = value - stats.mean
+  const deltaLabel = `baseline ${formatStat(stats.mean)} · ${delta >= 0 ? '+' : '−'}${formatStat(Math.abs(delta))}`
+
+  let badgeText = 'dentro do esperado'
+  let badgeClass = 'text-emerald-700/70 dark:text-emerald-300/70'
+  if (change && change.band !== 'within') {
+    const arrow = value > stats.mean ? '↑' : '↓'
+    const position = value > stats.mean ? 'acima' : 'abaixo'
+    const valence = change.direction === 'improve' ? 'melhora' : 'piora'
+    const intensity = change.band === 'signal' ? ' forte' : ''
+    badgeText = `${arrow} ${position} · ${valence}${intensity}`
+    badgeClass =
+      change.direction === 'improve'
+        ? 'font-semibold text-emerald-700 dark:text-emerald-300'
+        : 'font-semibold text-rose-600 dark:text-rose-300'
+  }
+
+  return (
+    <div className="mt-1 space-y-0.5">
+      <div className={`text-[0.62rem] ${badgeClass}`}>{badgeText}</div>
+      <div className="text-[0.6rem] text-emerald-700/55 dark:text-emerald-300/55">{deltaLabel}</div>
+    </div>
+  )
+}
+
 function ReliableChangeCard({ rows }: { rows: CognitiveSessionChartRow[] }) {
   const summary = useMemo(() => {
     const perMetric = RELIABLE_CARD_METRICS.map(({ key, label }) => {
@@ -1459,14 +1511,17 @@ export function CognitionDailySection({ range }: { range: RangeOption }) {
                 <div className="rounded-xl border border-emerald-200 dark:border-emerald-400/30 bg-white/70 dark:bg-slate-900/35 p-3">
                   <div className="text-[0.68rem] uppercase tracking-[0.18em] text-emerald-700/75 dark:text-emerald-300/80">Humor</div>
                   <div className="mt-1 text-xl font-bold">{todaySession.vas.mood}</div>
+                  <DayVsBaseline value={todaySession.vas.mood} metricKey="mood" rows={timeline} baselineCount={baselineCount} />
                 </div>
                 <div className="rounded-xl border border-emerald-200 dark:border-emerald-400/30 bg-white/70 dark:bg-slate-900/35 p-3">
                   <div className="text-[0.68rem] uppercase tracking-[0.18em] text-emerald-700/75 dark:text-emerald-300/80">Lapses PVT</div>
                   <div className="mt-1 text-xl font-bold">{todaySession.pvt.lapses_count}</div>
+                  <DayVsBaseline value={todaySession.pvt.lapses_count} metricKey="pvt_lapses" rows={timeline} baselineCount={baselineCount} />
                 </div>
                 <div className="rounded-xl border border-emerald-200 dark:border-emerald-400/30 bg-white/70 dark:bg-slate-900/35 p-3">
                   <div className="text-[0.68rem] uppercase tracking-[0.18em] text-emerald-700/75 dark:text-emerald-300/80">Span</div>
                   <div className="mt-1 text-xl font-bold">{todaySession.span.primary_score}</div>
+                  <DayVsBaseline value={todaySession.span.primary_score} metricKey="span_primary" rows={timeline} baselineCount={baselineCount} />
                 </div>
                 <div className="rounded-xl border border-emerald-200 dark:border-emerald-400/30 bg-white/70 dark:bg-slate-900/35 p-3">
                   <div className="text-[0.68rem] uppercase tracking-[0.18em] text-emerald-700/75 dark:text-emerald-300/80">Rotativo</div>

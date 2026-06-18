@@ -7,6 +7,32 @@ Histórico arquivado em `docs/HISTORY/`.
 
 ## Pendentes
 
+### Forecast — análise PK com code interpreter (pedido Anders 2026-06-18)
+
+Dar ao modelo de IA do forecast uma análise das concentrações de medicamentos +
+correlações matemáticas diretas, com `code_interpreter` disponível pra cálculo, em
+`gpt-5.4`. **Não é flag — é mudança de transport.** Descobertas da exploração:
+
+- **Concentrações já estão no contexto:** `Forecast/payload_helpers.py` calcula PK ao
+  meio-dia via `Farma.math.concentration_at_time` (lexapro/lamictal/venvanse, ng/mL) e o
+  prompt injeta `PK_CONTEXT_JSON` (`Forecast/router.py:548`). O modelo já "vê" os dados.
+- **`code_interpreter` exige Responses API.** O forecast hoje usa `/chat/completions`
+  (`_call_openai`, `router.py:114`) — que NÃO suporta hosted tools. Code interpreter vive em
+  `/v1/responses`. Migrar = trocar payload + parsing (output items, não `choices/message/
+  content`) **preservando o hardening de saída** (dedupe/clamp/ordem) do `/forecast`.
+  Assistants API (a outra com code interpreter) é aposentada em 2026-08-26 → Responses é o caminho.
+- **`gpt-5.4` existe** (snapshot 2026-03-05). **standard e mini suportam code interpreter;
+  Pro NÃO suporta.** gpt-5.5 já é flagship, mas Anders pediu 5.4. Validar latência real
+  (forecast roda reasoning_effort alto; `/forecast` com gpt-5.1/high levou ~48s).
+- **`/forecast/report`** (`router.py:962`, análise narrativa verbose) é o lar natural da
+  análise — não precisa mexer no `/forecast` principal (que tem hardening e funciona).
+
+**Decisões a bater antes de codar:** (1) enriquecer `/report` vs endpoint novo
+`/forecast/pk-analysis`; (2) gpt-5.4 standard vs mini; (3) code interpreter só na análise ou
+no forecast todo (recomendado: só na análise, não tocar o /forecast); (4) escopo da
+"correlação direta" — concentração PK × o quê (humor? índices compostos? sono?).
+**Exige validação real contra a Responses API antes de commitar.**
+
 ### Cognição Diária — blindagem da régua + análise (pós-auditoria 2026-06-16)
 
 Auditoria da implementação Codex contra a spec original: fidelidade alta, P0 todos

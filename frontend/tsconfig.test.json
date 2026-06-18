@@ -45,6 +45,7 @@
     "src/utils/driver-ranking.ts",
     "src/utils/insights-narrative.ts",
     "src/utils/cognition-session.ts",
+    "src/utils/cognition-reliable-change.ts",
     "src/types/cognition.ts",
     "tests/**/*.ts"
   ]
